@@ -12,7 +12,7 @@ else:
 
 setup(
     name='sqlite-browser',
-    version='0.1.0',
+    version='0.1.1',
     description='Web-based SQLite database browser.',
     long_description=long_description,
     author='Charles Leifer',
