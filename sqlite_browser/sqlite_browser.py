@@ -312,6 +312,29 @@ def drop_index(table):
         name=name,
         table=table)
 
+@app.route('/<table>/drop-trigger/', methods=['GET', 'POST'])
+@require_table
+def drop_trigger(table):
+    request_data = get_request_data()
+    name = request_data.get('name', '')
+    triggers = get_triggers(table)
+    trigger_names = [trigger.name for trigger in triggers]
+
+    if request.method == 'POST':
+        if name in trigger_names:
+            dataset.query('DROP TRIGGER "%s";' % name)
+            flash('Trigger "%s" was dropped successfully!' % name, 'success')
+            return redirect(url_for('table_structure', table=table))
+        else:
+            flash('Trigger name is required.', 'danger')
+
+    return render_template(
+        'drop_trigger.html',
+        triggers=triggers,
+        trigger_names=trigger_names,
+        name=name,
+        table=table)
+
 @app.route('/<table>/content/')
 @require_table
 def table_content(table):

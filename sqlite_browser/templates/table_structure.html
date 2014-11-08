@@ -140,6 +140,7 @@
         <tr>
           <th>Name</th>
           <th>SQL</th>
+          <th>Drop?</th>
         </tr>
       </thead>
       <tbody>
@@ -149,6 +150,9 @@
             <td>
               <a class="view-sql" data-name="{{ trigger.name }}" href="#">SQL</a>
               <pre style="display:none;">{{ trigger.sql }}</pre>
+            </td>
+            <td>
+              <a href="{{ url_for('drop_trigger', table=table, name=trigger.name) }}">Drop</a>
             </td>
           </tr>
         {% endfor %}

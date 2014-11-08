@@ -1,0 +1,18 @@
+{% extends "base_table.html" %}
+
+{% block inner_content %}
+<h3>Drop Trigger</h3>
+<form action="{{ url_for('drop_trigger', table=table) }}" class="form" method="post">
+  <div class="form-group">
+    <label for="id_name">Trigger name</label>
+    <select class="form-control" id="id_name" name="name">
+      <option value="">Select trigger</option>
+      {% for trigger in triggers %}
+        <option {% if trigger.name == name %}selected="selected" {% endif %}value="{{ trigger.name }}">{{ trigger.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="btn btn-danger" type="submit">Drop trigger</button>
+  <a class="btn btn-default" href="{{ url_for('table_structure', table=table) }}">Cancel</a>
+</form>
+{% endblock %}
