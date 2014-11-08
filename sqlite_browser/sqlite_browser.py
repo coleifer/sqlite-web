@@ -20,7 +20,7 @@ from playhouse.dataset import DataSet
 from playhouse.migrate import migrate
 
 
-CUR_DIR = os.path.dirname(__file__)
+CUR_DIR = os.path.realpath(os.path.dirname(__file__))
 DEBUG = False
 MAX_RESULT_SIZE = 1000
 ROWS_PER_PAGE = 50
@@ -33,6 +33,7 @@ app = Flask(
 app.config.from_object(__name__)
 dataset = None
 migrator = None
+print CUR_DIR
 
 
 if sys.version_info[0] == 3:
