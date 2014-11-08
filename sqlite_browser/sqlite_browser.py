@@ -52,6 +52,8 @@ ForeignKeyMetadata = namedtuple(
     'ForeignKeyMetadata',
     ('column', 'dest_table', 'dest_column'))
 
+TriggerMetadata = namedtuple('TriggerMetadata', ('name', 'sql'))
+
 def get_indexes(table):
     # Retrieve all indexes and their associated SQL.
     cursor = dataset.query(
@@ -98,6 +100,13 @@ def get_foreign_keys(table):
     return [
         ForeignKeyMetadata(row[3], row[2], row[4])
         for row in cursor.fetchall()]
+
+def get_triggers(table):
+    cursor = dataset.query(
+        'SELECT name, sql FROM sqlite_master '
+        'WHERE type = ? AND tbl_name = ?',
+        ('trigger', table))
+    return [TriggerMetadata(row[0], row[1]) for row in cursor.fetchall()]
 
 def get_virtual_tables():
     cursor = dataset.query(
@@ -155,7 +164,8 @@ def table_structure(table):
         indexes=get_indexes(table),
         model_class=model_class,
         table=table,
-        table_sql=table_sql)
+        table_sql=table_sql,
+        triggers=get_triggers(table))
 
 def get_request_data():
     if request.method == 'POST':
@@ -473,6 +483,10 @@ def _general():
         'SELECT name, tbl_name FROM sqlite_master '
         'WHERE type=? ORDER BY tbl_name, name;',
         ('index',)).fetchall()
+    triggers = dataset.query(
+        'SELECT name, tbl_name, sql FROM sqlite_master '
+        'WHERE type=? ORDER BY tbl_name, name',
+        ('trigger',)).fetchall()
     return {
         'database': os.path.basename(database_filename),
         'database_filename': database_filename,
@@ -481,6 +495,7 @@ def _general():
         'database_modified': ts_to_dt(stat.st_mtime),
         'indexes': indexes,
         'tables': dataset.tables,
+        'triggers': triggers,
         'virtual_tables': get_virtual_tables(),
         'virtual_tables_corollary': get_corollary_virtual_tables(),
     }

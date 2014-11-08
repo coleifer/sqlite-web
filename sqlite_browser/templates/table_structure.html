@@ -1,5 +1,21 @@
 {% extends "base_table.html" %}
 
+{% block extra_scripts %}
+  <script type="text/javascript">
+    $(function() {
+      $('a.view-sql').on('click', function(e) {
+        e.preventDefault();
+        var elem = $(this),
+            pre = elem.siblings('pre'),
+            modalDiv = $('div#sql-modal');
+        modalDiv.find('h4.modal-title').text(elem.data('name'));
+        modalDiv.find('.modal-body').empty().append(pre.clone().show());
+        modalDiv.modal();
+      });
+    });
+  </script>
+{% endblock %}
+
 {% block structure_tab_class %}active{% endblock %}
 
 {% block inner_content %}
@@ -47,7 +63,7 @@
   <hr />
 
   {% if foreign_keys %}
-  <h3 id="foreign-keys">Foreign Keys</h3>
+    <h3 id="foreign-keys">Foreign Keys</h3>
     <table class="table table-striped">
       <thead>
         <tr>
@@ -102,8 +118,9 @@
             {% endif %}
           </td>
           <td>
-            <a class="view-index-sql" href="#">SQL</a>
-            {# <pre>{{ index.sql }}</pre> #}</td>
+            <a class="view-sql" data-name="{{ index.name }}" href="#">SQL</a>
+            <pre style="display:none;">{{ index.sql }}</pre>
+          </td>
           <td>
             <a href="{{ url_for('drop_index', table=table, name=index.name) }}">Drop</a>
           </td>
@@ -111,4 +128,42 @@
       {% endfor %}
     </tbody>
   </table>
+
+  {% if triggers %}
+    <hr />
+    <h3 id="triggers">
+      {#<p class="pull-right"><a class="btn btn-primary btn-sm" href="{{ url_for('add_trigger', table=table) }}">Add trigger</a></p>#}
+      Triggers
+    </h3>
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>SQL</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for trigger in triggers %}
+          <tr>
+            <td>{{ trigger.name }}</td>
+            <td>
+              <a class="view-sql" data-name="{{ trigger.name }}" href="#">SQL</a>
+              <pre style="display:none;">{{ trigger.sql }}</pre>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+  <div class="modal fade" id="sql-modal">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+          <h4 class="modal-title"></h4>
+        </div>
+        <div class="modal-body"></div>
+      </div>
+    </div>
+  </div>
 {% endblock %}
