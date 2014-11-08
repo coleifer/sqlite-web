@@ -7,8 +7,25 @@ Project dependencies:
 * [flask](http://flask.pocoo.org)
 * [peewee](http://docs.peewee-orm.com)
 
+Installation:
+
+```sh
+$ pip install sqlite-browser flask peewee
+```
+
 Usage:
 
 ```sh
-$ python sqlite_browser.py /path/to/database.db
+$ sqlite_browser /path/to/database.db
 ```
+
+Features:
+
+* Works with your existing SQLite databases, or can be used to create new databases.
+* Add or drop:
+  * Tables
+  * Columns (yes, you can drop columns!)
+  * Indexes
+* Export data as JSON or CSV.
+* Import JSON or CSV files.
+* Browse table data.
