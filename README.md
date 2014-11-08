@@ -24,7 +24,7 @@ Features:
 * Works with your existing SQLite databases, or can be used to create new databases.
 * Add or drop:
   * Tables
-  * Columns (yes, you can drop columns!)
+  * Columns (yes, you can drop and rename columns!)
   * Indexes
 * Export data as JSON or CSV.
 * Import JSON or CSV files.
