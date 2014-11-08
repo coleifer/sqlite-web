@@ -1,0 +1,64 @@
+{% extends "base_table.html" %}
+
+{% block extra_scripts %}
+  <script type="text/javascript">
+    $(function() {
+      var valueToggles = $('a.toggle-value');
+      valueToggles.on('click', function(e) {
+        e.preventDefault();
+        var elem = $(this),
+            truncated = elem.siblings('span.truncated'),
+            full = elem.siblings('span.full');
+        truncated.toggle();
+        full.toggle();
+      });
+    });
+  </script>
+{% endblock %}
+
+{% block content_title %}
+  {{ super() }}
+  <small>{{ ds_table.all().count() }} rows, showing page {{ page }}</small>
+{% endblock %}
+
+{% block content_tab_class %}active{% endblock %}
+
+{% block inner_content %}
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        {% for column in columns %}
+          <th>
+            <a href="./?ordering={% if ordering == column %}-{% endif %}{{ column }}">{{ column }}</a>
+          </th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in query %}
+        <tr>
+          {% for field in field_names %}
+            {% set value = row[field] %}
+            <td>
+              {% if value is none %}
+                NULL
+              {% else %}
+                {{ value|value_filter|safe }}
+              {% endif %}
+            </td>
+          {% endfor %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <nav>
+    <ul class="pager">
+      <li class="{% if not previous_page %}disabled {% endif %}previous">
+        <a href="{{ url_for('table_content', table=table, page=previous_page) }}">&larr; Previous</a>
+      </li>
+      <li class="{% if not next_page %}disabled {% endif %}next">
+        <a href="{{ url_for('table_content', table=table, page=next_page) }}">Next &rarr;</a>
+      </li>
+    </ul>
+  </nav>
+{% endblock %}

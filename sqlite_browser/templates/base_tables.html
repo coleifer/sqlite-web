@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block sidebar %}
+  <input class="form-control input-sm" id="table-search" placeholder="table name..." type="text" />
+  <ul class="nav nav-pills nav-stacked" role="tablist">
+    {% for table_name in tables|sort %}
+      {% if table_name not in virtual_tables_corollary %}
+      <li class="table-link{% if table and table_name == table %} active{% endif %}">
+        <a href="{{ url_for('table_structure', table=table_name) }}">
+          {{ table_name }}
+          {% if table_name in virtual_tables %}
+            <sup>(v)</sup>
+          {% endif %}
+        </a>
+      </li>
+      {% endif %}
+    {% endfor %}
+  </ul>
+  <hr />
+  <p><a href="#" id="toggle-helper-tables">Toggle helper tables</a></p>
+  <ul class="nav nav-pills nav-stacked" id="helper-tables" role="tablist"{% if table not in virtual_tables_corollary %} style="display:none;"{% endif %}>
+    {% for table_name in virtual_tables_corollary|sort %}
+      <li{% if table and table_name == table %} class="active"{% endif %}>
+        <a href="{{ url_for('table_structure', table=table_name) }}">
+          <small>{{ table_name }}</small>
+        </a>
+      </li>
+    {% endfor %}
+  </ul>
+{% endblock %}

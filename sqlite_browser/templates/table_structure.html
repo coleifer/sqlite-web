@@ -1,0 +1,112 @@
+{% extends "base_table.html" %}
+
+{% block structure_tab_class %}active{% endblock %}
+
+{% block inner_content %}
+  <h3 id="sql">SQL</h3>
+  <pre>{{ table_sql }}</pre>
+
+  <h3 id="columns">
+    <p class="pull-right"><a class="btn btn-primary btn-sm" href="{{ url_for('add_column', table=table) }}">Add column</a></p>
+    Columns
+  </h3>
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Column</th>
+        <th>Data type</th>
+        <th>Allow null</th>
+        <th>Primary key</th>
+        <th>Drop?</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for column in columns %}
+        <tr>
+          <td><code>{{ column.name }}</code></td>
+          <td><code>{{ column.data_type }}</code></td>
+          <td>
+            {% if column.null %}
+              <span class="glyphicon glyphicon-ok"></span>
+            {% endif %}
+          </td>
+          <td>
+            {% if column.is_primary_key %}
+              <span class="glyphicon glyphicon-ok"></span>
+            {% endif %}
+          </td>
+          <td>
+            <a href="{{ url_for('drop_column', table=table, name=column.name) }}">Drop</a>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <hr />
+
+  {% if foreign_keys %}
+  <h3 id="foreign-keys">Foreign Keys</h3>
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>Column</th>
+          <th>Destination</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for foreign_key in foreign_keys %}
+          <tr>
+            <td><code>{{ foreign_key.column }}</code></td>
+            <td><code>{{ foreign_key.dest_table }}.{{ foreign_key.dest_column }}</code></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <hr />
+  {% endif %}
+
+  <h3 id="indexes">
+    <p class="pull-right"><a class="btn btn-primary btn-sm" href="{{ url_for('add_index', table=table) }}">Add index</a></p>
+    Indexes
+  </h3>
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Columns</th>
+        <th>Unique</th>
+        <th>SQL</th>
+        <th>Drop?</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for index in indexes %}
+        <tr>
+          <td>{{ index.name }}</td>
+          <td>
+            {% if index.columns|length == 1 %}
+              <code>{{ index.columns[0] }}</code>
+            {% else %}
+              <ul>
+                {% for column in index.columns %}
+                  <li><code>{{ column }}</code></li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          </td>
+          <td>
+            {% if index.unique %}
+              <span class="glyphicon glyphicon-ok"></span>
+            {% endif %}
+          </td>
+          <td>
+            <a class="view-index-sql" href="#">SQL</a>
+            {# <pre>{{ index.sql }}</pre> #}</td>
+          <td>
+            <a href="{{ url_for('drop_index', table=table, name=index.name) }}">Drop</a>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}

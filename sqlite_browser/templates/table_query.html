@@ -1,0 +1,52 @@
+{% extends "base_table.html" %}
+
+{% block query_tab_class %}active{% endblock %}
+
+{% block inner_content %}
+  <h3>Query</h3>
+  <form action="." method="post" role="form">
+    <div class="form-group{% if error %} has-error has-feedback{% endif %}">
+      <textarea class="form-control" name="sql" style="height: 120px;">{% if sql %}{{ sql }}{% endif %}</textarea>
+      {% if error %}
+        <span class="glyphicon glyphicon-remove form-control-feedback"></span>
+        <span class="help-block">{{ error }}</span>
+      {% endif %}
+    </div>
+    <button class="btn btn-primary" type="submit">Execute</button>
+    <button class="btn btn-default" name="export_json" type="submit">Export JSON</button>
+    <button class="btn btn-default" name="export_csv" type="submit">Export CSV</button>
+  </form>
+  <hr />
+
+  {% if row_count is not none and row_count >= 0 %}
+    <p>Rows modified: <code>{{ row_count }}</code></p>
+  {% endif %}
+
+  {% if data_description %}
+    {% if not data %}
+      <p>Empty result set.</p>
+    {% else %}
+      <h3>Results ({{ data|length }})</h3>
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            {% for col_desc in data_description %}
+              <th>{{ col_desc[0] }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in data %}
+            <tr>
+              {% for value in row %}
+                <td>
+                  {% if value is none %}NULL{% else %}{{ value }}{% endif %}
+                </td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+  {% endif %}
+{% endblock %}
