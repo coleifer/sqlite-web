@@ -1,0 +1,32 @@
+{% extends "base_table.html" %}
+
+{% block import_tab_class %} active{% endblock %}
+
+{% block inner_content %}
+<h3>Import data</h3>
+<form action="{{ url_for('table_import', table=table) }}" class="form" enctype="multipart/form-data" method="post">
+  <div class="form-group">
+    <label for="id_file">Input file</label>
+    <input class="form-control" name="file" type="file" />
+    <span class="help-block">
+      Supported file types: <strong>JSON</strong> and <strong>CSV</strong>.
+      JSON files must be structured as a list of objects. CSV files must
+      contain a header row.
+    </span>
+  </div>
+  <div class="form-group">
+    <label for="id_strict">Create columns for unrecognized keys?</label>
+    <select class="form-control" id="id_strict" name="strict">
+      <option value="">Yes</option>
+      <option {% if strict %}selected="selected" {% endif %}value="n">No</option>
+    </select>
+    <span class="help-block">
+      For instance, if your table has one column <em>name</em> and the import
+      file contains objects with an additional column <em>age</em>, determine
+      whether to store the <em>age</em> values as well.
+    </span>
+  </div>
+  <button class="btn btn-primary" type="submit">Import</button>
+  <a class="btn btn-default" href="{{ url_for('table_structure', table=table) }}">Cancel</a>
+</form>
+{% endblock %}

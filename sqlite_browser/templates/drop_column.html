@@ -1,0 +1,18 @@
+{% extends "base_table.html" %}
+
+{% block inner_content %}
+<h3>Drop Column</h3>
+<form action="{{ url_for('drop_column', table=table) }}" class="form" method="post">
+  <div class="form-group">
+    <label for="id_name">Column name</label>
+    <select class="form-control" id="id_name" name="name">
+      <option value="">Select column</option>
+      {% for column in columns %}
+        <option {% if column.name == name %}selected="selected" {% endif %}value="{{ column.name }}">{{ column.name }} ({{ column.data_type }})</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="btn btn-danger" type="submit">Drop column</button>
+  <a class="btn btn-default" href="{{ url_for('table_structure', table=table) }}">Cancel</a>
+</form>
+{% endblock %}
