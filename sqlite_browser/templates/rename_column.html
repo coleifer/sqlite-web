@@ -1,0 +1,25 @@
+{% extends "base_table.html" %}
+
+{% block inner_content %}
+<h3>Rename Column</h3>
+<form action="{{ url_for('rename_column', table=table) }}" class="form" method="post">
+  <div class="form-group">
+    <label for="id_rename">Column</label>
+    <select class="form-control" id="id_rename" name="rename">
+      <option value="">Select column</option>
+      {% for column in columns %}
+        <option {% if column.name == rename %}selected="selected" {% endif %}value="{{ column.name }}">{{ column.name }} ({{ column.data_type }})</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="form-group">
+    <label for="id_rename_to">Rename to</label>
+    <input class="form-control" id="id_rename_to" name="rename_to" value="{% if rename_to %}{{ rename_to }}{% endif %}" />
+    <span class="help-block">
+      Note: new name cannot conflict with any existing column names.
+    </span>
+  </div>
+  <button class="btn btn-success" type="submit">Rename column</button>
+  <a class="btn btn-default" href="{{ url_for('table_structure', table=table) }}">Cancel</a>
+</form>
+{% endblock %}

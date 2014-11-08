@@ -17,7 +17,7 @@
         <th>Data type</th>
         <th>Allow null</th>
         <th>Primary key</th>
-        <th>Drop?</th>
+        <th>Actions</th>
       </tr>
     </thead>
     <tbody>
@@ -36,6 +36,8 @@
             {% endif %}
           </td>
           <td>
+            <a href="{{ url_for('rename_column', table=table, rename=column.name) }}">Rename</a>
+            <span class="separator">|</span>
             <a href="{{ url_for('drop_column', table=table, name=column.name) }}">Drop</a>
           </td>
         </tr>

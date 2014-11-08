@@ -33,7 +33,6 @@ app = Flask(
 app.config.from_object(__name__)
 dataset = None
 migrator = None
-print CUR_DIR
 
 
 if sys.version_info[0] == 3:
@@ -222,6 +221,33 @@ def drop_column(table):
         columns=columns,
         column_names=column_names,
         name=name,
+        table=table)
+
+@app.route('/<table>/rename-column/', methods=['GET', 'POST'])
+@require_table
+def rename_column(table):
+    request_data = get_request_data()
+    rename = request_data.get('rename', '')
+    rename_to = request_data.get('rename_to', '')
+
+    columns = get_columns(table)
+    column_names = [column.name for column in columns]
+
+    if request.method == 'POST':
+        if (rename in column_names) and (rename_to not in column_names):
+            migrate(migrator.rename_column(table, rename, rename_to))
+            flash('Column "%s" was renamed successfully!' % rename, 'success')
+            return redirect(url_for('table_structure', table=table))
+        else:
+            flash('Column name is required and cannot conflict with an '
+                  'existing column\'s name.', 'danger')
+
+    return render_template(
+        'rename_column.html',
+        columns=columns,
+        column_names=column_names,
+        rename=rename,
+        rename_to=rename_to,
         table=table)
 
 @app.route('/<table>/add-index/', methods=['GET', 'POST'])
