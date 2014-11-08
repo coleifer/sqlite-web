@@ -46,7 +46,7 @@ The `content` tab displays all the table data. Links in the table header can be 
 
 The `query` tab allows you to execute arbitrary SQL queries on a table. The query results are displayed in a table and can be exported to either JSON or CSV:
 
-![](http://media.charlesleifer.com/blog/photos/s1415479604.52.png)
+![](http://media.charlesleifer.com/blog/photos/s1415487149.3.png)
 
 The `import` tab supports importing CSV and JSON files into a table. There is an option to automatically create columns for any unrecognized keys in the import file:
 
