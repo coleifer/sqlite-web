@@ -1,5 +1,22 @@
 {% extends "base_table.html" %}
 
+{% block extra_scripts %}
+  <script type="text/javascript">
+    $(function() {
+      $('a.sql-image').on('click', function(e) {
+        e.preventDefault();
+        var elem = $(this),
+            imgUrl = elem.attr('href'),
+            modalDiv = $('div#sql-image-modal');
+        modalDiv.find('h4.modal-title').text(elem.text());
+        modalDiv.find('.modal-body').empty().append(
+          $('<img src="' + imgUrl + '" />'));
+        modalDiv.modal();
+      });
+    });
+  </script>
+{% endblock %}
+
 {% block query_tab_class %}active{% endblock %}
 
 {% block inner_content %}
@@ -15,6 +32,14 @@
     <button class="btn btn-primary" type="submit">Execute</button>
     <button class="btn btn-default" name="export_json" type="submit">Export JSON</button>
     <button class="btn btn-default" name="export_csv" type="submit">Export CSV</button>
+    <div class="btn-group">
+      <button type="button" class="btn btn-info dropdown-toggle" data-toggle="dropdown">SQL Help <span class="caret"></span></button>
+      <ul class="dropdown-menu" role="menu">
+        {% for parts, img_url in query_images %}
+          <li><a class="sql-image" href="{{ url_for('static', filename=img_url) }}">{{ ' : '.join(parts) }}</a></li>
+        {% endfor %}
+      </ul>
+    </div>
   </form>
   <hr />
 
@@ -49,4 +74,15 @@
       </table>
     {% endif %}
   {% endif %}
+  <div class="modal fade" id="sql-image-modal">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+          <h4 class="modal-title"></h4>
+        </div>
+        <div class="modal-body"></div>
+      </div>
+    </div>
+  </div>
 {% endblock %}

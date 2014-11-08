@@ -385,6 +385,7 @@ def table_query(table):
         data=data,
         data_description=data_description,
         error=error,
+        query_images=get_query_images(),
         row_count=row_count,
         sql=sql,
         table=table)
@@ -473,6 +474,17 @@ def value_filter(value, max_length=50):
                         value[:max_length],
                         value)
     return value
+
+def get_query_images():
+    accum = []
+    image_dir = os.path.join(app.static_folder, 'img')
+    if not os.path.exists(image_dir):
+        return accum
+    for filename in sorted(os.listdir(image_dir)):
+        basename = os.path.splitext(os.path.basename(filename))[0]
+        parts = basename.split('-')
+        accum.append((parts, os.path.join('img', filename)))
+    return accum
 
 @app.context_processor
 def _general():
