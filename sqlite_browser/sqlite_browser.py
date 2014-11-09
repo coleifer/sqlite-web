@@ -10,7 +10,13 @@ import time
 import webbrowser
 from collections import namedtuple, OrderedDict
 from functools import wraps
-from StringIO import StringIO
+
+# Py3k compat.
+if sys.version_info[0] == 3:
+    basestring = str
+    from io import StringIO
+else:
+    from StringIO import StringIO
 
 from flask import (
     Flask, abort, escape, flash, redirect, render_template, request,
@@ -33,12 +39,6 @@ app = Flask(
 app.config.from_object(__name__)
 dataset = None
 migrator = None
-
-
-if sys.version_info[0] == 3:
-    basestring = str
-else:
-    pass
 
 IndexMetadata = namedtuple(
     'IndexMetadata',
