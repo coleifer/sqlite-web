@@ -19,8 +19,8 @@ else:
     from StringIO import StringIO
 
 from flask import (
-    Flask, abort, escape, flash, redirect, render_template, request,
-    send_file, url_for)
+    Flask, abort, escape, flash, make_response, redirect, render_template,
+    request, url_for)
 from peewee import *
 from playhouse.dataset import DataSet
 from playhouse.migrate import migrate
@@ -427,12 +427,16 @@ def export(table, sql, export_format):
         mimetype = 'text/csv'
 
     dataset.freeze(query, export_format, file_obj=buf, **kwargs)
-    buf.seek(0)
-    return send_file(
-        buf,
-        mimetype=mimetype,
-        as_attachment=True,
-        attachment_filename=filename,)
+
+    response_data= buf.getvalue()
+    response = make_response(response_data)
+    response.headers['Content-Length'] = len(response_data)
+    response.headers['Content-Type'] = mimetype
+    response.headers['Content-Disposition'] = 'attachment; filename=%s' % (
+        filename)
+    response.headers['Expires'] = 0
+    response.headers['Pragma'] = 'public'
+    return response
 
 @app.route('/<table>/import/', methods=['GET', 'POST'])
 @require_table
