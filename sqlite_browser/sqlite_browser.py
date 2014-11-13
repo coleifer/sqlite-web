@@ -94,6 +94,14 @@ def get_indexes(table):
             name in unique_indexes)
         for name in sorted(index_to_sql)]
 
+def get_all_indexes():
+    cursor = dataset.query(
+        'SELECT name, sql FROM sqlite_master '
+        'WHERE type = ? ORDER BY name',
+        ('index',))
+    return [IndexMetadata(row[0], row[1], None, None)
+            for row in cursor.fetchall()]
+
 def get_columns(table):
     #('name', 'data_type', 'null', 'primary_key'))
     cursor = dataset.query('PRAGMA table_info("%s")' % table)
@@ -118,10 +126,17 @@ def get_triggers(table):
         ('trigger', table))
     return [TriggerMetadata(*row) for row in cursor.fetchall()]
 
+def get_all_triggers():
+    cursor = dataset.query(
+        'SELECT name, sql FROM sqlite_master '
+        'WHERE type = ? ORDER BY name',
+        ('trigger',))
+    return [TriggerMetadata(*row) for row in cursor.fetchall()]
+
 def get_views():
     cursor = dataset.query(
         'SELECT name, sql FROM sqlite_master '
-        'WHERE type = ?',
+        'WHERE type = ? ORDER BY name',
         ('view',))
     return [ViewMetadata(*row) for row in cursor.fetchall()]
 
@@ -542,23 +557,16 @@ def _general():
     database_filename = os.path.realpath(dataset._database.database)
     stat = os.stat(database_filename)
     ts_to_dt = datetime.datetime.fromtimestamp
-    indexes = dataset.query(
-        'SELECT name, tbl_name FROM sqlite_master '
-        'WHERE type=? ORDER BY tbl_name, name;',
-        ('index',)).fetchall()
-    triggers = dataset.query(
-        'SELECT name, tbl_name, sql FROM sqlite_master '
-        'WHERE type=? ORDER BY tbl_name, name',
-        ('trigger',)).fetchall()
     return {
         'database': os.path.basename(database_filename),
         'database_filename': database_filename,
         'database_size': stat.st_size,
         'database_created': ts_to_dt(stat.st_ctime),
         'database_modified': ts_to_dt(stat.st_mtime),
-        'indexes': indexes,
+        'indexes': get_all_indexes(),
         'tables': dataset.tables,
-        'triggers': triggers,
+        'triggers': get_all_triggers(),
+        'views': get_views(),
         'virtual_tables': get_virtual_tables(),
         'virtual_tables_corollary': get_corollary_virtual_tables(),
     }
