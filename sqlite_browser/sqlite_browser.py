@@ -40,6 +40,10 @@ app.config.from_object(__name__)
 dataset = None
 migrator = None
 
+#
+# Database metadata objects.
+#
+
 IndexMetadata = namedtuple(
     'IndexMetadata',
     ('name', 'sql', 'columns', 'unique'))
@@ -53,6 +57,12 @@ ForeignKeyMetadata = namedtuple(
     ('column', 'dest_table', 'dest_column'))
 
 TriggerMetadata = namedtuple('TriggerMetadata', ('name', 'sql'))
+
+ViewMetadata = namedtuple('ViewMetadata', ('name', 'sql'))
+
+#
+# Database helpers.
+#
 
 def get_indexes(table):
     # Retrieve all indexes and their associated SQL.
@@ -106,7 +116,14 @@ def get_triggers(table):
         'SELECT name, sql FROM sqlite_master '
         'WHERE type = ? AND tbl_name = ?',
         ('trigger', table))
-    return [TriggerMetadata(row[0], row[1]) for row in cursor.fetchall()]
+    return [TriggerMetadata(*row) for row in cursor.fetchall()]
+
+def get_views():
+    cursor = dataset.query(
+        'SELECT name, sql FROM sqlite_master '
+        'WHERE type = ?',
+        ('view',))
+    return [ViewMetadata(*row) for row in cursor.fetchall()]
 
 def get_virtual_tables():
     cursor = dataset.query(
@@ -123,6 +140,9 @@ def get_corollary_virtual_tables():
         '%s_%s' % (virtual_table, suffix) for suffix in suffixes
         for virtual_table in virtual_tables)
 
+#
+# Flask views.
+#
 
 @app.route('/')
 def index():
@@ -513,6 +533,10 @@ def get_query_images():
         accum.append((parts, os.path.join('img', filename)))
     return accum
 
+#
+# Flask application helpers.
+#
+
 @app.context_processor
 def _general():
     database_filename = os.path.realpath(dataset._database.database)
@@ -552,6 +576,9 @@ def _close_db(exc):
     if not dataset._database.is_closed():
         dataset.close()
 
+#
+# Script options.
+#
 
 def get_option_parser():
     parser = optparse.OptionParser()
