@@ -3,7 +3,8 @@
 {% block sidebar %}
   <input class="form-control input-sm" id="table-search" placeholder="table name..." type="text" />
   <ul class="nav nav-pills nav-stacked" role="tablist">
-    {% for table_name in tables|sort %}
+    {% set virtual_tables_corollary = dataset.get_corollary_virtual_tables() %}
+    {% for table_name in dataset.tables|sort %}
       {% if table_name not in virtual_tables_corollary %}
       <li class="table-link{% if table and table_name == table %} active{% endif %}">
         <a href="{{ url_for('table_structure', table=table_name) }}">

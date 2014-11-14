@@ -64,96 +64,120 @@ ViewMetadata = namedtuple('ViewMetadata', ('name', 'sql'))
 # Database helpers.
 #
 
-def get_indexes(table):
-    # Retrieve all indexes and their associated SQL.
-    cursor = dataset.query(
-        'SELECT name, sql FROM sqlite_master '
-        'WHERE tbl_name = ? AND type = ? '
-        'ORDER BY name ASC',
-        [table, 'index'])
-    index_to_sql = dict(cursor.fetchall())
+class SqliteDataSet(DataSet):
+    @property
+    def filename(self):
+        return os.path.realpath(dataset._database.database)
 
-    # Determine which indexes have a unique constraint.
-    unique_indexes = set()
-    cursor = dataset.query('PRAGMA index_list("%s")' % table)
-    for _, name, is_unique in cursor.fetchall():
-        if is_unique:
-            unique_indexes.add(name)
+    @property
+    def base_name(self):
+        return os.path.basename(self.filename)
 
-    # Retrieve the indexed columns.
-    index_columns = {}
-    for index_name in index_to_sql:
-        cursor = dataset.query('PRAGMA index_info("%s")' % index_name)
-        index_columns[index_name] = [row[2] for row in cursor.fetchall()]
+    @property
+    def created(self):
+        stat = os.stat(self.filename)
+        return datetime.datetime.fromtimestamp(stat.st_ctime)
 
-    return [
-        IndexMetadata(
-            name,
-            index_to_sql[name],
-            index_columns[name],
-            name in unique_indexes)
-        for name in sorted(index_to_sql)]
+    @property
+    def modified(self):
+        stat = os.stat(self.filename)
+        return datetime.datetime.fromtimestamp(stat.st_mtime)
 
-def get_all_indexes():
-    cursor = dataset.query(
-        'SELECT name, sql FROM sqlite_master '
-        'WHERE type = ? ORDER BY name',
-        ('index',))
-    return [IndexMetadata(row[0], row[1], None, None)
+    @property
+    def size_on_disk(self):
+        stat = os.stat(self.filename)
+        return stat.st_size
+
+    def get_indexes(self, table):
+        # Retrieve all indexes and their associated SQL.
+        cursor = self.query(
+            'SELECT name, sql FROM sqlite_master '
+            'WHERE tbl_name = ? AND type = ? '
+            'ORDER BY name ASC',
+            [table, 'index'])
+        index_to_sql = dict(cursor.fetchall())
+
+        # Determine which indexes have a unique constraint.
+        unique_indexes = set()
+        cursor = self.query('PRAGMA index_list("%s")' % table)
+        for _, name, is_unique in cursor.fetchall():
+            if is_unique:
+                unique_indexes.add(name)
+
+        # Retrieve the indexed columns.
+        index_columns = {}
+        for index_name in index_to_sql:
+            cursor = self.query('PRAGMA index_info("%s")' % index_name)
+            index_columns[index_name] = [row[2] for row in cursor.fetchall()]
+
+        return [
+            IndexMetadata(
+                name,
+                index_to_sql[name],
+                index_columns[name],
+                name in unique_indexes)
+            for name in sorted(index_to_sql)]
+
+    def get_all_indexes(self):
+        cursor = self.query(
+            'SELECT name, sql FROM sqlite_master '
+            'WHERE type = ? ORDER BY name',
+            ('index',))
+        return [IndexMetadata(row[0], row[1], None, None)
+                for row in cursor.fetchall()]
+
+    def get_columns(self, table):
+        #('name', 'data_type', 'null', 'primary_key'))
+        cursor = self.query('PRAGMA table_info("%s")' % table)
+        return [
+            ColumnMetadata(
+                row[1],
+                row[2],
+                not row[3],
+                row[5])
             for row in cursor.fetchall()]
 
-def get_columns(table):
-    #('name', 'data_type', 'null', 'primary_key'))
-    cursor = dataset.query('PRAGMA table_info("%s")' % table)
-    return [
-        ColumnMetadata(
-            row[1],
-            row[2],
-            not row[3],
-            row[5])
-        for row in cursor.fetchall()]
+    def get_foreign_keys(self, table):
+        cursor = self.query('PRAGMA foreign_key_list("%s")' % table)
+        return [
+            ForeignKeyMetadata(row[3], row[2], row[4])
+            for row in cursor.fetchall()]
 
-def get_foreign_keys(table):
-    cursor = dataset.query('PRAGMA foreign_key_list("%s")' % table)
-    return [
-        ForeignKeyMetadata(row[3], row[2], row[4])
-        for row in cursor.fetchall()]
+    def get_triggers(self, table):
+        cursor = self.query(
+            'SELECT name, sql FROM sqlite_master '
+            'WHERE type = ? AND tbl_name = ?',
+            ('trigger', table))
+        return [TriggerMetadata(*row) for row in cursor.fetchall()]
 
-def get_triggers(table):
-    cursor = dataset.query(
-        'SELECT name, sql FROM sqlite_master '
-        'WHERE type = ? AND tbl_name = ?',
-        ('trigger', table))
-    return [TriggerMetadata(*row) for row in cursor.fetchall()]
+    def get_all_triggers(self):
+        cursor = self.query(
+            'SELECT name, sql FROM sqlite_master '
+            'WHERE type = ? ORDER BY name',
+            ('trigger',))
+        return [TriggerMetadata(*row) for row in cursor.fetchall()]
 
-def get_all_triggers():
-    cursor = dataset.query(
-        'SELECT name, sql FROM sqlite_master '
-        'WHERE type = ? ORDER BY name',
-        ('trigger',))
-    return [TriggerMetadata(*row) for row in cursor.fetchall()]
+    def get_all_views(self):
+        cursor = self.query(
+            'SELECT name, sql FROM sqlite_master '
+            'WHERE type = ? ORDER BY name',
+            ('view',))
+        return [ViewMetadata(*row) for row in cursor.fetchall()]
 
-def get_views():
-    cursor = dataset.query(
-        'SELECT name, sql FROM sqlite_master '
-        'WHERE type = ? ORDER BY name',
-        ('view',))
-    return [ViewMetadata(*row) for row in cursor.fetchall()]
+    def get_virtual_tables(self):
+        cursor = self.query(
+            'SELECT name FROM sqlite_master '
+            'WHERE type = ? AND sql LIKE ? '
+            'ORDER BY name',
+            ('table', 'CREATE VIRTUAL TABLE%'))
+        return set([row[0] for row in cursor.fetchall()])
 
-def get_virtual_tables():
-    cursor = dataset.query(
-        'SELECT name FROM sqlite_master '
-        'WHERE type = ? AND sql LIKE ? '
-        'ORDER BY name',
-        ('table', 'CREATE VIRTUAL TABLE%'))
-    return set([row[0] for row in cursor.fetchall()])
-
-def get_corollary_virtual_tables():
-    virtual_tables = get_virtual_tables()
-    suffixes = ['content', 'docsize', 'segdir', 'segments', 'stat']
-    return set(
-        '%s_%s' % (virtual_table, suffix) for suffix in suffixes
-        for virtual_table in virtual_tables)
+    def get_corollary_virtual_tables(self):
+        virtual_tables = self.get_virtual_tables()
+        suffixes = ['content', 'docsize', 'segdir', 'segments', 'stat']
+        return set(
+            '%s_%s' % (virtual_table, suffix) for suffix in suffixes
+            for virtual_table in virtual_tables)
 
 #
 # Flask views.
@@ -193,14 +217,14 @@ def table_structure(table):
 
     return render_template(
         'table_structure.html',
-        columns=get_columns(table),
+        columns=dataset.get_columns(table),
         ds_table=ds_table,
-        foreign_keys=get_foreign_keys(table),
-        indexes=get_indexes(table),
+        foreign_keys=dataset.get_foreign_keys(table),
+        indexes=dataset.get_indexes(table),
         model_class=model_class,
         table=table,
         table_sql=table_sql,
-        triggers=get_triggers(table))
+        triggers=dataset.get_triggers(table))
 
 def get_request_data():
     if request.method == 'POST':
@@ -250,7 +274,7 @@ def add_column(table):
 def drop_column(table):
     request_data = get_request_data()
     name = request_data.get('name', '')
-    columns = get_columns(table)
+    columns = dataset.get_columns(table)
     column_names = [column.name for column in columns]
 
     if request.method == 'POST':
@@ -275,7 +299,7 @@ def rename_column(table):
     rename = request_data.get('rename', '')
     rename_to = request_data.get('rename_to', '')
 
-    columns = get_columns(table)
+    columns = dataset.get_columns(table)
     column_names = [column.name for column in columns]
 
     if request.method == 'POST':
@@ -302,7 +326,7 @@ def add_index(table):
     indexed_columns = request_data.getlist('indexed_columns')
     unique = bool(request_data.get('unique'))
 
-    columns = get_columns(table)
+    columns = dataset.get_columns(table)
     column_names = [column.name for column in columns]
 
     if request.method == 'POST':
@@ -329,7 +353,7 @@ def add_index(table):
 def drop_index(table):
     request_data = get_request_data()
     name = request_data.get('name', '')
-    indexes = get_indexes(table)
+    indexes = dataset.get_indexes(table)
     index_names = [index.name for index in indexes]
 
     if request.method == 'POST':
@@ -352,7 +376,7 @@ def drop_index(table):
 def drop_trigger(table):
     request_data = get_request_data()
     name = request_data.get('name', '')
-    triggers = get_triggers(table)
+    triggers = dataset.get_triggers(table)
     trigger_names = [trigger.name for trigger in triggers]
 
     if request.method == 'POST':
@@ -554,22 +578,7 @@ def get_query_images():
 
 @app.context_processor
 def _general():
-    database_filename = os.path.realpath(dataset._database.database)
-    stat = os.stat(database_filename)
-    ts_to_dt = datetime.datetime.fromtimestamp
-    return {
-        'database': os.path.basename(database_filename),
-        'database_filename': database_filename,
-        'database_size': stat.st_size,
-        'database_created': ts_to_dt(stat.st_ctime),
-        'database_modified': ts_to_dt(stat.st_mtime),
-        'indexes': get_all_indexes(),
-        'tables': dataset.tables,
-        'triggers': get_all_triggers(),
-        'views': get_views(),
-        'virtual_tables': get_virtual_tables(),
-        'virtual_tables_corollary': get_corollary_virtual_tables(),
-    }
+    return {'dataset': dataset}
 
 @app.context_processor
 def _now():
@@ -641,7 +650,7 @@ def main():
     db_file = args[0]
     global dataset
     global migrator
-    dataset = DataSet('sqlite:///%s' % db_file)
+    dataset = SqliteDataSet('sqlite:///%s' % db_file)
     migrator = dataset._migrator
     if options.browser:
         open_browser_tab(options.host, options.port)

@@ -1,41 +1,41 @@
 {% extends "base_tables.html" %}
 
-{% block content_title %}{{ database }}{% endblock %}
+{% block content_title %}{{ dataset.base_name }}{% endblock %}
 
 {% block content %}
   <table class="table table-striped">
     <tbody>
       <tr>
         <th>Filename</th>
-        <td>{{ database_filename }}</td>
+        <td>{{ dataset.filename }}</td>
       </tr>
       <tr>
         <th>Size</th>
-        <td>{{ database_size|filesizeformat }}</td>
+        <td>{{ dataset.size_on_disk|filesizeformat }}</td>
       </tr>
       <tr>
         <th>Created</th>
-        <td>{{ database_created.strftime('%A %B %d, %Y at %I:%M:%p') }}</td>
+        <td>{{ dataset.created.strftime('%A %B %d, %Y at %I:%M:%p') }}</td>
       </tr>
       <tr>
         <th>Modified</th>
-        <td>{{ database_modified.strftime('%A %B %d, %Y at %I:%M:%p') }}</td>
+        <td>{{ dataset.modified.strftime('%A %B %d, %Y at %I:%M:%p') }}</td>
       </tr>
       <tr>
         <th>Tables</th>
-        <td>{{ tables|length }}</td>
+        <td>{{ dataset.tables|length }}</td>
       </tr>
       <tr>
         <th>Indexes</th>
-        <td>{{ indexes|length }}</td>
+        <td>{{ dataset.get_all_indexes()|length }}</td>
       </tr>
       <tr>
         <th>Triggers</th>
-        <td>{{ triggers|length }}</td>
+        <td>{{ dataset.get_all_triggers()|length }}</td>
       </tr>
       <tr>
         <th>Views</th>
-        <td>{{ views|length }}</td>
+        <td>{{ dataset.get_all_views()|length }}</td>
       </tr>
     </tbody>
   </table>

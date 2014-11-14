@@ -1,7 +1,7 @@
 {% extends "base_tables.html" %}
 
 {% block content_title %}
-  <a href="{{ url_for('index') }}">{{ database }}</a> &mdash; {{ table }}
+  <a href="{{ url_for('index') }}">{{ dataset.base_name }}</a> &mdash; {{ table }}
 {% endblock %}
 
 {% block content %}
