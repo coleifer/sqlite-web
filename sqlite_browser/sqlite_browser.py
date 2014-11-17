@@ -18,9 +18,25 @@ if sys.version_info[0] == 3:
 else:
     from StringIO import StringIO
 
-from flask import (
-    Flask, abort, escape, flash, make_response, redirect, render_template,
-    request, url_for)
+try:
+    from flask import (
+        Flask, abort, escape, flash, make_response, redirect, render_template,
+        request, url_for)
+except ImportError:
+    raise RuntimeError('Unable to import flask module. Install by running '
+                       'pip install flask')
+
+try:
+    from peewee import __version__
+except ImportError:
+    raise RuntimeError('Unable to import peewee module. Install by running '
+                       'pip install peewee')
+else:
+    if __version__ <= '2.4.2':
+        raise RuntimeError('Peewee >= 2.4.3 is required. Found version %s. '
+                           'Please update by running pip install --update '
+                           'peewee' % __version__)
+
 from peewee import *
 from peewee import IndexMetadata
 from playhouse.dataset import DataSet
