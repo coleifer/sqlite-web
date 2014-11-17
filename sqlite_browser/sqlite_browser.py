@@ -22,6 +22,7 @@ from flask import (
     Flask, abort, escape, flash, make_response, redirect, render_template,
     request, url_for)
 from peewee import *
+from peewee import IndexMetadata
 from playhouse.dataset import DataSet
 from playhouse.migrate import migrate
 
@@ -43,18 +44,6 @@ migrator = None
 #
 # Database metadata objects.
 #
-
-IndexMetadata = namedtuple(
-    'IndexMetadata',
-    ('name', 'sql', 'columns', 'unique'))
-
-ColumnMetadata = namedtuple(
-    'ColumnMetadata',
-    ('name', 'data_type', 'null', 'primary_key'))
-
-ForeignKeyMetadata = namedtuple(
-    'ForeignKeyMetadata',
-    ('column', 'dest_table', 'dest_column'))
 
 TriggerMetadata = namedtuple('TriggerMetadata', ('name', 'sql'))
 
@@ -89,59 +78,21 @@ class SqliteDataSet(DataSet):
         return stat.st_size
 
     def get_indexes(self, table):
-        # Retrieve all indexes and their associated SQL.
-        cursor = self.query(
-            'SELECT name, sql FROM sqlite_master '
-            'WHERE tbl_name = ? AND type = ? '
-            'ORDER BY name ASC',
-            [table, 'index'])
-        index_to_sql = dict(cursor.fetchall())
-
-        # Determine which indexes have a unique constraint.
-        unique_indexes = set()
-        cursor = self.query('PRAGMA index_list("%s")' % table)
-        for _, name, is_unique in cursor.fetchall():
-            if is_unique:
-                unique_indexes.add(name)
-
-        # Retrieve the indexed columns.
-        index_columns = {}
-        for index_name in index_to_sql:
-            cursor = self.query('PRAGMA index_info("%s")' % index_name)
-            index_columns[index_name] = [row[2] for row in cursor.fetchall()]
-
-        return [
-            IndexMetadata(
-                name,
-                index_to_sql[name],
-                index_columns[name],
-                name in unique_indexes)
-            for name in sorted(index_to_sql)]
+        return dataset._database.get_indexes(table)
 
     def get_all_indexes(self):
         cursor = self.query(
             'SELECT name, sql FROM sqlite_master '
             'WHERE type = ? ORDER BY name',
             ('index',))
-        return [IndexMetadata(row[0], row[1], None, None)
+        return [IndexMetadata(row[0], row[1], None, None, None)
                 for row in cursor.fetchall()]
 
     def get_columns(self, table):
-        #('name', 'data_type', 'null', 'primary_key'))
-        cursor = self.query('PRAGMA table_info("%s")' % table)
-        return [
-            ColumnMetadata(
-                row[1],
-                row[2],
-                not row[3],
-                row[5])
-            for row in cursor.fetchall()]
+        return dataset._database.get_columns(table)
 
     def get_foreign_keys(self, table):
-        cursor = self.query('PRAGMA foreign_key_list("%s")' % table)
-        return [
-            ForeignKeyMetadata(row[3], row[2], row[4])
-            for row in cursor.fetchall()]
+        return dataset._database.get_foreign_keys(table)
 
     def get_triggers(self, table):
         cursor = self.query(
