@@ -4,6 +4,7 @@ import datetime
 import math
 import optparse
 import os
+import re
 import sys
 import threading
 import time
@@ -539,6 +540,24 @@ def value_filter(value, max_length=50):
                         value[:max_length],
                         value)
     return value
+
+def _format_create_table(sql):
+    column_re = re.compile('(.+?)\((.+)\)')
+    column_split_re = re.compile(r'(?:[^,(]|\([^)]*\))+')
+    create_table, column_list = column_re.search(sql).groups()
+    columns = ['  %s' % column.strip()
+               for column in column_split_re.findall(column_list)
+               if column.strip()]
+    return '%s (\n%s\n)' % (
+        create_table,
+        ',\n'.join(columns))
+
+@app.template_filter()
+def format_create_table(sql):
+    try:
+        return _format_create_table(sql)
+    except:
+        return sql
 
 @app.template_filter('highlight')
 def highlight_filter(data):
