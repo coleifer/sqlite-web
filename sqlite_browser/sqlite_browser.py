@@ -20,11 +20,23 @@ else:
 
 try:
     from flask import (
-        Flask, abort, escape, flash, make_response, redirect, render_template,
-        request, url_for)
+        Flask, abort, escape, flash, make_response, Markup, redirect,
+        render_template, request, url_for)
 except ImportError:
     raise RuntimeError('Unable to import flask module. Install by running '
                        'pip install flask')
+
+try:
+    from pygments import formatters, highlight, lexers
+except ImportError:
+    import warnings
+    warnings.warn('pygments library not found.', ImportWarning)
+    syntax_highlight = lambda data: '<pre>%s</pre>' % data
+else:
+    def syntax_highlight(data):
+        lexer = lexers.get_lexer_by_name('sql')
+        formatter = formatters.HtmlFormatter(linenos=False)
+        return highlight(data, lexer, formatter)
 
 try:
     from peewee import __version__
@@ -527,6 +539,10 @@ def value_filter(value, max_length=50):
                         value[:max_length],
                         value)
     return value
+
+@app.template_filter('highlight')
+def highlight_filter(data):
+    return Markup(syntax_highlight(data))
 
 def get_query_images():
     accum = []

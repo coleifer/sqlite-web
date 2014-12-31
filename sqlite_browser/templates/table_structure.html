@@ -6,7 +6,7 @@
       $('a.view-sql').on('click', function(e) {
         e.preventDefault();
         var elem = $(this),
-            pre = elem.siblings('pre'),
+            pre = elem.siblings('div'),
             modalDiv = $('div#sql-modal');
         modalDiv.find('h4.modal-title').text(elem.data('name'));
         modalDiv.find('.modal-body').empty().append(pre.clone().show());
@@ -20,7 +20,7 @@
 
 {% block inner_content %}
   <h3 id="sql">SQL</h3>
-  <pre>{{ table_sql }}</pre>
+  {{ table_sql|highlight }}
 
   <h3 id="columns">
     <p class="pull-right"><a class="btn btn-primary btn-sm" href="{{ url_for('add_column', table=table) }}">Add column</a></p>
@@ -119,7 +119,7 @@
           </td>
           <td>
             <a class="view-sql" data-name="{{ index.name }}" href="#">SQL</a>
-            <pre style="display:none;">{{ index.sql }}</pre>
+            <div style="display:none;">{{ index.sql|highlight }}</div>
           </td>
           <td>
             <a href="{{ url_for('drop_index', table=table, name=index.name) }}">Drop</a>
@@ -149,7 +149,7 @@
             <td>{{ trigger.name }}</td>
             <td>
               <a class="view-sql" data-name="{{ trigger.name }}" href="#">SQL</a>
-              <pre style="display:none;">{{ trigger.sql }}</pre>
+              <div style="display:none;">{{ trigger.sql|highlight }}</div>
             </td>
             <td>
               <a href="{{ url_for('drop_trigger', table=table, name=trigger.name) }}">Drop</a>
