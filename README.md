@@ -7,19 +7,21 @@ Project dependencies:
 * [flask](http://flask.pocoo.org)
 * [peewee](http://docs.peewee-orm.com)
 
-Installation:
+### Installation
 
 ```sh
 $ pip install sqlite-browser flask peewee
 ```
 
-Usage:
+### Usage
 
 ```sh
 $ sqlite_browser /path/to/database.db
 ```
 
-Features:
+### Features
+
+![](http://media.charlesleifer.com/blog/photos/p1420930919.43.gif)
 
 * Works with your existing SQLite databases, or can be used to create new databases.
 * Add or drop:
