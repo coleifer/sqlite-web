@@ -440,7 +440,10 @@ def table_query(table):
             data_description = cursor.description
             row_count = cursor.rowcount
     else:
-        sql = 'SELECT *\nFROM "%s"' % (table)
+        if request.args.get('sql'):
+            sql = request.args.get('sql')
+        else:
+            sql = 'SELECT *\nFROM "%s"' % (table)
 
     return render_template(
         'table_query.html',
