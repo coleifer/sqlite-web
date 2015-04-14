@@ -20,6 +20,8 @@ setup(
     url='https://github.com/coleifer/sqlite-browser',
     license='MIT',
     install_requires=[
+        'flask',
+        'peewee',
     ],
     include_package_data=True,
     packages=find_packages(),
