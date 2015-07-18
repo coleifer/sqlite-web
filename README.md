@@ -6,11 +6,12 @@ Project dependencies:
 
 * [flask](http://flask.pocoo.org)
 * [peewee](http://docs.peewee-orm.com)
+* [pygments](http://pygments.org)
 
 ### Installation
 
 ```sh
-$ pip install sqlite-browser flask peewee
+$ pip install sqlite-browser
 ```
 
 ### Usage
