@@ -12,7 +12,7 @@ else:
 
 setup(
     name='sqlite-browser',
-    version='0.1.1',
+    version='0.1.2',
     description='Web-based SQLite database browser.',
     long_description=long_description,
     author='Charles Leifer',
@@ -22,6 +22,7 @@ setup(
     install_requires=[
         'flask',
         'peewee',
+        'pygments',
     ],
     include_package_data=True,
     packages=find_packages(),
