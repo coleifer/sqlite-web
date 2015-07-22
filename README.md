@@ -1,6 +1,6 @@
 ![](http://media.charlesleifer.com/blog/photos/sqlite-browser.png)
 
-`sqlite-browser` is a web-based SQLite database browser written in Python.
+`sqlite-web` is a web-based SQLite database browser written in Python.
 
 Project dependencies:
 
@@ -10,13 +10,13 @@ Project dependencies:
 ### Installation
 
 ```sh
-$ pip install sqlite-browser flask peewee
+$ pip install sqlite-web flask peewee
 ```
 
 ### Usage
 
 ```sh
-$ sqlite_browser /path/to/database.db
+$ sqlite_web /path/to/database.db
 ```
 
 ### Features

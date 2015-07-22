@@ -1,2 +1,2 @@
 include README.md
-recursive-include sqlite_browser *
+recursive-include sqlite_web *
