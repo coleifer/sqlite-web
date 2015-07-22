@@ -11,13 +11,13 @@ else:
     long_description = ''
 
 setup(
-    name='sqlite-browser',
-    version='0.1.2',
+    name='sqlite-web',
+    version='0.1.3',
     description='Web-based SQLite database browser.',
     long_description=long_description,
     author='Charles Leifer',
     author_email='coleifer@gmail.com',
-    url='https://github.com/coleifer/sqlite-browser',
+    url='https://github.com/coleifer/sqlite-web',
     license='MIT',
     install_requires=[
         'flask',
@@ -27,14 +27,14 @@ setup(
     include_package_data=True,
     packages=find_packages(),
     package_data={
-        'sqlite_browser': [
+        'sqlite_web': [
             'static/*/*',
             'templates/*'
         ],
     },
     entry_points={
         'console_scripts': [
-            'sqlite_browser = sqlite_browser.sqlite_browser:main'
+            'sqlite_web = sqlite_web.sqlite_web:main'
         ],
     },
     classifiers=[
