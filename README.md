@@ -1,4 +1,4 @@
-![](http://media.charlesleifer.com/blog/photos/sqlite-browser.png)
+![](http://media.charlesleifer.com/blog/photos/sqlite-web.png)
 
 `sqlite-web` is a web-based SQLite database browser written in Python.
 
