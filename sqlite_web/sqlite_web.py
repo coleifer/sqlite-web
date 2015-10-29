@@ -35,6 +35,8 @@ except ImportError:
     syntax_highlight = lambda data: '<pre>%s</pre>' % data
 else:
     def syntax_highlight(data):
+        if not data:
+            return ''
         lexer = lexers.get_lexer_by_name('sql')
         formatter = formatters.HtmlFormatter(linenos=False)
         return highlight(data, lexer, formatter)
