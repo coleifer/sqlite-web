@@ -404,8 +404,12 @@ def table_content(table):
         query = query.order_by(field)
 
     field_names = ds_table.columns
-    columns = [field.db_column
-               for field in ds_table.model_class._meta.get_fields()]
+    model_meta = ds_table.model_class._meta
+    try:
+        fields = model_meta.sorted_fields
+    except AttributeError:
+        fields = model_meta.get_fields()
+    columns = [field.db_column for field in fields]
 
     return render_template(
         'table_content.html',
