@@ -32,7 +32,11 @@ try:
 except ImportError:
     import warnings
     warnings.warn('pygments library not found.', ImportWarning)
-    syntax_highlight = lambda data: '<pre>%s</pre>' % data
+
+    def syntax_highlight(data):
+        if not data:
+            return ''
+        return '<pre>{}</pre>'.format(data)
 else:
     def syntax_highlight(data):
         if not data:
@@ -83,6 +87,7 @@ ViewMetadata = namedtuple('ViewMetadata', ('name', 'sql'))
 #
 # Database helpers.
 #
+
 
 class SqliteDataSet(DataSet):
     @property
@@ -165,9 +170,11 @@ class SqliteDataSet(DataSet):
 # Flask views.
 #
 
+
 @app.route('/')
 def index():
     return render_template('index.html')
+
 
 def require_table(fn):
     @wraps(fn)
@@ -176,6 +183,7 @@ def require_table(fn):
             abort(404)
         return fn(table, *args, **kwargs)
     return inner
+
 
 @app.route('/create-table/', methods=['POST'])
 def table_create():
@@ -186,6 +194,7 @@ def table_create():
 
     dataset[table]
     return redirect(url_for('table_import', table=table))
+
 
 @app.route('/<table>/')
 @require_table
@@ -208,10 +217,12 @@ def table_structure(table):
         table_sql=table_sql,
         triggers=dataset.get_triggers(table))
 
+
 def get_request_data():
     if request.method == 'POST':
         return request.form
     return request.args
+
 
 @app.route('/<table>/add-column/', methods=['GET', 'POST'])
 @require_table
@@ -251,6 +262,7 @@ def add_column(table):
         name=name,
         table=table)
 
+
 @app.route('/<table>/drop-column/', methods=['GET', 'POST'])
 @require_table
 def drop_column(table):
@@ -273,6 +285,7 @@ def drop_column(table):
         column_names=column_names,
         name=name,
         table=table)
+
 
 @app.route('/<table>/rename-column/', methods=['GET', 'POST'])
 @require_table
@@ -301,6 +314,7 @@ def rename_column(table):
         rename_to=rename_to,
         table=table)
 
+
 @app.route('/<table>/add-index/', methods=['GET', 'POST'])
 @require_table
 def add_index(table):
@@ -309,7 +323,6 @@ def add_index(table):
     unique = bool(request_data.get('unique'))
 
     columns = dataset.get_columns(table)
-    column_names = [column.name for column in columns]
 
     if request.method == 'POST':
         if indexed_columns:
@@ -329,6 +342,7 @@ def add_index(table):
         indexed_columns=indexed_columns,
         table=table,
         unique=unique)
+
 
 @app.route('/<table>/drop-index/', methods=['GET', 'POST'])
 @require_table
@@ -353,6 +367,7 @@ def drop_index(table):
         name=name,
         table=table)
 
+
 @app.route('/<table>/drop-trigger/', methods=['GET', 'POST'])
 @require_table
 def drop_trigger(table):
@@ -375,6 +390,7 @@ def drop_trigger(table):
         trigger_names=trigger_names,
         name=name,
         table=table)
+
 
 @app.route('/<table>/content/')
 @require_table
@@ -424,6 +440,7 @@ def table_content(table):
         table=table,
         total_rows=total_rows)
 
+
 @app.route('/<table>/query/', methods=['GET', 'POST'])
 @require_table
 def table_query(table):
@@ -461,6 +478,7 @@ def table_query(table):
         sql=sql,
         table=table)
 
+
 def export(table, sql, export_format):
     model_class = dataset[table].model_class
     query = model_class.raw(sql).dicts()
@@ -476,7 +494,7 @@ def export(table, sql, export_format):
 
     dataset.freeze(query, export_format, file_obj=buf, **kwargs)
 
-    response_data= buf.getvalue()
+    response_data = buf.getvalue()
     response = make_response(response_data)
     response.headers['Content-Length'] = len(response_data)
     response.headers['Content-Type'] = mimetype
@@ -485,6 +503,7 @@ def export(table, sql, export_format):
     response.headers['Expires'] = 0
     response.headers['Pragma'] = 'public'
     return response
+
 
 @app.route('/<table>/import/', methods=['GET', 'POST'])
 @require_table
@@ -527,6 +546,7 @@ def table_import(table):
         strict=strict,
         table=table)
 
+
 @app.route('/<table>/drop/', methods=['GET', 'POST'])
 @require_table
 def drop_table(table):
@@ -537,6 +557,7 @@ def drop_table(table):
         return redirect(url_for('index'))
 
     return render_template('drop_table.html', table=table)
+
 
 @app.template_filter('value_filter')
 def value_filter(value, max_length=50):
@@ -550,6 +571,7 @@ def value_filter(value, max_length=50):
                         value)
     return value
 
+
 def _format_create_table(sql):
     column_re = re.compile('(.+?)\((.+)\)')
     column_split_re = re.compile(r'(?:[^,(]|\([^)]*\))+')
@@ -561,6 +583,7 @@ def _format_create_table(sql):
         create_table,
         ',\n'.join(columns))
 
+
 @app.template_filter()
 def format_create_table(sql):
     try:
@@ -568,9 +591,11 @@ def format_create_table(sql):
     except:
         return sql
 
+
 @app.template_filter('highlight')
 def highlight_filter(data):
     return Markup(syntax_highlight(data))
+
 
 def get_query_images():
     accum = []
@@ -587,17 +612,21 @@ def get_query_images():
 # Flask application helpers.
 #
 
+
 @app.context_processor
 def _general():
     return {'dataset': dataset}
+
 
 @app.context_processor
 def _now():
     return {'now': datetime.datetime.now()}
 
+
 @app.before_request
 def _connect_db():
     dataset.connect()
+
 
 @app.teardown_request
 def _close_db(exc):
@@ -607,6 +636,7 @@ def _close_db(exc):
 #
 # Script options.
 #
+
 
 def get_option_parser():
     parser = optparse.OptionParser()
@@ -635,10 +665,12 @@ def get_option_parser():
         help='Do not automatically open browser page.')
     return parser
 
+
 def die(msg, exit_code=1):
     sys.stderr.write('%s\n' % msg)
     sys.stderr.flush()
     sys.exit(exit_code)
+
 
 def open_browser_tab(host, port):
     url = 'http://%s:%s/' % (host, port)
@@ -650,6 +682,7 @@ def open_browser_tab(host, port):
     thread = threading.Thread(target=_open_tab, args=(url,))
     thread.daemon = True
     thread.start()
+
 
 def main():
     # This function exists to act as a console script entry-point.
