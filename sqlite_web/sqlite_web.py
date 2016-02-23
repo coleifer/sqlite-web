@@ -550,9 +550,10 @@ def value_filter(value, max_length=50):
                         value)
     return value
 
+column_re = re.compile('(.+?)\((.+)\)', re.S)
+column_split_re = re.compile(r'(?:[^,(]|\([^)]*\))+')
+
 def _format_create_table(sql):
-    column_re = re.compile('(.+?)\((.+)\)')
-    column_split_re = re.compile(r'(?:[^,(]|\([^)]*\))+')
     create_table, column_list = column_re.search(sql).groups()
     columns = ['  %s' % column.strip()
                for column in column_split_re.findall(column_list)
