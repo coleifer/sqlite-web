@@ -309,7 +309,6 @@ def add_index(table):
     unique = bool(request_data.get('unique'))
 
     columns = dataset.get_columns(table)
-    column_names = [column.name for column in columns]
 
     if request.method == 'POST':
         if indexed_columns:
@@ -476,7 +475,7 @@ def export(table, sql, export_format):
 
     dataset.freeze(query, export_format, file_obj=buf, **kwargs)
 
-    response_data= buf.getvalue()
+    response_data = buf.getvalue()
     response = make_response(response_data)
     response.headers['Content-Length'] = len(response_data)
     response.headers['Content-Type'] = mimetype
