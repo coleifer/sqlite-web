@@ -56,6 +56,7 @@
       <li class="{% if not previous_page %}disabled {% endif %}previous">
         <a href="{{ url_for('table_content', table=table, page=previous_page) }}">&larr; Previous</a>
       </li>
+      <li>{{ page }} / {{ total_pages }}</li>
       <li class="{% if not next_page %}disabled {% endif %}next">
         <a href="{{ url_for('table_content', table=table, page=next_page) }}">Next &rarr;</a>
       </li>
