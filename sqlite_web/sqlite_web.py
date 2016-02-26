@@ -378,20 +378,19 @@ def drop_trigger(table):
 @app.route('/<table>/content/')
 @require_table
 def table_content(table):
-    page_number = int(request.args.get('page') or 1)
-    if page_number > 1:
-        previous_page = page_number - 1
-    else:
-        previous_page = None
+    page_number = request.args.get('page') or ''
+    page_number = int(page_number) if page_number.isdigit() else 1
 
     ds_table = dataset[table]
     total_rows = ds_table.all().count()
     rows_per_page = app.config['ROWS_PER_PAGE']
-    total_pages = math.ceil(total_rows / float(rows_per_page))
-    if page_number < total_pages:
-        next_page = page_number + 1
-    else:
-        next_page = None
+    total_pages = int(math.ceil(total_rows / float(rows_per_page)))
+    # Restrict bounds.
+    page_number = min(page_number, total_pages)
+    page_number = max(page_number, 1)
+
+    previous_page = page_number - 1 if page_number > 1 else None
+    next_page = page_number + 1 if page_number < total_pages else None
 
     query = ds_table.all().paginate(page_number, rows_per_page)
 
@@ -421,6 +420,7 @@ def table_content(table):
         previous_page=previous_page,
         query=query,
         table=table,
+        total_pages=total_pages,
         total_rows=total_rows)
 
 @app.route('/<table>/query/', methods=['GET', 'POST'])
