@@ -54,3 +54,18 @@ The `query` tab allows you to execute arbitrary SQL queries on a table. The quer
 The `import` tab supports importing CSV and JSON files into a table. There is an option to automatically create columns for any unrecognized keys in the import file:
 
 ![](http://media.charlesleifer.com/blog/photos/s1415479625.44.png)
+
+### Command-line options
+
+The syntax for invoking sqlite-web is:
+
+.. code-block:: console
+
+    $ sqlite_web [options] /path/to/database-file.db
+
+The following options are available:
+
+* ``-p``, ``--port``: default is 8080
+* ``-H``, ``--host``: default is 127.0.0.1
+* ``-d``, ``--debug``: default is false
+* ``-x``, ``--no-browser``: do not open a web-browser when sqlite-web starts.
