@@ -54,11 +54,11 @@
   <nav>
     <ul class="pager">
       <li class="{% if not previous_page %}disabled {% endif %}previous">
-        <a href="{{ url_for('table_content', table=table, page=previous_page) }}">&larr; Previous</a>
+        <a href="{{ url_for('table_content', table=table, page=previous_page, ordering=ordering) }}">&larr; Previous</a>
       </li>
       <li>Page {{ page }} / {{ total_pages }}</li>
       <li class="{% if not next_page %}disabled {% endif %}next">
-        <a href="{{ url_for('table_content', table=table, page=next_page) }}">Next &rarr;</a>
+        <a href="{{ url_for('table_content', table=table, page=next_page, ordering=ordering) }}">Next &rarr;</a>
       </li>
     </ul>
   </nav>
