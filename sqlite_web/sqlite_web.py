@@ -14,9 +14,16 @@ from functools import wraps
 
 # Py3k compat.
 if sys.version_info[0] == 3:
-    basestring = str
+    binary_types = (bytes, bytearray)
+    decode_handler = 'backslashreplace'
+    numeric = (int, float)
+    unicode_type = str
     from io import StringIO
 else:
+    binary_types = (buffer, bytes, bytearray)
+    decode_handler = 'replace'
+    numeric = (int, long, float)
+    unicode_type = unicode
     from StringIO import StringIO
 
 try:
@@ -539,8 +546,15 @@ def drop_table(table):
 
 @app.template_filter('value_filter')
 def value_filter(value, max_length=50):
-    value = escape(value)
-    if isinstance(value, basestring):
+    if isinstance(value, numeric):
+        return value
+
+    if isinstance(value, binary_types):
+        if not isinstance(value, (bytes, bytearray)):
+            value = bytes(value)  # Handle `buffer` type.
+        value = value.decode('utf-8', decode_handler)
+    if isinstance(value, unicode_type):
+        value = escape(value)
         if len(value) > max_length:
             return ('<span class="truncated">%s</span> '
                     '<span class="full" style="display:none;">%s</span>'
