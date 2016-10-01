@@ -1,8 +1,17 @@
 {% extends "base_table.html" %}
 
+{% block extra_head %}
+<style type="text/css">
+  pre { clear: right; }
+  {% if not session.get('show') %}div#tableInfo { display: none; }{% endif %}
+</style>
+{% endblock %}
+
 {% block extra_scripts %}
   <script type="text/javascript">
     $(function() {
+      var tableInfo = $('div#tableInfo');
+
       $('a.sql-image').on('click', function(e) {
         e.preventDefault();
         var elem = $(this),
@@ -13,6 +22,15 @@
           $('<img src="' + imgUrl + '" />'));
         modalDiv.modal();
       });
+
+      $('a#toggleTableInfo').on('click', function(e) {
+        var show = !tableInfo.is(':visible');
+        e.preventDefault();
+        tableInfo.toggle('slide');
+        $.post('{{ url_for('set_table_definition_preference') }}', {'show': show}, function(resp) {
+          console.log('preference logged, new value: ' + resp.show);
+        });
+      });
     });
   </script>
 {% endblock %}
@@ -20,7 +38,15 @@
 {% block query_tab_class %}active{% endblock %}
 
 {% block inner_content %}
-  <h3>Query</h3>
+  <h3>
+    <p class="pull-right">
+      <a class="btn btn-primary btn-xs" href="#" id="toggleTableInfo">+/- table definition</a>
+    </p>
+    Query
+  </h3>
+  <div id="tableInfo">
+    {{ table_sql|format_create_table|highlight }}
+  </div>
   <form action="." method="post" role="form">
     <div class="form-group{% if error %} has-error has-feedback{% endif %}">
       <textarea class="form-control" name="sql" style="height: 120px;">{% if sql %}{{ sql }}{% endif %}</textarea>

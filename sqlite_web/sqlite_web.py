@@ -28,8 +28,8 @@ else:
 
 try:
     from flask import (
-        Flask, abort, escape, flash, make_response, Markup, redirect,
-        render_template, request, url_for)
+        Flask, abort, escape, flash, jsonify, make_response, Markup, redirect,
+        render_template, request, session, url_for)
 except ImportError:
     raise RuntimeError('Unable to import flask module. Install by running '
                        'pip install flask')
@@ -416,6 +416,10 @@ def table_content(table):
         fields = model_meta.get_fields()
     columns = [field.db_column for field in fields]
 
+    table_sql = dataset.query(
+        'SELECT sql FROM sqlite_master WHERE tbl_name = ? AND type = ?',
+        [table, 'table']).fetchone()[0]
+
     return render_template(
         'table_content.html',
         columns=columns,
@@ -457,6 +461,10 @@ def table_query(table):
         else:
             sql = 'SELECT *\nFROM "%s"' % (table)
 
+    table_sql = dataset.query(
+        'SELECT sql FROM sqlite_master WHERE tbl_name = ? AND type = ?',
+        [table, 'table']).fetchone()[0]
+
     return render_template(
         'table_query.html',
         data=data,
@@ -465,7 +473,18 @@ def table_query(table):
         query_images=get_query_images(),
         row_count=row_count,
         sql=sql,
-        table=table)
+        table=table,
+        table_sql=table_sql)
+
+@app.route('/table-definition/', methods=['POST'])
+def set_table_definition_preference():
+    key = 'show'
+    show = False
+    if request.form.get(key):
+        session[key] = show = True
+    elif key in request.session:
+        del request.session[key]
+    return jsonify({key: show})
 
 def export(table, sql, export_format):
     model_class = dataset[table].model_class
