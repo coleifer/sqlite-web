@@ -9,8 +9,12 @@ import sys
 import threading
 import time
 import webbrowser
+import logging
 from collections import namedtuple, OrderedDict
 from functools import wraps
+from middleware import ReverseProxied
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 
 # Py3k compat.
 if sys.version_info[0] == 3:
@@ -75,6 +79,9 @@ app = Flask(
     __name__,
     static_folder=os.path.join(CUR_DIR, 'static'),
     template_folder=os.path.join(CUR_DIR, 'templates'))
+
+app.wsgi_app = ReverseProxied(app.wsgi_app)
+
 app.config.from_object(__name__)
 dataset = None
 migrator = None
@@ -86,6 +93,49 @@ migrator = None
 TriggerMetadata = namedtuple('TriggerMetadata', ('name', 'sql'))
 
 ViewMetadata = namedtuple('ViewMetadata', ('name', 'sql'))
+
+
+
+class DatabaseChangeEventHandler(FileSystemEventHandler):
+    """responds to change in database"""
+    def __init__(self, db_file):
+        self.db_file = db_file
+
+
+    def load_database(self):
+        logging.info("loading database:" + self.db_file)
+        global dataset
+        global migrator
+        dataset = SqliteDataSet('sqlite:///%s' % self.db_file)
+        migrator = dataset._migrator
+
+    def on_moved(self, event):
+        super(DatabaseChangeEventHandler, self).on_moved(event)
+
+        what = 'directory' if event.is_directory else 'file'
+        logging.info("Moved %s: from %s to %s", what, event.src_path,
+                     event.dest_path)
+
+    def on_created(self, event):
+        super(DatabaseChangeEventHandler, self).on_created(event)
+
+        what = 'directory' if event.is_directory else 'file'
+        logging.info("Created %s: %s", what, event.src_path)
+
+    def on_deleted(self, event):
+        super(DatabaseChangeEventHandler, self).on_deleted(event)
+
+        what = 'directory' if event.is_directory else 'file'
+        logging.info("Deleted %s: %s", what, event.src_path)
+
+    def on_modified(self, event):
+        super(DatabaseChangeEventHandler, self).on_modified(event)
+
+        what = 'directory' if event.is_directory else 'file'
+        logging.info("Modified %s: %s", what, event.src_path)
+        # if event.src_path == self.db_file:
+        self.load_database()
+
 
 #
 # Database helpers.
@@ -684,21 +734,41 @@ def open_browser_tab(host, port):
     thread.daemon = True
     thread.start()
 
+
 def main():
     # This function exists to act as a console script entry-point.
+
     parser = get_option_parser()
     options, args = parser.parse_args()
+
     if not args:
         die('Error: missing required path to database file.')
 
     db_file = args[0]
-    global dataset
-    global migrator
-    dataset = SqliteDataSet('sqlite:///%s' % db_file)
-    migrator = dataset._migrator
+
+    # load the database metadata
+
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s - %(message)s',
+                        datefmt='%Y-%m-%d %H:%M:%S')
+
+    event_handler = DatabaseChangeEventHandler(db_file)
+
+    event_handler.load_database()
+
+    observer = Observer()
+    dir = os.path.dirname(db_file)
+    observer.schedule(event_handler, dir, recursive=True)
+    observer.start()
+
     if options.browser:
         open_browser_tab(options.host, options.port)
+
+    # start server
     app.run(host=options.host, port=options.port, debug=options.debug)
+
+
+
 
 
 if __name__ == '__main__':
