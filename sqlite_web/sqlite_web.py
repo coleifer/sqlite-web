@@ -13,7 +13,7 @@ import logging
 from collections import namedtuple, OrderedDict
 from functools import wraps
 from middleware import ReverseProxied
-from watchdog.observers import Observer
+from watchdog.observers.polling import PollingObserver
 from watchdog.events import FileSystemEventHandler
 
 # Py3k compat.
@@ -756,7 +756,7 @@ def main():
 
     event_handler.load_database()
 
-    observer = Observer()
+    observer = PollingObserver(2)
     dir = os.path.dirname(db_file)
     observer.schedule(event_handler, dir, recursive=True)
     observer.start()
