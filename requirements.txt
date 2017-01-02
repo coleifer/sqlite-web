@@ -1,4 +1,6 @@
 flask
 pygments
 watchdog
+pytest
+html2text
 -e git+git://github.com/coleifer/peewee.git#egg=peewee

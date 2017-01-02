@@ -1,0 +1,62 @@
+{% extends "base_table.html" %}
+
+{% block extra_scripts %}
+  <script type="text/javascript">
+    $(function() {
+      $('a.view-sql').on('click', function(e) {
+        e.preventDefault();
+        var elem = $(this),
+            pre = elem.siblings('div'),
+            modalDiv = $('div#sql-modal');
+        modalDiv.find('h4.modal-title').text(elem.data('name'));
+        modalDiv.find('.modal-body').empty().append(pre.clone().show());
+        modalDiv.modal();
+      });
+    });
+  </script>
+{% endblock %}
+
+{% block content_tab_class %}active{% endblock %}
+
+{% block inner_content %}
+  <h3 id="columns">
+    <!-- <p class="pull-right"><a class="btn btn-primary btn-sm" href="{{ url_for('add_column', table=table) }}">Add column</a></p> -->
+    Edit Row
+  </h3>
+  <form method="POST" action="{{ url_for('save_row', id=id, table=table) }}">
+  {% for column in columns %}
+    <div class="form-group">
+      <label for="{{ column.name }}">{{ column.name }}</label>
+      <input name="{{ column.name }}" value="{{ data[column.name.lower()] }}" type="text" class="form-control" id="{{ column.name }}" aria-describedby="{{ column.name }}Help" placeholder="{{ column.name }}">
+      <small id="{{ column.name }}Help" class="form-text text-muted">
+        {{column.data_type}}
+        | Null({% if column.null %}
+          <span class="glyphicon glyphicon-ok"></span>
+        {% endif %})
+
+        {% if column.primary_key %}
+         | Primary Key (<span class="glyphicon glyphicon-ok"></span>)
+        {% endif %}
+      </small>
+    </div>
+  {% endfor %}
+
+  <button type="submit" class="btn btn-primary">Submit</button>
+
+  </form>
+ 
+  <hr />
+
+
+  <div class="modal fade" id="sql-modal">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+          <h4 class="modal-title"></h4>
+        </div>
+        <div class="modal-body"></div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

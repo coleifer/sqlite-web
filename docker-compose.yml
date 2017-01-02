@@ -5,6 +5,7 @@ services:
     ports:
       - "8080:80"
     build: .
+    entrypoint: tail -f /sqlite_web/README.md
     environment:
       DEBUG: "true"
       # where the database is in the container

@@ -12,6 +12,22 @@
         truncated.toggle();
         full.toggle();
       });
+
+      var records = $('a.delete').on('click', function(e){
+        var id = $(this).attr('data-id');
+        console.log(e);
+        e.preventDefault();
+        $.ajax({
+            url: "{{ url_for( 'table_structure', table=table ) }}delete-row/" + id + '/',
+            type: 'DELETE',
+            success: function(result) {
+                // Do something with the result
+                //alert('deleted');
+                window.location.reload();
+            }
+        });
+      });
+
     });
   </script>
 {% endblock %}
@@ -22,8 +38,8 @@
 {% endblock %}
 
 {% block content_tab_class %}active{% endblock %}
-
 {% block inner_content %}
+
   <table class="table table-striped">
     <thead>
       <tr>
@@ -47,6 +63,8 @@
               {% endif %}
             </td>
           {% endfor %}
+          <td><a data-id="{{row[pkname]}}" class="delete" href="">X</a></td>
+          <td><a href="{{ url_for('edit_row', id=row[pkname], table=table) }}">E</a></td>
         </tr>
       {% endfor %}
     </tbody>

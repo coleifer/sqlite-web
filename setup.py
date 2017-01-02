@@ -26,7 +26,7 @@ setup(
         'watchdog',
     ],
     include_package_data=True,
-    packages=find_packages('./sqlite_web'),
+    packages=find_packages(),
     package_data={
         'sqlite_web': [
             'static/*/*',
@@ -35,7 +35,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'sqlite_web = sqlite_web:main'
+            'sqlite_web=sqlite_web.sqlite_web:main'
         ],
     },
     classifiers=[
