@@ -1,0 +1,20 @@
+version: '2'
+
+services:
+  sqlite_web:
+    ports:
+      - "8080:80"
+    build: .
+    entrypoint: tail -f /sqlite_web/README.md
+    environment:
+      DEBUG: "true"
+      # where the database is in the container
+      # you can map this with a volume
+      DB_PATH: "/sqlite_web/sampledata/sample.sqlite"
+      LISTEN_PORT: "80"
+      LISTEN_ADDRESS: "0.0.0.0"
+
+    volumes:
+      - .:/sqlite_web
+      # map your database here
+      # - ./yourdb.sqlite:/db.sqlite

@@ -23,6 +23,7 @@ setup(
         'flask',
         'peewee',
         'pygments',
+        'watchdog',
     ],
     include_package_data=True,
     packages=find_packages(),
@@ -34,7 +35,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'sqlite_web = sqlite_web.sqlite_web:main'
+            'sqlite_web=sqlite_web.sqlite_web:main'
         ],
     },
     classifiers=[

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+
 import datetime
 import math
 import optparse
@@ -9,8 +10,17 @@ import sys
 import threading
 import time
 import webbrowser
+import logging
 from collections import namedtuple, OrderedDict
 from functools import wraps
+from watchdog.observers.polling import PollingObserver
+from watchdog.events import FileSystemEventHandler
+
+PACKAGE_PARENT = '..'
+SCRIPT_DIR = os.path.dirname(os.path.realpath(os.path.join(os.getcwd(), os.path.expanduser(__file__))))
+sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
+
+# from sqlite_web.middleware import ReverseProxied
 
 # Py3k compat.
 if sys.version_info[0] == 3:
@@ -65,32 +75,82 @@ from playhouse.dataset import DataSet
 from playhouse.migrate import migrate
 
 
-CUR_DIR = os.path.realpath(os.path.dirname(__file__))
-DEBUG = False
-MAX_RESULT_SIZE = 1000
-ROWS_PER_PAGE = 50
-SECRET_KEY = 'sqlite-database-browser-0.1.0'
+class ReverseProxied(object):
+    '''Wrap the application in this middleware and configure the 
+    front-end server to add these headers, to let you quietly bind 
+    this to a URL other than / and to an HTTP scheme that is 
+    different than what is used locally.
 
-app = Flask(
-    __name__,
-    static_folder=os.path.join(CUR_DIR, 'static'),
-    template_folder=os.path.join(CUR_DIR, 'templates'))
-app.config.from_object(__name__)
-dataset = None
-migrator = None
+    In nginx:
+    location /myprefix {
+        proxy_pass http://192.168.0.1:5001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Scheme $scheme;
+        proxy_set_header X-Script-Name /myprefix;
+        }
 
-#
-# Database metadata objects.
-#
+    :param app: the WSGI application
+    '''
+    def __init__(self, app):
+        self.app = app
 
-TriggerMetadata = namedtuple('TriggerMetadata', ('name', 'sql'))
+    def __call__(self, environ, start_response):
+        script_name = environ.get('HTTP_X_SCRIPT_NAME', '')
+        if script_name:
+            environ['SCRIPT_NAME'] = script_name
+            path_info = environ['PATH_INFO']
+            if path_info.startswith(script_name):
+                environ['PATH_INFO'] = path_info[len(script_name):]
 
-ViewMetadata = namedtuple('ViewMetadata', ('name', 'sql'))
+        scheme = environ.get('HTTP_X_SCHEME', '')
+        if scheme:
+            environ['wsgi.url_scheme'] = scheme
+        return self.app(environ, start_response)
+
+class DatabaseChangeEventHandler(FileSystemEventHandler):
+    """responds to change in database"""
+    def __init__(self, db_file):
+        self.db_file = db_file
+
+
+    def load_database(self):
+        logging.info("loading database:" + self.db_file)
+        global dataset
+        global migrator
+        dataset = SqliteDataSet('sqlite:///%s' % self.db_file)
+        migrator = dataset._migrator
+
+    def on_moved(self, event):
+        super(DatabaseChangeEventHandler, self).on_moved(event)
+
+        what = 'directory' if event.is_directory else 'file'
+        logging.info("Moved %s: from %s to %s", what, event.src_path,
+                     event.dest_path)
+
+    def on_created(self, event):
+        super(DatabaseChangeEventHandler, self).on_created(event)
+
+        what = 'directory' if event.is_directory else 'file'
+        logging.info("Created %s: %s", what, event.src_path)
+
+    def on_deleted(self, event):
+        super(DatabaseChangeEventHandler, self).on_deleted(event)
+
+        what = 'directory' if event.is_directory else 'file'
+        logging.info("Deleted %s: %s", what, event.src_path)
+
+    def on_modified(self, event):
+        super(DatabaseChangeEventHandler, self).on_modified(event)
+
+        what = 'directory' if event.is_directory else 'file'
+        logging.info("Modified %s: %s", what, event.src_path)
+        # if event.src_path == self.db_file:
+        self.load_database()
 
 #
 # Database helpers.
 #
-
 class SqliteDataSet(DataSet):
     @property
     def filename(self):
@@ -168,6 +228,45 @@ class SqliteDataSet(DataSet):
             '%s_%s' % (virtual_table, suffix) for suffix in suffixes
             for virtual_table in virtual_tables)
 
+
+# initialize flask
+CUR_DIR = os.path.realpath(os.path.dirname(__file__))
+
+app = Flask(
+    __name__,
+    static_folder=os.path.join(CUR_DIR, 'static'),
+    template_folder=os.path.join(CUR_DIR, 'templates'))
+
+app.wsgi_app = ReverseProxied(app.wsgi_app)
+
+# app.config.from_object(__name__)
+
+# Load default config and override config from an environment variable
+app.config.update(dict(
+    CUR_DIR =CUR_DIR,
+    DEBUG=True,
+    MAX_RESULT_SIZE = 1000,
+    ROWS_PER_PAGE = 50,
+    DATABASE=os.path.join(CUR_DIR, 'sampledata/sample.sqlite'),
+    SECRET_KEY='sqlite-database-browser'
+))
+
+app.config.from_envvar('SQLITE_WEB_SETTINGS', silent=True)
+
+
+# globals
+dataset = None
+migrator = None
+event_handler = None
+
+
+#
+# Database metadata objects.
+#
+
+TriggerMetadata = namedtuple('TriggerMetadata', ('name', 'sql'))
+
+ViewMetadata = namedtuple('ViewMetadata', ('name', 'sql'))
 #
 # Flask views.
 #
@@ -219,6 +318,107 @@ def get_request_data():
     if request.method == 'POST':
         return request.form
     return request.args
+
+
+@app.route('/<table>/edit-row/<id>/')
+@require_table
+def edit_row(table, id):
+    print("edit-row:" + id + ", table:" + table)
+    ds_table = dataset[table]
+    model_class = ds_table.model_class
+
+    ds_table = dataset[table]
+    # data = dataset.query('select artistid from ' + table + ' where artistid = ' + id ).fetchone()[0]
+    # print(data)
+    columns = dataset.get_columns(table)
+    col_list = ''
+    pkname= ''
+    for column in columns:
+        if column.primary_key:
+            pkname = column.name.lower()
+            print("primary_key:"+pkname)
+
+    thequery = {pkname:id}
+    data = ds_table.find_one(**thequery)
+
+    table_sql = dataset.query(
+        'SELECT sql FROM sqlite_master WHERE tbl_name = ? AND type = ?',
+        [table, 'table']).fetchone()[0]
+
+    return render_template(
+        'edit_row.html',
+        columns=dataset.get_columns(table),
+        ds_table=ds_table,
+        foreign_keys=dataset.get_foreign_keys(table),
+        indexes=dataset.get_indexes(table),
+        model_class=model_class,
+        table=table,
+        table_sql=table_sql,
+        data=data,
+        pkname=pkname,
+        id=id,
+        triggers=dataset.get_triggers(table))
+
+@app.route('/<table>/save-row/<id>/', methods=['POST'])
+@require_table
+def save_row(table, id):
+    print("save-row:" + id + ", table:" + table)
+    ds_table = dataset[table]
+    model_class = ds_table.model_class
+
+    ds_table = dataset[table]
+    # data = dataset.query('select artistid from ' + table + ' where artistid = ' + id ).fetchone()[0]
+    # print(data)
+    columns = dataset.get_columns(table)
+    col_list = ''
+    pkname= ''
+    columnvalues={} 
+
+    request_data = get_request_data()
+    for column in columns: 
+        columnvalues[column.name.lower()] = request_data.get(column.name)
+        if column.primary_key:
+            pkname = column.name.lower()
+
+    print("column values:" + str(columnvalues))
+
+    query = ( model_class.update(**columnvalues).where( SQL( pkname + '= ?', id) ) )
+    # print(query.sql());
+    query.execute()
+
+    return redirect(url_for('edit_row', table=table, id=id), 302)
+
+@app.route('/<table>/delete-row/<id>/', methods=['DELETE'])
+@require_table
+def delete_row(table, id):
+
+
+    print("save-row:" + id + ", table:" + table)
+    ds_table = dataset[table]
+    model_class = ds_table.model_class
+
+    ds_table = dataset[table]
+    # data = dataset.query('select artistid from ' + table + ' where artistid = ' + id ).fetchone()[0]
+    # print(data)
+    columns = dataset.get_columns(table)
+    col_list = ''
+    pkname= ''
+    columnvalues={} 
+
+    request_data = get_request_data()
+    for column in columns: 
+        columnvalues[column.name.lower()] = request_data.get(column.name)
+        if column.primary_key:
+            pkname = column.name.lower()
+
+    print("column values:" + str(columnvalues))
+
+    query = ( model_class.delete().where( SQL( pkname + '= ?', id) ) )
+    query.execute()
+
+    return "ok"
+
+
 
 @app.route('/<table>/add-column/', methods=['GET', 'POST'])
 @require_table
@@ -388,6 +588,12 @@ def table_content(table):
     page_number = request.args.get('page') or ''
     page_number = int(page_number) if page_number.isdigit() else 1
 
+    columns = dataset.get_columns(table)
+    for column in columns:
+        if column.primary_key:
+            pkname = column.name.lower()
+            print("primary_key:"+pkname)
+
     ds_table = dataset[table]
     total_rows = ds_table.all().count()
     rows_per_page = app.config['ROWS_PER_PAGE']
@@ -432,6 +638,7 @@ def table_content(table):
         query=query,
         table=table,
         total_pages=total_pages,
+        pkname=pkname,
         total_rows=total_rows)
 
 @app.route('/<table>/query/', methods=['GET', 'POST'])
@@ -640,7 +847,7 @@ def _close_db(exc):
 #
 # Script options.
 #
-
+ 
 def get_option_parser():
     parser = optparse.OptionParser()
     parser.add_option(
@@ -684,21 +891,46 @@ def open_browser_tab(host, port):
     thread.daemon = True
     thread.start()
 
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S')
+
 def main():
     # This function exists to act as a console script entry-point.
+
     parser = get_option_parser()
     options, args = parser.parse_args()
+
     if not args:
         die('Error: missing required path to database file.')
 
-    db_file = args[0]
-    global dataset
-    global migrator
-    dataset = SqliteDataSet('sqlite:///%s' % db_file)
-    migrator = dataset._migrator
+    app.config['DATABASE'] = args[0]
+    app.config['PORT'] = options.port
+    app.config['HOST'] = options.host
+    app.config['DEBUG'] = options.debug
+
+
+    global event_handler
+    event_handler = DatabaseChangeEventHandler(app.config['DATABASE'])
+
+
+
+    observer = PollingObserver(2)
+    dbdir = os.path.dirname(app.config['DATABASE'])
+    observer.schedule(event_handler, dbdir, recursive=True)
+    observer.start()
+
+    # load the database metadata
+    event_handler.load_database()
+
+
+    # open the browser
     if options.browser:
         open_browser_tab(options.host, options.port)
-    app.run(host=options.host, port=options.port, debug=options.debug)
+
+    # start server
+    app.run(host=app.config['HOST'], port=app.config['PORT'], debug=app.config['DEBUG'])
+
 
 
 if __name__ == '__main__':
