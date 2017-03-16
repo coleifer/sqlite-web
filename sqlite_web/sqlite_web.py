@@ -613,7 +613,7 @@ def get_query_images():
     for filename in sorted(os.listdir(image_dir)):
         basename = os.path.splitext(os.path.basename(filename))[0]
         parts = basename.split('-')
-        accum.append((parts, os.path.join('img', filename)))
+        accum.append((parts, 'img/' + filename))
     return accum
 
 #
