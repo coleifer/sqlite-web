@@ -696,6 +696,7 @@ def main():
     global migrator
     dataset = SqliteDataSet('sqlite:///%s' % db_file)
     migrator = dataset._migrator
+    dataset.close()
     if options.browser:
         open_browser_tab(options.host, options.port)
     app.run(host=options.host, port=options.port, debug=options.debug)
