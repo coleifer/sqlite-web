@@ -22,7 +22,7 @@ $ sqlite_web /path/to/database.db
 
 ### Features
 
-![](http://media.charlesleifer.com/blog/photos/p1420930919.43.gif)
+![](http://media.charlesleifer.com/blog/photos/p1494359468.71.gif)
 
 * Works with your existing SQLite databases, or can be used to create new databases.
 * Add or drop:
