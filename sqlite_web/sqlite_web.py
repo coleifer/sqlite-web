@@ -50,11 +50,12 @@ else:
 
 try:
     from peewee import __version__
+    peewee_version = tuple([int(p) for p in __version__.split('.')])
 except ImportError:
     raise RuntimeError('Unable to import peewee module. Install by running '
                        'pip install peewee')
 else:
-    if __version__ <= '2.4.2':
+    if peewee_version <= (2, 4, 2):
         raise RuntimeError('Peewee >= 2.4.3 is required. Found version %s. '
                            'Please update by running pip install --update '
                            'peewee' % __version__)
