@@ -415,7 +415,10 @@ def table_content(table):
         fields = model_meta.sorted_fields
     except AttributeError:
         fields = model_meta.get_fields()
-    columns = [field.db_column for field in fields]
+    if peewee_version >= (3, 0, 0):
+        columns = [field.column_name for field in fields]
+    else:
+        columns = [field.db_column for field in fields]
 
     table_sql = dataset.query(
         'SELECT sql FROM sqlite_master WHERE tbl_name = ? AND type = ?',
@@ -695,7 +698,11 @@ def main():
     db_file = args[0]
     global dataset
     global migrator
-    dataset = SqliteDataSet('sqlite:///%s' % db_file)
+    if peewee_version >= (3, 0, 0):
+        dataset_kwargs = {'bare_fields': True}
+    else:
+        dataset_kwargs = {}
+    dataset = SqliteDataSet('sqlite:///%s' % db_file, **dataset_kwargs)
     migrator = dataset._migrator
     dataset.close()
     if options.browser:
