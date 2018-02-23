@@ -248,6 +248,7 @@ def add_column(table):
                     name,
                     column_mapping[col_type](null=True)))
             flash('Column "%s" was added successfully!' % name, 'success')
+            dataset.update_cache(table)
             return redirect(url_for('table_structure', table=table))
         else:
             flash('Name and column type are required.', 'danger')
@@ -271,6 +272,7 @@ def drop_column(table):
         if name in column_names:
             migrate(migrator.drop_column(table, name))
             flash('Column "%s" was dropped successfully!' % name, 'success')
+            dataset.update_cache(table)
             return redirect(url_for('table_structure', table=table))
         else:
             flash('Name is required.', 'danger')
@@ -296,6 +298,7 @@ def rename_column(table):
         if (rename in column_names) and (rename_to not in column_names):
             migrate(migrator.rename_column(table, rename, rename_to))
             flash('Column "%s" was renamed successfully!' % rename, 'success')
+            dataset.update_cache(table)
             return redirect(url_for('table_structure', table=table))
         else:
             flash('Column name is required and cannot conflict with an '
@@ -389,6 +392,7 @@ def table_content(table):
     page_number = request.args.get('page') or ''
     page_number = int(page_number) if page_number.isdigit() else 1
 
+    dataset.update_cache(table)
     ds_table = dataset[table]
     total_rows = ds_table.all().count()
     rows_per_page = app.config['ROWS_PER_PAGE']
