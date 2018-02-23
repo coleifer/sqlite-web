@@ -11,6 +11,7 @@ import time
 import webbrowser
 from collections import namedtuple, OrderedDict
 from functools import wraps
+from getpass import getpass
 
 # Py3k compat.
 if sys.version_info[0] == 3:
@@ -176,6 +177,20 @@ class SqliteDataSet(DataSet):
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/login/', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        if request.form.get('password') == app.config['PASSWORD']:
+            session['authorized'] = True
+            return redirect(session.get('next_url') or '/')
+        flash('The password you entered is incorrect.', 'danger')
+    return render_template('login.html')
+
+@app.route('/logout/', methods=['GET'])
+def logout():
+    session.pop('authorized', None)
+    return redirect(url_for('login'))
 
 def require_table(fn):
     @wraps(fn)
@@ -630,7 +645,10 @@ def get_query_images():
 
 @app.context_processor
 def _general():
-    return {'dataset': dataset}
+    return {
+        'dataset': dataset,
+        'login_required': bool(app.config.get('PASSWORD')),
+    }
 
 @app.context_processor
 def _now():
@@ -674,6 +692,12 @@ def get_option_parser():
         default=True,
         dest='browser',
         help='Do not automatically open browser page.')
+    parser.add_option(
+        '-P',
+        '--password',
+        action='store_true',
+        dest='prompt_password',
+        help='Prompt for password to access database browser.')
     return parser
 
 def die(msg, exit_code=1):
@@ -692,12 +716,36 @@ def open_browser_tab(host, port):
     thread.daemon = True
     thread.start()
 
+def install_auth_handler(password):
+    app.config['PASSWORD'] = password
+
+    @app.before_request
+    def check_password():
+        if not session.get('authorized') and request.path != '/login/' and \
+           not request.path.startswith('/static/'):
+            flash('You must log-in to view the database browser.', 'danger')
+            session['next_url'] = request.path
+            return redirect(url_for('login'))
+
 def main():
     # This function exists to act as a console script entry-point.
     parser = get_option_parser()
     options, args = parser.parse_args()
     if not args:
         die('Error: missing required path to database file.')
+
+    password = None
+    if options.prompt_password:
+        while True:
+            password = getpass('Enter password: ')
+            password_confirm = getpass('Confirm password: ')
+            if password != password_confirm:
+                print('Passwords did not match!')
+            else:
+                break
+
+    if password:
+        install_auth_handler(password)
 
     db_file = args[0]
     global dataset

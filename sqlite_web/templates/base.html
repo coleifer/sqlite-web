@@ -47,6 +47,7 @@
       {% endblock %}
       <div class="col-xs-3" id="sidebar">
         {% block sidebar %}{% endblock %}
+        {% block logout %}{% if login_required %}<a href="{{ url_for('logout') }}">Log-out</a>{% endif %}{% endblock %}
       </div>
       <div class="col-xs-9" id="content">
         {% for category, message in get_flashed_messages(with_categories=true) %}

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block content_header %}{% endblock %}
+
+{% block logout %}{% endblock %}
+
+{% block content %}
+<h3>Login</h3>
+<form action="{{ url_for('login') }}" class="form" method="post">
+  <div class="form-group">
+    <label for="id_password">Password</label>
+    <input class="form-control" id="id_password" name="password" type="password" value="" />
+  </div>
+  <button class="btn btn-primary" type="submit">Login</button>
+</form>
+{% endblock %}
