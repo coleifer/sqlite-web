@@ -59,9 +59,10 @@ The `import` tab supports importing CSV and JSON files into a table. There is an
 
 The syntax for invoking sqlite-web is:
 
-.. code-block:: console
+```console
 
-    $ sqlite_web [options] /path/to/database-file.db
+$ sqlite_web [options] /path/to/database-file.db
+```
 
 The following options are available:
 
