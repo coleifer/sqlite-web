@@ -71,3 +71,18 @@ The following options are available:
 * ``-d``, ``--debug``: default is false
 * ``-x``, ``--no-browser``: do not open a web-browser when sqlite-web starts.
 * ``-P``, ``--password``: prompt for password to access sqlite-web.
+
+### Using docker
+
+A Dockerfile is provided with sqlite-web. To use:
+
+```console
+
+$ cd docker/  # Change dirs to the dir containing Dockerfile
+$ docker build -t coleifer/sqlite-web .
+$ docker run -it --rm \
+    -p 8080:8080 \
+    -v /path/to/your-data:/data \
+    -e SQLITE_DATABASE=db_filename.db \
+    coleifer/sqlite-web
+```
