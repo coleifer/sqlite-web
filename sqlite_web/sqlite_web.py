@@ -722,7 +722,7 @@ def install_auth_handler(password):
     @app.before_request
     def check_password():
         if not session.get('authorized') and request.path != '/login/' and \
-           not request.path.startswith('/static/'):
+           not request.path.startswith(('/static/', '/favicon')):
             flash('You must log-in to view the database browser.', 'danger')
             session['next_url'] = request.path
             return redirect(url_for('login'))
