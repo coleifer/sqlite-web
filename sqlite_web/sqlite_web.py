@@ -496,10 +496,10 @@ def table_query(table):
 def set_table_definition_preference():
     key = 'show'
     show = False
-    if request.form.get(key):
+    if request.form.get(key) and request.form.get(key) != 'false':
         session[key] = show = True
-    elif key in request.session:
-        del request.session[key]
+    elif key in session:
+        del session[key]
     return jsonify({key: show})
 
 def export(table, sql, export_format):
