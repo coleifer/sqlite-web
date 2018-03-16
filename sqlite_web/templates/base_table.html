@@ -5,24 +5,26 @@
 {% endblock %}
 
 {% block content %}
-  <ul class="nav nav-tabs" role="tablist">
-    <li role="presentation" class="{% block structure_tab_class %}{% endblock %}">
-      <a href="{{ url_for('table_structure', table=table) }}">Structure</a>
+  <ul class="nav nav-tabs">
+    <li class="nav-item">
+      <a class="nav-link{% block structure_tab_class %}{% endblock %}" href="{{ url_for('table_structure', table=table) }}">Structure</a>
     </li>
-    <li role="presentation" class="{% block content_tab_class %}{% endblock %}">
-      <a href="{{ url_for('table_content', table=table) }}">Content</a>
+    <li class="nav-item">
+      <a class="nav-link{% block content_tab_class %}{% endblock %}" href="{{ url_for('table_content', table=table) }}">Content</a>
     </li>
-    <li role="presentation" class="{% block query_tab_class %}{% endblock %}">
-      <a href="{{ url_for('table_query', table=table) }}">Query</a>
+    <li class="nav-item">
+      <a class="nav-link{% block query_tab_class %}{% endblock %}" href="{{ url_for('table_query', table=table) }}">Query</a>
     </li>
-    <li role="presentation" class="pull-right{% block drop_tab_class %}{% endblock %}">
-      <a href="{{ url_for('drop_table', table=table) }}">Drop</a>
+    <li class="nav-item ml-auto">
+      <a class="nav-link{% block drop_tab_class %}{% endblock %}" href="{{ url_for('drop_table', table=table) }}">Drop</a>
     </li>
-    <li role="presentation" class="pull-right{% block import_tab_class %}{% endblock %}">
-      <a href="{{ url_for('table_import', table=table) }}">Import</a>
+    <li class="nav-item">
+      <a class="nav-link{% block import_tab_class %}{% endblock %}" href="{{ url_for('table_import', table=table) }}">Import</a>
     </li>
     {% block inner_nav %}{% endblock %}
   </ul>
-  {% block inner_content %}
-  {% endblock %}
+  <div style="margin-top: 20px;">
+    {% block inner_content %}
+    {% endblock %}
+  </div>
 {% endblock %}

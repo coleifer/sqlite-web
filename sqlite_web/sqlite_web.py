@@ -2,6 +2,7 @@
 
 import datetime
 import math
+import operator
 import optparse
 import os
 import re
@@ -56,8 +57,8 @@ except ImportError:
     raise RuntimeError('Unable to import peewee module. Install by running '
                        'pip install peewee')
 else:
-    if peewee_version <= (2, 4, 2):
-        raise RuntimeError('Peewee >= 2.4.3 is required. Found version %s. '
+    if peewee_version <= (3, 0, 0):
+        raise RuntimeError('Peewee >= 3.0.0 is required. Found version %s. '
                            'Please update by running pip install --update '
                            'peewee' % __version__)
 
@@ -429,15 +430,7 @@ def table_content(table):
         query = query.order_by(field)
 
     field_names = ds_table.columns
-    model_meta = ds_table.model_class._meta
-    try:
-        fields = model_meta.sorted_fields
-    except AttributeError:
-        fields = model_meta.get_fields()
-    if peewee_version >= (3, 0, 0):
-        columns = [field.column_name for field in fields]
-    else:
-        columns = [field.db_column for field in fields]
+    columns = [f.column_name for f in ds_table.model_class._meta.sorted_fields]
 
     table_sql = dataset.query(
         'SELECT sql FROM sqlite_master WHERE tbl_name = ? AND type = ?',
@@ -585,6 +578,15 @@ def drop_table(table):
         return redirect(url_for('index'))
 
     return render_template('drop_table.html', table=table)
+
+@app.template_filter('format_index')
+def format_index(index_sql):
+    split_regex = re.compile(r'\bon\b', re.I)
+    if not split_regex.search(index_sql):
+        return index_sql
+
+    create, definition = split_regex.split(index_sql)
+    return '\nON '.join((create.strip(), definition.strip()))
 
 @app.template_filter('value_filter')
 def value_filter(value, max_length=50):
@@ -750,11 +752,7 @@ def main():
     db_file = args[0]
     global dataset
     global migrator
-    if peewee_version >= (3, 0, 0):
-        dataset_kwargs = {'bare_fields': True}
-    else:
-        dataset_kwargs = {}
-    dataset = SqliteDataSet('sqlite:///%s' % db_file, **dataset_kwargs)
+    dataset = SqliteDataSet('sqlite:///%s' % db_file, bare_fields=True)
     migrator = dataset._migrator
     dataset.close()
     if options.browser:

@@ -11,7 +11,7 @@
     <link rel=stylesheet type=text/css href="{{ url_for('static', filename='css/syntax-highlight.css') }}" />
     {% block extra_head %}{% endblock %}
     <script src="{{ url_for('static', filename='js/jquery-1.11.0.min.js') }}" type="text/javascript"></script>
-    <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
     <script type="text/javascript">
       $(function() {
         $('a#toggle-helper-tables').on('click', function(e) {
@@ -36,30 +36,32 @@
       {% block page_header %}
         <div class="page-header">
           {% block content_header %}
-            <form action="{{ url_for('table_create') }}" class="form-inline pull-right" method="post">
+            <form action="{{ url_for('table_create') }}" class="form-inline float-right" method="post" style="margin-top: 10px;">
               <input name="redirect" type="hidden" value="{{ request.path }}" />
-              <input class="form-control input-sm" name="table_name" placeholder="new_table_name" />
+              <input class="form-control form-control-sm" name="table_name" placeholder="new_table_name" />
               <button class="btn btn-primary btn-sm" type="submit">Create</button>
             </form>
           {% endblock %}
           <h1>{% block content_title %}{% endblock %}</h1>
         </div>
       {% endblock %}
-      <div class="col-xs-3" id="sidebar">
-        {% block sidebar %}{% endblock %}
-        {% block logout %}{% if login_required %}<a href="{{ url_for('logout') }}">Log-out</a>{% endif %}{% endblock %}
-      </div>
-      <div class="col-xs-9" id="content">
-        {% for category, message in get_flashed_messages(with_categories=true) %}
-          <div class="alert alert-{{ category }} alert-dismissable">
-            <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
-            <p>{{ message }}</p>
-          </div>
-        {% endfor %}
-        {% block content %}{% endblock %}
+      <div class="row">
+        <div class="col-3" id="sidebar">
+          {% block sidebar %}{% endblock %}
+          {% block logout %}{% if login_required %}<a href="{{ url_for('logout') }}">Log-out</a>{% endif %}{% endblock %}
+        </div>
+        <div class="col-9" id="content">
+          {% for category, message in get_flashed_messages(with_categories=true) %}
+            <div class="alert alert-{{ category }} alert-dismissable">
+              <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
+              <p>{{ message }}</p>
+            </div>
+          {% endfor %}
+          {% block content %}{% endblock %}
+        </div>
       </div>
       <div class="row">
-        <div class="col-xs-9 col-xs-offset-3">
+        <div class="col-9 offset-3">
           <footer>
             <hr />
             <p>

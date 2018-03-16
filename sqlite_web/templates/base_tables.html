@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
 {% block sidebar %}
-  <input class="form-control input-sm" id="table-search" placeholder="table name..." type="text" />
-  <ul class="nav nav-pills nav-stacked" role="tablist">
+  <input class="form-control form-control-sm" id="table-search" placeholder="table name..." type="text" />
+  <ul class="nav flex-column nav-pills" role="tablist">
     {% set virtual_tables_corollary = dataset.get_corollary_virtual_tables() %}
     {% for table_name in dataset.tables|sort %}
       {% if table_name not in virtual_tables_corollary %}
-      <li class="table-link{% if table and table_name == table %} active{% endif %}">
-        <a href="{{ url_for('table_structure', table=table_name) }}">
+      <li class="nav-item table-link">
+        <a class="nav-link{% if table and table_name == table %} active{% endif %}" href="{{ url_for('table_structure', table=table_name) }}">
           {{ table_name }}
           {% if table_name in virtual_tables %}
             <sup>(v)</sup>

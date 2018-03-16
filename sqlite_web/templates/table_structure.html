@@ -8,22 +8,22 @@
         var elem = $(this),
             pre = elem.siblings('div'),
             modalDiv = $('div#sql-modal');
-        modalDiv.find('h4.modal-title').text(elem.data('name'));
+        modalDiv.find('h5.modal-title').text(elem.data('name'));
         modalDiv.find('.modal-body').empty().append(pre.clone().show());
-        modalDiv.modal();
+        modalDiv.modal({'keyboard': true});
       });
     });
   </script>
 {% endblock %}
 
-{% block structure_tab_class %}active{% endblock %}
+{% block structure_tab_class %} active{% endblock %}
 
 {% block inner_content %}
   <h3 id="sql">SQL</h3>
   {{ table_sql|format_create_table|highlight }}
 
   <h3 id="columns">
-    <p class="pull-right"><a class="btn btn-primary btn-sm" href="{{ url_for('add_column', table=table) }}">Add column</a></p>
+    <p class="float-right"><a class="btn btn-primary btn-sm" href="{{ url_for('add_column', table=table) }}">+ Add column</a></p>
     Columns
   </h3>
   <table class="table table-striped">
@@ -84,7 +84,7 @@
   {% endif %}
 
   <h3 id="indexes">
-    <p class="pull-right"><a class="btn btn-primary btn-sm" href="{{ url_for('add_index', table=table) }}">Add index</a></p>
+    <p class="float-right"><a class="btn btn-primary btn-sm" href="{{ url_for('add_index', table=table) }}">+ Add index</a></p>
     Indexes
   </h3>
   <table class="table table-striped">
@@ -119,7 +119,7 @@
           </td>
           <td>
             <a class="view-sql" data-name="{{ index.name }}" href="#">SQL</a>
-            <div style="display:none;">{% if index.sql %}{{ index.sql|highlight }}{% else %}-- no sql found --{% endif %}</div>
+            <div style="display:none;">{% if index.sql %}{{ index.sql|format_index|highlight }}{% else %}-- no sql found --{% endif %}</div>
           </td>
           <td>
             <a href="{{ url_for('drop_index', table=table, name=index.name) }}">Drop</a>
@@ -132,7 +132,7 @@
   {% if triggers %}
     <hr />
     <h3 id="triggers">
-      {#<p class="pull-right"><a class="btn btn-primary btn-sm" href="{{ url_for('add_trigger', table=table) }}">Add trigger</a></p>#}
+      {#<p class="float-right"><a class="btn btn-primary btn-sm" href="{{ url_for('add_trigger', table=table) }}">Add trigger</a></p>#}
       Triggers
     </h3>
     <table class="table table-striped">
@@ -163,8 +163,8 @@
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
+          <h5 class="modal-title"></h5>
           <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
-          <h4 class="modal-title"></h4>
         </div>
         <div class="modal-body"></div>
       </div>
