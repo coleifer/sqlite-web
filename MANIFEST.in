@@ -1,2 +1,3 @@
 include README.md
+include docker/Dockerfile
 recursive-include sqlite_web *
