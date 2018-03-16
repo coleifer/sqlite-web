@@ -1,4 +1,7 @@
-body {
-  padding-top: 20px;
+div.page-header {
+  margin: 40px 0 20px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid #f8f5f0;
 }
 #sidebar .nav>li>a {padding: 3px 10px;}
+h1>small {font-size: 50%;}
