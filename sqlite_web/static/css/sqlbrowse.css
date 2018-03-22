@@ -5,3 +5,7 @@ div.page-header {
 }
 #sidebar .nav>li>a {padding: 3px 10px;}
 h1>small {font-size: 50%;}
+.glyph {
+  width:16px;
+  height:16px;
+}

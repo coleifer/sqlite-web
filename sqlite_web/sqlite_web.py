@@ -757,6 +757,7 @@ def main():
     dataset.close()
     if options.browser:
         open_browser_tab(options.host, options.port)
+
     app.run(host=options.host, port=options.port, debug=options.debug)
 
 
