@@ -8,12 +8,31 @@
         </button>
       </div>
       <div class="modal-body">
+        <div class="alert alert-danger" role="alert" id="deleteError">
+          Error returned by backend
+        </div>
         <p>Do you really want to delete a record?</p>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-primary">Delete</button>
+        <button id="buttonDelete" type="button" class="btn btn-primary">Delete</button>
         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
       </div>
     </div>
   </div>
 </div>
+<script>
+  $(document).ready(function() {
+    $('#buttonDelete').click(function() {
+      var tableName = 'posts';
+      var rowId = '16';
+      $.get('/' + tableName + '/delete/' + rowId, function (data) {
+        if(data.error) {
+          $('#deleteError').text(data.message).show();
+        } else {
+          $('#deleteModal').modal('hide');
+        }
+      });
+    });
+  });
+</script>
+

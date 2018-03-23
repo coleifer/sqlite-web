@@ -42,10 +42,10 @@
       {% for row in query %}
         <tr>
           <td>
-            <a href="#" data-toggle="modal" data-target="#deleteModal">
+            <a href="#" data-toggle="modal" data-target="#updateModal" data-table="{{ table }}" data-rowid="{{ row.rowid }}">
               <img class="glyph" src="/static/svg/si-glyph-document-edit.svg"/>
             </a>
-            <a href="#" data-toggle="modal" data-target="#deleteModal">
+            <a href="#" data-toggle="modal" data-target="#deleteModal" data-table="{{ table }}" data-rowid="{{ row.rowid }}">
               <img class="glyph" src="/static/svg/si-glyph-delete.svg"/>
             </a>
           </td>

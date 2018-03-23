@@ -2,7 +2,6 @@
 
 import datetime
 import math
-import operator
 import optparse
 import os
 import re
@@ -64,7 +63,7 @@ else:
 
 from peewee import *
 from peewee import IndexMetadata
-from playhouse.dataset import DataSet
+from playhouse.dataset import DataSet, Table
 from playhouse.migrate import migrate
 
 
@@ -93,6 +92,19 @@ ViewMetadata = namedtuple('ViewMetadata', ('name', 'sql'))
 #
 # Database helpers.
 #
+
+
+def find_patched(self, **query):
+    # todo: need a better way to find rowid
+    result = self._query(**query)
+    dicts_result = result.dicts()
+    for index, value in enumerate(result):
+        dicts_result[index]['rowid'] = value.get_id()
+    return dicts_result
+
+
+Table.find = find_patched
+
 
 class SqliteDataSet(DataSet):
     @property
@@ -175,9 +187,11 @@ class SqliteDataSet(DataSet):
 # Flask views.
 #
 
+
 @app.route('/')
 def index():
     return render_template('index.html')
+
 
 @app.route('/login/', methods=['GET', 'POST'])
 def login():
@@ -188,10 +202,12 @@ def login():
         flash('The password you entered is incorrect.', 'danger')
     return render_template('login.html')
 
+
 @app.route('/logout/', methods=['GET'])
 def logout():
     session.pop('authorized', None)
     return redirect(url_for('login'))
+
 
 def require_table(fn):
     @wraps(fn)
@@ -200,6 +216,7 @@ def require_table(fn):
             abort(404)
         return fn(table, *args, **kwargs)
     return inner
+
 
 @app.route('/create-table/', methods=['POST'])
 def table_create():
@@ -210,6 +227,7 @@ def table_create():
 
     dataset[table]
     return redirect(url_for('table_import', table=table))
+
 
 @app.route('/<table>/')
 @require_table
@@ -232,10 +250,12 @@ def table_structure(table):
         table_sql=table_sql,
         triggers=dataset.get_triggers(table))
 
+
 def get_request_data():
     if request.method == 'POST':
         return request.form
     return request.args
+
 
 @app.route('/<table>/add-column/', methods=['GET', 'POST'])
 @require_table
@@ -276,6 +296,7 @@ def add_column(table):
         name=name,
         table=table)
 
+
 @app.route('/<table>/drop-column/', methods=['GET', 'POST'])
 @require_table
 def drop_column(table):
@@ -299,6 +320,7 @@ def drop_column(table):
         column_names=column_names,
         name=name,
         table=table)
+
 
 @app.route('/<table>/rename-column/', methods=['GET', 'POST'])
 @require_table
@@ -328,6 +350,7 @@ def rename_column(table):
         rename_to=rename_to,
         table=table)
 
+
 @app.route('/<table>/add-index/', methods=['GET', 'POST'])
 @require_table
 def add_index(table):
@@ -356,6 +379,7 @@ def add_index(table):
         table=table,
         unique=unique)
 
+
 @app.route('/<table>/drop-index/', methods=['GET', 'POST'])
 @require_table
 def drop_index(table):
@@ -378,6 +402,7 @@ def drop_index(table):
         index_names=index_names,
         name=name,
         table=table)
+
 
 @app.route('/<table>/drop-trigger/', methods=['GET', 'POST'])
 @require_table
@@ -402,6 +427,7 @@ def drop_trigger(table):
         name=name,
         table=table)
 
+
 @app.route('/<table>/content/')
 @require_table
 def table_content(table):
@@ -420,7 +446,8 @@ def table_content(table):
     previous_page = page_number - 1 if page_number > 1 else None
     next_page = page_number + 1 if page_number < total_pages else None
 
-    query = ds_table.all().paginate(page_number, rows_per_page)
+    query = ds_table.all()
+    # query = ds_table.all().paginate(page_number, rows_per_page)
 
     ordering = request.args.get('ordering')
     if ordering:
@@ -492,6 +519,7 @@ def table_query(table):
         table=table,
         table_sql=table_sql)
 
+
 @app.route('/table-definition/', methods=['POST'])
 def set_table_definition_preference():
     key = 'show'
@@ -501,6 +529,15 @@ def set_table_definition_preference():
     elif key in session:
         del session[key]
     return jsonify({key: show})
+
+
+@app.route('/<table>/delete/<rowid>', methods=['GET'])
+@require_table
+def item_delete(table, rowid):
+    query = 'DELETE FROM {table} WHERE rowid = ?'.format(table=table)
+    cursor = dataset.query(query, [rowid])
+    return jsonify({'error': 0})
+
 
 def export(table, sql, export_format):
     model_class = dataset[table].model_class
@@ -526,6 +563,7 @@ def export(table, sql, export_format):
     response.headers['Expires'] = 0
     response.headers['Pragma'] = 'public'
     return response
+
 
 @app.route('/<table>/import/', methods=['GET', 'POST'])
 @require_table

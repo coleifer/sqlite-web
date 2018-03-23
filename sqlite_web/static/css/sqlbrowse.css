@@ -9,3 +9,6 @@ h1>small {font-size: 50%;}
   width:16px;
   height:16px;
 }
+#deleteError, #updateError, #createError {
+  display: none;
+}
