@@ -60,10 +60,10 @@
           <td>
             <div class="actions">
               <a href="#" data-toggle="modal" data-target="#updateModal" data-table="{{ table }}" data-rowid="{{ rowid }}">
-                <img class="glyph" src="/static/svg/si-glyph-document-edit.svg"/>
+                <img class="glyph" src="{{ url_for('static', filename='svg/si-glyph-document-edit.svg') }}"/>
               </a>
               <a href="#" data-toggle="modal" data-target="#deleteModal" data-table="{{ table }}" data-rowid="{{ rowid }}">
-                <img class="glyph" src="/static/svg/si-glyph-delete.svg"/>
+                <img class="glyph" src="{{ url_for('static', filename='svg/si-glyph-delete.svg') }}"/>
               </a>
             </div>
           </td>
