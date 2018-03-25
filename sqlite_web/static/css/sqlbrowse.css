@@ -12,3 +12,6 @@ h1>small {font-size: 50%;}
 #deleteError, #updateError, #createError {
   display: none;
 }
+.actions {
+  display: none;
+}

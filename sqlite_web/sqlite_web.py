@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+import operator
 import datetime
 import math
 import optparse
@@ -96,6 +96,7 @@ ViewMetadata = namedtuple('ViewMetadata', ('name', 'sql'))
 
 def find_patched(self, **query):
     # todo: need a better way to find rowid
+    # import pdb; pdb.set_trace()
     result = self._query(**query)
     dicts_result = result.dicts()
     for index, value in enumerate(result):
@@ -445,9 +446,15 @@ def table_content(table):
 
     previous_page = page_number - 1 if page_number > 1 else None
     next_page = page_number + 1 if page_number < total_pages else None
+    query = ds_table.all().paginate(page_number, rows_per_page)
 
-    query = ds_table.all()
-    # query = ds_table.all().paginate(page_number, rows_per_page)
+    offset = (page_number-1) * rows_per_page
+    # todo: ordering
+    rowid_query = (
+        'SELECT rowid FROM {table} LIMIT {limit} OFFSET {offset};'.format(
+            table=table, limit=rows_per_page,offset=offset))
+    rowids = list(map(operator.itemgetter(0),
+                  dataset.query(rowid_query).fetchall()))
 
     ordering = request.args.get('ordering')
     if ordering:
@@ -458,7 +465,6 @@ def table_content(table):
 
     field_names = ds_table.columns
     columns = [f.column_name for f in ds_table.model_class._meta.sorted_fields]
-
     table_sql = dataset.query(
         'SELECT sql FROM sqlite_master WHERE tbl_name = ? AND type = ?',
         [table, 'table']).fetchone()[0]
@@ -472,10 +478,11 @@ def table_content(table):
         ordering=ordering,
         page=page_number,
         previous_page=previous_page,
-        query=query,
+        query=zip(rowids, query),
         table=table,
         total_pages=total_pages,
         total_rows=total_rows)
+
 
 @app.route('/<table>/query/', methods=['GET', 'POST'])
 @require_table
@@ -535,7 +542,10 @@ def set_table_definition_preference():
 @require_table
 def item_delete(table, rowid):
     query = 'DELETE FROM {table} WHERE rowid = ?'.format(table=table)
-    cursor = dataset.query(query, [rowid])
+    try:
+        cursor = dataset.query(query, [rowid])
+    except:
+        return jsonify({'error': 1})
     return jsonify({'error': 0})
 
 
@@ -617,6 +627,7 @@ def drop_table(table):
 
     return render_template('drop_table.html', table=table)
 
+
 @app.template_filter('format_index')
 def format_index(index_sql):
     split_regex = re.compile(r'\bon\b', re.I)
@@ -625,6 +636,7 @@ def format_index(index_sql):
 
     create, definition = split_regex.split(index_sql)
     return '\nON '.join((create.strip(), definition.strip()))
+
 
 @app.template_filter('value_filter')
 def value_filter(value, max_length=50):
@@ -648,6 +660,7 @@ def value_filter(value, max_length=50):
 column_re = re.compile('(.+?)\((.+)\)', re.S)
 column_split_re = re.compile(r'(?:[^,(]|\([^)]*\))+')
 
+
 def _format_create_table(sql):
     create_table, column_list = column_re.search(sql).groups()
     columns = ['  %s' % column.strip()
@@ -656,6 +669,7 @@ def _format_create_table(sql):
     return '%s (\n%s\n)' % (
         create_table,
         ',\n'.join(columns))
+
 
 @app.template_filter()
 def format_create_table(sql):

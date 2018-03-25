@@ -23,13 +23,14 @@
 <script>
   $(document).ready(function() {
     $('#buttonDelete').click(function() {
-      var tableName = 'posts';
-      var rowId = '16';
+      var tableName = $('#deleteModal').data('table'),
+        rowId = $('#deleteModal').data('rowid');
       $.get('/' + tableName + '/delete/' + rowId, function (data) {
         if(data.error) {
           $('#deleteError').text(data.message).show();
         } else {
           $('#deleteModal').modal('hide');
+          window.location.reload();
         }
       });
     });
