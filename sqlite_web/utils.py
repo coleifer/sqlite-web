@@ -1,26 +1,22 @@
-from wtforms import (
-    Field,
-    IntegerField,
-    DateTimeField,
-    StringField,
+from wtforms.widgets import (
+    Input,
+    TextInput,
+    FileInput,
 )
-from wtforms.widgets import TextInput
-from wtforms.form import BaseForm
+from wtforms.widgets.html5 import DateTimeInput, NumberInput
 
-
-FIELDS_MAPPING = {
-    'TEXT': StringField,
-
-}
 
 WIDGETS_MAPPING = {
     'TEXT': TextInput,
+    'd': DateTimeInput,
+    'n': NumberInput,
+    'b': FileInput
 }
 
 
 class FakeField(object):
-    def __init__(self, name, widget_type=None):
-        self.id = None
+    def __init__(self, index, name, widget_type=Input):
+        self.id = 'field-id-{}'.format(index)
         self.name = name
         self.label = name
         self.widget_type = widget_type
@@ -35,10 +31,10 @@ class FakeField(object):
 
 def get_fields_for_columns(columns):
     fields = []
-    for col in columns:
+    for index, col in enumerate(columns):
 
         widget_type = WIDGETS_MAPPING[col.data_type]
-        field = FakeField(name=col.name, widget_type=widget_type)
+        field = FakeField(index=index, name=col.name, widget_type=widget_type)
         fields.append(field)
 
     return fields

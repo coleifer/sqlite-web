@@ -467,7 +467,9 @@ def table_content(table):
         query = query.order_by(field)
 
     field_names = ds_table.columns
+    fields = get_fields_for_columns(dataset.get_columns(table))
     columns = [f.column_name for f in ds_table.model_class._meta.sorted_fields]
+
     table_sql = dataset.query(
         'SELECT sql FROM sqlite_master WHERE tbl_name = ? AND type = ?',
         [table, 'table']).fetchone()[0]
@@ -482,9 +484,18 @@ def table_content(table):
         page=page_number,
         previous_page=previous_page,
         query=zip(rowids, query),
+        fields=fields,
         table=table,
         total_pages=total_pages,
-        total_rows=total_rows)
+        total_rows=total_rows,
+    )
+
+
+@app.route('/<table>/get/<rowid>', methods=['GET'])
+def item_get(table, rowid):
+    query = 'SELECT * FROM {table} WHERE rowid = ?'.format(table=table)
+    cursor = dataset.query(query, [rowid])
+    return jsonify({'fields': cursor.fetchone()})
 
 
 @app.route('/<table>/edit/<rowid>', methods=['GET'])
@@ -845,7 +856,7 @@ def main():
     if options.browser:
         open_browser_tab(options.host, options.port)
 
-    app.run(host=options.host, port=options.port, debug=options.debug)
+    app.run(host=options.host, port=options.port, debug=False)
 
 
 if __name__ == '__main__':
