@@ -75,9 +75,11 @@ SECRET_KEY = 'sqlite-database-browser-0.1.0'
 
 app = Flask(
     __name__,
+    template_folder=os.path.join(CUR_DIR, 'templates'),
     static_folder=os.path.join(CUR_DIR, 'static'),
-    template_folder=os.path.join(CUR_DIR, 'templates'))
+)
 app.config.from_object(__name__)
+
 dataset = None
 migrator = None
 
@@ -743,6 +745,7 @@ def _close_db(exc):
 # Script options.
 #
 
+
 def get_option_parser():
     parser = optparse.OptionParser()
     parser.add_option(
@@ -776,10 +779,12 @@ def get_option_parser():
         help='Prompt for password to access database browser.')
     return parser
 
+
 def die(msg, exit_code=1):
     sys.stderr.write('%s\n' % msg)
     sys.stderr.flush()
     sys.exit(exit_code)
+
 
 def open_browser_tab(host, port):
     url = 'http://%s:%s/' % (host, port)
@@ -792,6 +797,7 @@ def open_browser_tab(host, port):
     thread.daemon = True
     thread.start()
 
+
 def install_auth_handler(password):
     app.config['PASSWORD'] = password
 
@@ -803,7 +809,11 @@ def install_auth_handler(password):
             session['next_url'] = request.path
             return redirect(url_for('login'))
 
+
 def main():
+    global dataset
+    global migrator
+
     # This function exists to act as a console script entry-point.
     parser = get_option_parser()
     options, args = parser.parse_args()
@@ -820,12 +830,14 @@ def main():
             else:
                 break
 
+    if options.debug:
+        app.jinja_env.auto_reload = True
+        app.jinja_env.cache = None
+
     if password:
         install_auth_handler(password)
 
     db_file = args[0]
-    global dataset
-    global migrator
     dataset = SqliteDataSet('sqlite:///%s' % db_file, bare_fields=True)
     migrator = dataset._migrator
     dataset.close()
