@@ -484,6 +484,28 @@ def table_content(table):
         total_rows=total_rows)
 
 
+@app.route('/<table>/edit/<rowid>', methods=['GET'])
+@require_table
+def item_edit(table, rowid):
+    ds_table = dataset[table]
+    columns = dataset.get_columns(table)
+    column_names = [column.name for column in columns]
+    return render_template(
+        'edit_page.html',
+        columns=columns,
+        ds_table=ds_table,
+        # field_names=field_names,
+        # next_page=next_page,
+        # ordering=ordering,
+        # page=page_number,
+        # previous_page=previous_page,
+        # query=zip(rowids, query),
+        # table=table,
+        # total_pages=total_pages,
+        # total_rows=total_rows
+    )
+
+
 @app.route('/<table>/query/', methods=['GET', 'POST'])
 @require_table
 def table_query(table):
