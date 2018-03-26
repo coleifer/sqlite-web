@@ -65,6 +65,7 @@ from peewee import *
 from peewee import IndexMetadata
 from playhouse.dataset import DataSet, Table
 from playhouse.migrate import migrate
+from sqlite_web.utils import get_fields_for_columns
 
 
 CUR_DIR = os.path.realpath(os.path.dirname(__file__))
@@ -492,19 +493,12 @@ def item_edit(table, rowid):
     ds_table = dataset[table]
     columns = dataset.get_columns(table)
     column_names = [column.name for column in columns]
+    fields = get_fields_for_columns(columns)
     return render_template(
         'edit_page.html',
         columns=columns,
         ds_table=ds_table,
-        # field_names=field_names,
-        # next_page=next_page,
-        # ordering=ordering,
-        # page=page_number,
-        # previous_page=previous_page,
-        # query=zip(rowids, query),
-        # table=table,
-        # total_pages=total_pages,
-        # total_rows=total_rows
+        fields=fields,
     )
 
 
@@ -640,6 +634,7 @@ def table_import(table):
         strict=strict,
         table=table)
 
+
 @app.route('/<table>/drop/', methods=['GET', 'POST'])
 @require_table
 def drop_table(table):
@@ -702,9 +697,11 @@ def format_create_table(sql):
     except:
         return sql
 
+
 @app.template_filter('highlight')
 def highlight_filter(data):
     return Markup(syntax_highlight(data))
+
 
 def get_query_images():
     accum = []
@@ -721,6 +718,7 @@ def get_query_images():
 # Flask application helpers.
 #
 
+
 @app.context_processor
 def _general():
     return {
@@ -728,13 +726,16 @@ def _general():
         'login_required': bool(app.config.get('PASSWORD')),
     }
 
+
 @app.context_processor
 def _now():
     return {'now': datetime.datetime.now()}
 
+
 @app.before_request
 def _connect_db():
     dataset.connect()
+
 
 @app.teardown_request
 def _close_db(exc):
