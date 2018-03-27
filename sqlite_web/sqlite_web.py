@@ -63,6 +63,7 @@ else:
 
 from peewee import *
 from peewee import IndexMetadata
+from peewee import OperationalError
 from playhouse.dataset import DataSet, Table
 from playhouse.migrate import migrate
 from sqlite_web.utils import get_fields_for_columns
@@ -498,19 +499,28 @@ def item_get(table, rowid):
     return jsonify({'fields': cursor.fetchone()})
 
 
-@app.route('/<table>/edit/<rowid>', methods=['GET'])
+@app.route('/<table>/update/<rowid>', methods=['POST'])
 @require_table
-def item_edit(table, rowid):
-    ds_table = dataset[table]
-    columns = dataset.get_columns(table)
-    column_names = [column.name for column in columns]
-    fields = get_fields_for_columns(columns)
-    return render_template(
-        'edit_page.html',
-        columns=columns,
-        ds_table=ds_table,
-        fields=fields,
+def item_update(table, rowid):
+    query_tmpl = ('UPDATE {table} SET {fields_update} '
+                  'WHERE rowid = {rowid}')
+    fields_update = ', '.join(['{field} = ?'.format(field=field) for field, _ in request.form.items()])
+    values = [value for _, value in request.form.items()]
+    query = query_tmpl.format(
+        table=table,
+        fields_update=fields_update,
+        # values_placeholder=values_placeholder,
+        rowid=rowid,
     )
+    print('query', query)
+    print('values', values)
+    try:
+        cursor = dataset.query(query, values)
+        print(cursor.fetchone())
+    except (OperationalError, ) as e:
+        return jsonify({'error': 1, 'message': str(e)})
+
+    return jsonify({'error': 0})
 
 
 @app.route('/<table>/query/', methods=['GET', 'POST'])
@@ -573,8 +583,8 @@ def item_delete(table, rowid):
     query = 'DELETE FROM {table} WHERE rowid = ?'.format(table=table)
     try:
         cursor = dataset.query(query, [rowid])
-    except:
-        return jsonify({'error': 1})
+    except (OperationalError,) as e:
+        return jsonify({'error': 1, 'message': str(e)})
     return jsonify({'error': 0})
 
 
@@ -686,6 +696,7 @@ def value_filter(value, max_length=50):
                         value[:max_length],
                         value)
     return value
+
 
 column_re = re.compile('(.+?)\((.+)\)', re.S)
 column_split_re = re.compile(r'(?:[^,(]|\([^)]*\))+')
