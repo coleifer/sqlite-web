@@ -440,21 +440,28 @@ def table_content(table):
     query = ds_table.all().paginate(page_number, rows_per_page)
 
     offset = (page_number-1) * rows_per_page
-    rowid_query = (
-        'SELECT rowid FROM {table} LIMIT {limit} OFFSET {offset} '.format(
-            table=table, limit=rows_per_page, offset=offset))
+    rowid_query_tmpl = (
+        'SELECT rowid FROM {table} {order_by} LIMIT {limit} OFFSET {offset};'
+    )
 
     ordering = request.args.get('ordering')
+    order_by_clause = ''
     if ordering:
         field = ds_table.model_class._meta.columns[ordering.lstrip('-')]
-        rowids_order = 'ORDER BY {field} '.format(field=field)
+        order_by_clause = 'ORDER BY {field} '.format(field=field.name)
         if ordering.startswith('-'):
             field = field.desc()
-            rowids_order += 'DESC'
+            order_by_clause += 'DESC'
         else:
-            rowids_order += 'ASC'
+            order_by_clause += 'ASC'
         query = query.order_by(field)
 
+    rowid_query = rowid_query_tmpl.format(
+        table=table,
+        order_by=order_by_clause,
+        limit=rows_per_page,
+        offset=offset,
+    )
     rowids = list(map(operator.itemgetter(0),
                   dataset.query(rowid_query).fetchall()))
     field_names = ds_table.columns
