@@ -26,8 +26,8 @@
 <script>
   $(document).ready(function() {
     $('.edit-action').click(function() {
-      var tableName = $('#updateModal').data('table'),
-        rowId = $('#updateModal').data('rowid');
+      var tableName = $('#updateModal').attr('data-table'),
+        rowId = $('#updateModal').attr('data-rowid');
       $.get('/' + tableName + '/get/' + rowId, function(data) {
         $.each(data.fields, function(index, value) {
           $('#field-id-'+index).val(value);

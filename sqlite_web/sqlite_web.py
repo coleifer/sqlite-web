@@ -98,19 +98,6 @@ ViewMetadata = namedtuple('ViewMetadata', ('name', 'sql'))
 #
 
 
-def find_patched(self, **query):
-    # todo: need a better way to find rowid
-    # import pdb; pdb.set_trace()
-    result = self._query(**query)
-    dicts_result = result.dicts()
-    for index, value in enumerate(result):
-        dicts_result[index]['rowid'] = value.get_id()
-    return dicts_result
-
-
-Table.find = find_patched
-
-
 class SqliteDataSet(DataSet):
     @property
     def filename(self):
@@ -453,20 +440,23 @@ def table_content(table):
     query = ds_table.all().paginate(page_number, rows_per_page)
 
     offset = (page_number-1) * rows_per_page
-    # todo: ordering
     rowid_query = (
-        'SELECT rowid FROM {table} LIMIT {limit} OFFSET {offset};'.format(
-            table=table, limit=rows_per_page,offset=offset))
-    rowids = list(map(operator.itemgetter(0),
-                  dataset.query(rowid_query).fetchall()))
+        'SELECT rowid FROM {table} LIMIT {limit} OFFSET {offset} '.format(
+            table=table, limit=rows_per_page, offset=offset))
 
     ordering = request.args.get('ordering')
     if ordering:
         field = ds_table.model_class._meta.columns[ordering.lstrip('-')]
+        rowids_order = 'ORDER BY {field} '.format(field=field)
         if ordering.startswith('-'):
             field = field.desc()
+            rowids_order += 'DESC'
+        else:
+            rowids_order += 'ASC'
         query = query.order_by(field)
 
+    rowids = list(map(operator.itemgetter(0),
+                  dataset.query(rowid_query).fetchall()))
     field_names = ds_table.columns
     fields = get_fields_for_columns(dataset.get_columns(table))
     columns = [f.column_name for f in ds_table.model_class._meta.sorted_fields]
