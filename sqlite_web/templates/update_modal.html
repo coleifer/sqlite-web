@@ -39,12 +39,11 @@
       var updateModal = $('#updateModal');
       var tableName = updateModal.data('table'),
         rowId = updateModal.data('rowid');
-      var form = updateModal.find('form');
       var submitUrl = '/' + tableName + '/update/' + rowId;
-      console.log(submitUrl);
-      form.attr('action', submitUrl);
-      form.submit();
-      {#console.log('form data', data);#}
+      updateModal
+        .find('form')
+        .attr('action', submitUrl)
+        .submit();
     });
   });
 </script>

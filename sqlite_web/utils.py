@@ -32,7 +32,6 @@ class FakeField(object):
 def get_fields_for_columns(columns):
     fields = []
     for index, col in enumerate(columns):
-
         widget_type = WIDGETS_MAPPING[col.data_type]
         field = FakeField(index=index, name=col.name, widget_type=widget_type)
         fields.append(field)

@@ -504,23 +504,22 @@ def item_get(table, rowid):
 def item_update(table, rowid):
     query_tmpl = ('UPDATE {table} SET {fields_update} '
                   'WHERE rowid = {rowid}')
-    fields_update = ', '.join(['{field} = ?'.format(field=field) for field, _ in request.form.items()])
+    fields_update = ', '.join([
+        '{field} = ?'.format(field=field)
+        for field, _ in request.form.items()
+    ])
     values = [value for _, value in request.form.items()]
     query = query_tmpl.format(
         table=table,
         fields_update=fields_update,
-        # values_placeholder=values_placeholder,
         rowid=rowid,
     )
-    print('query', query)
-    print('values', values)
     try:
         cursor = dataset.query(query, values)
-        print(cursor.fetchone())
     except (OperationalError, ) as e:
-        return jsonify({'error': 1, 'message': str(e)})
+        flash(str(e), category='danger')
 
-    return jsonify({'error': 0})
+    return redirect(url_for('table_content', table=table))
 
 
 @app.route('/<table>/query/', methods=['GET', 'POST'])
