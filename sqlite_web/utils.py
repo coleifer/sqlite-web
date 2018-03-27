@@ -3,14 +3,20 @@ from wtforms.widgets import (
     TextInput,
     FileInput,
 )
-from wtforms.widgets.html5 import DateTimeInput, NumberInput
+from wtforms.widgets.html5 import NumberInput
+
+
+class DateTimeLocalInput(Input):
+    input_type = 'datetime-local'
 
 
 WIDGETS_MAPPING = {
     'TEXT': TextInput,
-    'd': DateTimeInput,
-    'n': NumberInput,
-    'b': FileInput
+    # for DATE assuming TEXT as ISO8601 strings ("YYYY-MM-DD HH:MM:SS.SSS")
+    'DATE': DateTimeLocalInput,
+    'INTEGER': NumberInput,
+    'REAL': NumberInput,
+    'BLOB': FileInput
 }
 
 

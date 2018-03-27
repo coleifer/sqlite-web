@@ -866,7 +866,7 @@ def main():
     if options.browser:
         open_browser_tab(options.host, options.port)
 
-    app.run(host=options.host, port=options.port, debug=False)
+    app.run(host=options.host, port=options.port, debug=options.debug)
 
 
 if __name__ == '__main__':
