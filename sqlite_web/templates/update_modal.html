@@ -1,0 +1,49 @@
+{% from "_formhelpers.html" import render_field %}
+
+<div id="updateModal" class="modal" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Edit item</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form method="post">
+          {% for field in fields %}
+            {{ render_field(field) }}
+          {% endfor %}
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button id="buttonUpdate" type="button" class="btn btn-primary">Save</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  $(document).ready(function() {
+    $('.edit-action').click(function() {
+      var tableName = $('#updateModal').attr('data-table'),
+        rowId = $('#updateModal').attr('data-rowid');
+      $.get('/' + tableName + '/get/' + rowId, function(data) {
+        $.each(data.fields, function(index, value) {
+          $('#field-id-'+index).val(value);
+        });
+      });
+    });
+
+    $("#buttonUpdate").click(function() {
+      var updateModal = $('#updateModal');
+      var tableName = updateModal.data('table'),
+        rowId = updateModal.data('rowid');
+      var submitUrl = '/' + tableName + '/update/' + rowId;
+      updateModal
+        .find('form')
+        .attr('action', submitUrl)
+        .submit();
+    });
+  });
+</script>

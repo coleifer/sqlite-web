@@ -5,3 +5,25 @@ div.page-header {
 }
 #sidebar .nav>li>a {padding: 3px 10px;}
 h1>small {font-size: 50%;}
+.glyph {
+  width:16px;
+  height:16px;
+}
+#deleteError, #updateError, #createError {
+  display: none;
+}
+.actions {
+  display: none;
+}
+.actions a:hover {
+  text-decoration: none;
+}
+.edit-action {
+  padding-right: 5px;
+}
+.edit-icon:hover {
+  fill: #78C2AD;
+}
+.delete-icon:hover {
+  fill: #F3969A;
+}

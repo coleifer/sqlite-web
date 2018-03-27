@@ -1,0 +1,39 @@
+<div id="deleteModal" class="modal" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Confirmation</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-danger" role="alert" id="deleteError">
+          Error returned by backend
+        </div>
+        <p>Do you really want to delete a record?</p>
+      </div>
+      <div class="modal-footer">
+        <button id="buttonDelete" type="button" class="btn btn-primary">Delete</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  $(document).ready(function() {
+    $('#buttonDelete').click(function() {
+      var tableName = $('#deleteModal').data('table'),
+        rowId = $('#deleteModal').data('rowid');
+      $.get('/' + tableName + '/delete/' + rowId, function (data) {
+        if(data.error) {
+          $('#deleteError').text(data.message).show();
+        } else {
+          $('#deleteModal').modal('hide');
+          window.location.reload();
+        }
+      });
+    });
+  });
+</script>
+
