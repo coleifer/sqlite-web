@@ -1,5 +1,7 @@
-FROM coleifer/sqlite
-RUN pip install --no-cache-dir cython && pip install --no-cache-dir flask peewee sqlite-web
+FROM coleifer/sqlite:alpine
+RUN apk add --no-cache build-base gcc make \
+      && pip install --no-cache-dir cython \
+      && pip install --no-cache-dir flask peewee sqlite-web
 EXPOSE 8080
 VOLUME /data
 WORKDIR /data

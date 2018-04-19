@@ -64,6 +64,7 @@ else:
 
 from peewee import *
 from peewee import IndexMetadata
+from peewee import sqlite3
 from playhouse.dataset import DataSet
 from playhouse.migrate import migrate
 
@@ -177,7 +178,7 @@ class SqliteDataSet(DataSet):
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('index.html', sqlite=sqlite3)
 
 @app.route('/login/', methods=['GET', 'POST'])
 def login():
