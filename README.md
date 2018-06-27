@@ -71,6 +71,7 @@ The following options are available:
 * ``-d``, ``--debug``: default is false
 * ``-x``, ``--no-browser``: do not open a web-browser when sqlite-web starts.
 * ``-P``, ``--password``: prompt for password to access sqlite-web.
+* ``-r``, ``--read-only``: open database in read-only mode.
 
 ### Using docker
 
