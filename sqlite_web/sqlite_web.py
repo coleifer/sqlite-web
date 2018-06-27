@@ -98,7 +98,15 @@ ViewMetadata = namedtuple('ViewMetadata', ('name', 'sql'))
 class SqliteDataSet(DataSet):
     @property
     def filename(self):
-        return os.path.realpath(dataset._database.database)
+        db_file = dataset._database.database
+        if db_file.startswith('file:'):
+            db_file = db_file[5:]
+        return os.path.realpath(db_file.rsplit('?', 1)[0])
+
+    @property
+    def is_readonly(self):
+        db_file = dataset._database.database
+        return db_file.endswith('?mode=ro')
 
     @property
     def base_name(self):
@@ -701,6 +709,12 @@ def get_option_parser():
         action='store_true',
         dest='prompt_password',
         help='Prompt for password to access database browser.')
+    parser.add_option(
+        '-r',
+        '--read-only',
+        action='store_true',
+        dest='read_only',
+        help='Open database in read-only mode.')
     return parser
 
 def die(msg, exit_code=1):
@@ -753,7 +767,23 @@ def main():
     db_file = args[0]
     global dataset
     global migrator
-    dataset = SqliteDataSet('sqlite:///%s' % db_file, bare_fields=True)
+
+    if options.read_only:
+        if sys.version_info < (3, 4, 0):
+            die('Python 3.4.0 or newer is required for read-only access.')
+        if peewee_version < (3, 5, 1):
+            die('Peewee 3.5.1 or newer is required for read-only access.')
+        db = SqliteDatabase('file:%s?mode=ro' % db_file, uri=True)
+        try:
+            db.connect()
+        except OperationalError:
+            die('Unable to open database file in read-only mode. Ensure that '
+                'the database exists in order to use read-only mode.')
+        db.close()
+        dataset = SqliteDataSet(db, bare_fields=True)
+    else:
+        dataset = SqliteDataSet('sqlite:///%s' % db_file, bare_fields=True)
+
     migrator = dataset._migrator
     dataset.close()
     if options.browser:

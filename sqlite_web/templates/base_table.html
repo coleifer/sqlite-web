@@ -15,12 +15,14 @@
     <li class="nav-item">
       <a class="nav-link{% block query_tab_class %}{% endblock %}" href="{{ url_for('table_query', table=table) }}">Query</a>
     </li>
+    {% if not dataset.is_readonly %}
     <li class="nav-item ml-auto">
       <a class="nav-link{% block drop_tab_class %}{% endblock %}" href="{{ url_for('drop_table', table=table) }}">Drop</a>
     </li>
     <li class="nav-item">
       <a class="nav-link{% block import_tab_class %}{% endblock %}" href="{{ url_for('table_import', table=table) }}">Import</a>
     </li>
+    {% endif %}
     {% block inner_nav %}{% endblock %}
   </ul>
   <div style="margin-top: 20px;">

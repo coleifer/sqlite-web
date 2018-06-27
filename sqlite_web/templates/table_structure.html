@@ -23,7 +23,9 @@
   {{ table_sql|format_create_table|highlight }}
 
   <h3 id="columns">
-    <p class="float-right"><a class="btn btn-primary btn-sm" href="{{ url_for('add_column', table=table) }}">+ Add column</a></p>
+    {% if not dataset.is_readonly %}
+      <p class="float-right"><a class="btn btn-primary btn-sm" href="{{ url_for('add_column', table=table) }}">+ Add column</a></p>
+    {% endif %}
     Columns
   </h3>
   <table class="table table-striped">
@@ -52,9 +54,13 @@
             {% endif %}
           </td>
           <td>
-            <a href="{{ url_for('rename_column', table=table, rename=column.name) }}">Rename</a>
-            <span class="separator">|</span>
-            <a href="{{ url_for('drop_column', table=table, name=column.name) }}">Drop</a>
+            {% if dataset.is_readonly %}
+              <strong>read-only</strong>
+            {% else %}
+              <a href="{{ url_for('rename_column', table=table, rename=column.name) }}">Rename</a>
+              <span class="separator">|</span>
+              <a href="{{ url_for('drop_column', table=table, name=column.name) }}">Drop</a>
+            {% endif %}
           </td>
         </tr>
       {% endfor %}
@@ -84,7 +90,9 @@
   {% endif %}
 
   <h3 id="indexes">
-    <p class="float-right"><a class="btn btn-primary btn-sm" href="{{ url_for('add_index', table=table) }}">+ Add index</a></p>
+    {% if not dataset.is_readonly %}
+      <p class="float-right"><a class="btn btn-primary btn-sm" href="{{ url_for('add_index', table=table) }}">+ Add index</a></p>
+    {% endif %}
     Indexes
   </h3>
   <table class="table table-striped">
@@ -122,7 +130,11 @@
             <div style="display:none;">{% if index.sql %}{{ index.sql|format_index|highlight }}{% else %}-- no sql found --{% endif %}</div>
           </td>
           <td>
-            <a href="{{ url_for('drop_index', table=table, name=index.name) }}">Drop</a>
+            {% if dataset.is_readonly %}
+              <strong>read-only</strong>
+            {% else %}
+              <a href="{{ url_for('drop_index', table=table, name=index.name) }}">Drop</a>
+            {% endif %}
           </td>
         </tr>
       {% endfor %}
@@ -152,7 +164,11 @@
               <div style="display:none;">{{ trigger.sql|highlight }}</div>
             </td>
             <td>
-              <a href="{{ url_for('drop_trigger', table=table, name=trigger.name) }}">Drop</a>
+              {% if dataset.is_readonly %}
+                <strong>read-only</strong>
+              {% else %}
+                <a href="{{ url_for('drop_trigger', table=table, name=trigger.name) }}">Drop</a>
+              {% endif %}
             </td>
           </tr>
         {% endfor %}
