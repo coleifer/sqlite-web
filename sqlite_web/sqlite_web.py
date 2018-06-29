@@ -744,6 +744,32 @@ def install_auth_handler(password):
             session['next_url'] = request.path
             return redirect(url_for('login'))
 
+def initialize_app(filename, read_only=False, password=None):
+    global dataset
+    global migrator
+
+    if password:
+        install_auth_handler(password)
+
+    if read_only:
+        if sys.version_info < (3, 4, 0):
+            die('Python 3.4.0 or newer is required for read-only access.')
+        if peewee_version < (3, 5, 1):
+            die('Peewee 3.5.1 or newer is required for read-only access.')
+        db = SqliteDatabase('file:%s?mode=ro' % filename, uri=True)
+        try:
+            db.connect()
+        except OperationalError:
+            die('Unable to open database file in read-only mode. Ensure that '
+                'the database exists in order to use read-only mode.')
+        db.close()
+        dataset = SqliteDataSet(db, bare_fields=True)
+    else:
+        dataset = SqliteDataSet('sqlite:///%s' % filename, bare_fields=True)
+
+    migrator = dataset._migrator
+    dataset.close()
+
 def main():
     # This function exists to act as a console script entry-point.
     parser = get_option_parser()
@@ -761,31 +787,9 @@ def main():
             else:
                 break
 
-    if password:
-        install_auth_handler(password)
+    # Initialize the dataset instance and (optionally) authentication handler.
+    initialize_app(args[0], options.read_only, password)
 
-    db_file = args[0]
-    global dataset
-    global migrator
-
-    if options.read_only:
-        if sys.version_info < (3, 4, 0):
-            die('Python 3.4.0 or newer is required for read-only access.')
-        if peewee_version < (3, 5, 1):
-            die('Peewee 3.5.1 or newer is required for read-only access.')
-        db = SqliteDatabase('file:%s?mode=ro' % db_file, uri=True)
-        try:
-            db.connect()
-        except OperationalError:
-            die('Unable to open database file in read-only mode. Ensure that '
-                'the database exists in order to use read-only mode.')
-        db.close()
-        dataset = SqliteDataSet(db, bare_fields=True)
-    else:
-        dataset = SqliteDataSet('sqlite:///%s' % db_file, bare_fields=True)
-
-    migrator = dataset._migrator
-    dataset.close()
     if options.browser:
         open_browser_tab(options.host, options.port)
     app.run(host=options.host, port=options.port, debug=options.debug)
