@@ -8,6 +8,8 @@
 {% endblock %}
 
 {% block extra_scripts %}
+  <script type="text/javascript" src="{{ url_for('static', filename='js/colResizable-1.6.min.js') }}"></script>
+  <script type="text/javascript" src="{{ url_for('static', filename='js/table-resizable.js') }}"></script>
   <script type="text/javascript">
     $(function() {
       var tableInfo = $('div#tableInfo');
@@ -83,26 +85,28 @@
       <h3>
         Results ({{ data|length }})
       </h3>
-      <table class="table table-striped">
-        <thead>
-          <tr>
-            {% for col_desc in data_description %}
-              <th>{{ col_desc[0] }}</th>
-            {% endfor %}
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in data %}
+      <div class="table-container">
+        <table class="table table-striped">
+          <thead>
             <tr>
-              {% for value in row %}
-                <td>
-                  {% if value is none %}NULL{% else %}{{ value }}{% endif %}
-                </td>
+              {% for col_desc in data_description %}
+                <th>{{ col_desc[0] }}</th>
               {% endfor %}
             </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {% for row in data %}
+              <tr>
+                {% for value in row %}
+                  <td>
+                    {% if value is none %}NULL{% else %}{{ value }}{% endif %}
+                  </td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     {% endif %}
   {% endif %}
   <div class="modal fade" id="sql-image-modal" role="dialog">
