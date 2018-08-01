@@ -1,6 +1,7 @@
 {% extends "base_table.html" %}
 
 {% block extra_head %}
+<link rel=stylesheet type=text/css href="{{ url_for('static', filename='css/table-resizable.css') }}" />
 <style type="text/css">
   pre { clear: right; }
   {% if not session.get('show') %}div#tableInfo { display: none; }{% endif %}

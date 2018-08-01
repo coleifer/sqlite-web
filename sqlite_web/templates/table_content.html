@@ -1,5 +1,9 @@
 {% extends "base_table.html" %}
 
+{% block extra_head %}
+  <link rel=stylesheet type=text/css href="{{ url_for('static', filename='css/table-resizable.css') }}" />
+{% endblock %}
+
 {% block extra_scripts %}
   <script type="text/javascript" src="{{ url_for('static', filename='js/colResizable-1.6.min.js') }}"></script>
   <script type="text/javascript" src="{{ url_for('static', filename='js/table-resizable.js') }}"></script>
