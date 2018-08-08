@@ -72,6 +72,7 @@ The following options are available:
 * ``-x``, ``--no-browser``: do not open a web-browser when sqlite-web starts.
 * ``-P``, ``--password``: prompt for password to access sqlite-web.
 * ``-r``, ``--read-only``: open database in read-only mode.
+* ``-u``, ``--url-prefix``: URL prefix for application, e.g. "/sqlite-web".
 
 ### Using docker
 

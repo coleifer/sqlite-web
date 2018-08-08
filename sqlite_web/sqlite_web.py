@@ -193,7 +193,7 @@ def login():
     if request.method == 'POST':
         if request.form.get('password') == app.config['PASSWORD']:
             session['authorized'] = True
-            return redirect(session.get('next_url') or '/')
+            return redirect(session.get('next_url') or url_for('index'))
         flash('The password you entered is incorrect.', 'danger')
     return render_template('login.html')
 
@@ -674,6 +674,22 @@ def _close_db(exc):
     if not dataset._database.is_closed():
         dataset.close()
 
+
+class PrefixMiddleware(object):
+    def __init__(self, app, prefix):
+        self.app = app
+        self.prefix = '/%s' % prefix.strip('/')
+        self.prefix_len = len(self.prefix)
+
+    def __call__(self, environ, start_response):
+        if environ['PATH_INFO'].startswith(self.prefix):
+            environ['PATH_INFO'] = environ['PATH_INFO'][self.prefix_len:]
+            environ['SCRIPT_NAME'] = self.prefix
+            return self.app(environ, start_response)
+        else:
+            start_response('404', [('Content-Type', 'text/plain')])
+            return ['URL does not match application prefix.'.encode()]
+
 #
 # Script options.
 #
@@ -715,6 +731,11 @@ def get_option_parser():
         action='store_true',
         dest='read_only',
         help='Open database in read-only mode.')
+    parser.add_option(
+        '-u',
+        '--url-prefix',
+        dest='url_prefix',
+        help='URL prefix for application.')
     return parser
 
 def die(msg, exit_code=1):
@@ -733,7 +754,7 @@ def open_browser_tab(host, port):
     thread.daemon = True
     thread.start()
 
-def install_auth_handler(password):
+def install_auth_handler(password, url_prefix=None):
     app.config['PASSWORD'] = password
 
     @app.before_request
@@ -741,15 +762,15 @@ def install_auth_handler(password):
         if not session.get('authorized') and request.path != '/login/' and \
            not request.path.startswith(('/static/', '/favicon')):
             flash('You must log-in to view the database browser.', 'danger')
-            session['next_url'] = request.path
+            session['next_url'] = request.base_url
             return redirect(url_for('login'))
 
-def initialize_app(filename, read_only=False, password=None):
+def initialize_app(filename, read_only=False, password=None, url_prefix=None):
     global dataset
     global migrator
 
     if password:
-        install_auth_handler(password)
+        install_auth_handler(password, url_prefix)
 
     if read_only:
         if sys.version_info < (3, 4, 0):
@@ -766,6 +787,9 @@ def initialize_app(filename, read_only=False, password=None):
         dataset = SqliteDataSet(db, bare_fields=True)
     else:
         dataset = SqliteDataSet('sqlite:///%s' % filename, bare_fields=True)
+
+    if url_prefix:
+        app.wsgi_app = PrefixMiddleware(app.wsgi_app, prefix=url_prefix)
 
     migrator = dataset._migrator
     dataset.close()
@@ -788,7 +812,7 @@ def main():
                 break
 
     # Initialize the dataset instance and (optionally) authentication handler.
-    initialize_app(args[0], options.read_only, password)
+    initialize_app(args[0], options.read_only, password, options.url_prefix)
 
     if options.browser:
         open_browser_tab(options.host, options.port)
