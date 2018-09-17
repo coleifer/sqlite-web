@@ -803,13 +803,16 @@ def main():
 
     password = None
     if options.prompt_password:
-        while True:
-            password = getpass('Enter password: ')
-            password_confirm = getpass('Confirm password: ')
-            if password != password_confirm:
-                print('Passwords did not match!')
-            else:
-                break
+        if os.environ.get('SQLITE_WEB_PASSWORD'):
+            password = os.environ['SQLITE_WEB_PASSWORD']
+        else:
+            while True:
+                password = getpass('Enter password: ')
+                password_confirm = getpass('Confirm password: ')
+                if password != password_confirm:
+                    print('Passwords did not match!')
+                else:
+                    break
 
     # Initialize the dataset instance and (optionally) authentication handler.
     initialize_app(args[0], options.read_only, password, options.url_prefix)

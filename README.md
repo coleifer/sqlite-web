@@ -71,6 +71,9 @@ The following options are available:
 * ``-d``, ``--debug``: default is false
 * ``-x``, ``--no-browser``: do not open a web-browser when sqlite-web starts.
 * ``-P``, ``--password``: prompt for password to access sqlite-web.
+  Alternatively, the password can be stored in the "SQLITE_WEB_PASSWORD"
+  environment variable, in which case the application will not prompt for a
+  password, but will use the value from the environment.
 * ``-r``, ``--read-only``: open database in read-only mode.
 * ``-u``, ``--url-prefix``: URL prefix for application, e.g. "/sqlite-web".
 
