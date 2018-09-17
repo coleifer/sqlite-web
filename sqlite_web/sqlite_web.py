@@ -754,7 +754,7 @@ def open_browser_tab(host, port):
     thread.daemon = True
     thread.start()
 
-def install_auth_handler(password, url_prefix=None):
+def install_auth_handler(password):
     app.config['PASSWORD'] = password
 
     @app.before_request
@@ -770,7 +770,7 @@ def initialize_app(filename, read_only=False, password=None, url_prefix=None):
     global migrator
 
     if password:
-        install_auth_handler(password, url_prefix)
+        install_auth_handler(password)
 
     if read_only:
         if sys.version_info < (3, 4, 0):
