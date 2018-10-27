@@ -62,6 +62,9 @@ The syntax for invoking sqlite-web is:
 ```console
 
 $ sqlite_web [options] /path/to/database-file.db
+
+
+
 ```
 
 The following options are available:
