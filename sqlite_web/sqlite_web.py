@@ -13,20 +13,23 @@ import webbrowser
 from collections import namedtuple, OrderedDict
 from functools import wraps
 from getpass import getpass
+from io import TextIOWrapper
 
-# Py3k compat.
-if sys.version_info[0] == 3:
-    binary_types = (bytes, bytearray)
-    decode_handler = 'backslashreplace'
-    numeric = (int, float)
-    unicode_type = str
-    from io import StringIO
-else:
+# Py2k compat.
+if sys.version_info[0] == 2:
+    PY2 = True
     binary_types = (buffer, bytes, bytearray)
     decode_handler = 'replace'
     numeric = (int, long, float)
     unicode_type = unicode
     from StringIO import StringIO
+else:
+    PY2 = False
+    binary_types = (bytes, bytearray)
+    decode_handler = 'backslashreplace'
+    numeric = (int, float)
+    unicode_type = str
+    from io import StringIO
 
 try:
     from flask import (
@@ -555,12 +558,30 @@ def table_import(table):
                 format = 'json'
             else:
                 format = 'csv'
+
+            # Here we need to translate the file stream. Werkzeug uses a
+            # spooled temporary file opened in wb+ mode, which is not
+            # compatible with Python's CSV module. We'd need to reach pretty
+            # far into Flask's internals to modify this behavior, so instead
+            # we'll just translate the stream into utf8-decoded unicode.
+            if not PY2:
+                try:
+                    stream = TextIOWrapper(file_obj, encoding='utf8')
+                except AttributeError:
+                    # The SpooledTemporaryFile used by werkzeug does not
+                    # implement an API that the TextIOWrapper expects, so we'll
+                    # just consume the whole damn thing and decode it.
+                    # Fixed in werkzeug 0.15.
+                    stream = StringIO(file_obj.read().decode('utf8'))
+            else:
+                stream = file_obj.stream
+
             try:
                 with dataset.transaction():
                     count = dataset.thaw(
                         table,
                         format=format,
-                        file_obj=file_obj.stream,
+                        file_obj=stream,
                         strict=strict)
             except Exception as exc:
                 flash('Error importing file: %s' % exc, 'danger')
