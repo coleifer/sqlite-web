@@ -583,6 +583,7 @@ def drop_table(table):
     if request.method == 'POST':
         model_class = dataset[table].model_class
         model_class.drop_table()
+        dataset.update_cache()  # Update all tables.
         flash('Table "%s" dropped successfully.' % table, 'success')
         return redirect(url_for('index'))
 
