@@ -5,12 +5,13 @@ import math
 import operator
 import optparse
 import os
+import uuid
 import re
 import sys
 import threading
 import time
 import webbrowser
-from collections import namedtuple, OrderedDict
+from collections import namedtuple, OrderedDict, defaultdict
 from functools import wraps
 from getpass import getpass
 from io import TextIOWrapper
@@ -85,6 +86,8 @@ app = Flask(
 app.config.from_object(__name__)
 dataset = None
 migrator = None
+
+
 
 #
 # Database metadata objects.
@@ -447,7 +450,7 @@ def table_content(table):
     table_sql = dataset.query(
         'SELECT sql FROM sqlite_master WHERE tbl_name = ? AND type = ?',
         [table, 'table']).fetchone()[0]
-
+    print("Rendering table plain")
     return render_template(
         'table_content.html',
         columns=columns,
@@ -460,7 +463,129 @@ def table_content(table):
         query=query,
         table=table,
         total_pages=total_pages,
-        total_rows=total_rows)
+        total_rows=total_rows,
+        )
+
+def get_foreign_key_lookup(table_name):
+    foreign_keys = dataset.get_foreign_keys(table_name)
+    return {f.column: f for f in foreign_keys}
+
+
+def get_renderer(foreignkey_lookup, field_names, suppress, is_outermost_level, title):
+    def renderer(row):
+        outrow={}
+        if row is None:
+            return ""
+        links=defaultdict(list)
+
+        # Lets get all relations:
+        for attr in dir(row):
+            if attr.endswith("_rel"):
+                source_table, source_name, _ = attr.split("_")
+                source_foreign_key = get_foreign_key_lookup(source_table)[source_name]
+                print(dir(source_foreign_key))
+                rowvalue = getattr(row, source_foreign_key.dest_column)
+                query = url_for("table_content_plus", table=source_table, filters="{}:{}".format(source_name, rowvalue))
+                links[source_foreign_key.dest_column].append((source_table, query))
+        filtered_field_names=[ fn for fn in field_names if fn not in suppress ]
+        for field in filtered_field_names:
+            value = getattr(row, field)
+            if hasattr(value, "validate_model"):  # A Model
+                inner_row = getattr(row, field)
+                table_name = type(inner_row).__name__
+                target_table = dataset[table_name]
+
+                foreignkey_lookup_inner = get_foreign_key_lookup(table_name)
+
+                outrow[field]="{}: ".format(inner_row) + get_renderer(foreignkey_lookup_inner,
+                                                                      target_table.columns,
+                                                                      [foreignkey_lookup[field].dest_column],
+                                                                      is_outermost_level=False,
+                                                                      title=table_name)(inner_row)
+            else:
+                outrow[field]=value_filter(value)
+
+        return render_template("rowplus.html", field_names=filtered_field_names, row=outrow, links=links,
+                               is_outermost_level=is_outermost_level,col_id=str(uuid.uuid4()).replace("-", "_"),
+                               title=title)
+
+
+    return renderer
+
+@app.route('/<table>/recursive_content/')
+@require_table
+def table_content_plus(table):
+    page_number = request.args.get('page') or ''
+    page_number = int(page_number) if page_number.isdigit() else 1
+
+    dataset.update_cache(table)
+    ds_table = dataset[table]
+    total_rows = ds_table.all().count()
+    rows_per_page = app.config['ROWS_PER_PAGE']
+    total_pages = int(math.ceil(total_rows / float(rows_per_page)))
+    # Restrict bounds.
+    page_number = min(page_number, total_pages)
+    page_number = max(page_number, 1)
+
+    previous_page = page_number - 1 if page_number > 1 else None
+    next_page = page_number + 1 if page_number < total_pages else None
+
+    query = ds_table.model_class.select()
+
+    filters = request.args.get('filters')
+    if filters:
+        filters = filters.split(",")
+        print([getattr(ds_table.model_class, f.split(":")[0])for f in filters])
+        filters = [getattr(ds_table.model_class, f.split(":")[0])==f.split(":")[1] for f in filters]
+        for filter in filters:
+            print("FILTER", filter)
+            query = query.where(filter)
+            print("Q", query)
+
+
+    foreign_keys = dataset.get_foreign_keys(table)
+    foreignkey_lookup={f.column: f for f in foreign_keys}
+    for col, foreign_key in foreignkey_lookup.items():
+        print("Q now", query)
+        query.prefetch(dataset[foreign_key.dest_table].model_class)
+
+    ordering = request.args.get('ordering')
+    if ordering:
+        field = ds_table.model_class._meta.columns[ordering.lstrip('-')]
+        if ordering.startswith('-'):
+            field = field.desc()
+        query = query.order_by(field)
+
+    print(query, type(query))
+
+    query = query.paginate(page_number, rows_per_page)
+
+    print(query, type(query))
+
+
+    field_names = ds_table.columns
+    columns = [f.column_name for f in ds_table.model_class._meta.sorted_fields]
+
+    table_sql = dataset.query(
+        'SELECT sql FROM sqlite_master WHERE tbl_name = ? AND type = ?',
+        [table, 'table']).fetchone()[0]
+
+    return render_template(
+        'table_content_plus.html',
+        columns=columns,
+        ds_table=ds_table,
+        field_names=field_names,
+        next_page=next_page,
+        ordering=ordering,
+        page=page_number,
+        previous_page=previous_page,
+        query=query,
+        table=table,
+        total_pages=total_pages,
+        total_rows=total_rows,
+        renderrow=get_renderer(foreignkey_lookup, field_names, [], True, title=table)
+        )
+
 
 @app.route('/<table>/query/', methods=['GET', 'POST'])
 @require_table
@@ -637,6 +762,27 @@ def value_filter(value, max_length=50):
                         value[:max_length],
                         value)
     return value
+
+
+@app.template_filter('value_filter_plus')
+def value_filter_plus(value, max_length=50):
+    if isinstance(value, numeric):
+        return value
+
+    if isinstance(value, binary_types):
+        if not isinstance(value, (bytes, bytearray)):
+            value = bytes(value)  # Handle `buffer` type.
+        value = value.decode('utf-8', decode_handler)
+    if isinstance(value, unicode_type):
+        value = escape(value)
+        if len(value) > max_length:
+            return ('<span class="truncated">%s</span> '
+                    '<span class="full" style="display:none;">%s</span>'
+                    '<a class="toggle-value" href="#">...</a>') % (
+                        value[:max_length],
+                        value)
+    return value
+
 
 column_re = re.compile('(.+?)\((.+)\)', re.S)
 column_split_re = re.compile(r'(?:[^,(]|\([^)]*\))+')

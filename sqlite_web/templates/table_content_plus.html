@@ -1,0 +1,51 @@
+{% extends "base_table.html" %}
+
+{% block extra_scripts %}
+  <script type="text/javascript">
+    $(function() {
+      var valueToggles = $('a.toggle-value');
+      valueToggles.on('click', function(e) {
+        e.preventDefault();
+        var elem = $(this),
+            truncated = elem.siblings('span.truncated'),
+            full = elem.siblings('span.full');
+        truncated.toggle();
+        full.toggle();
+      });
+    });
+  </script>
+{% endblock %}
+
+{% block content_title %}
+  {{ super() }}
+  <small>{{ ds_table.all().count() }} rows, showing page {{ page }}</small>
+{% endblock %}
+
+{% block rec_content_tab_class %} active rec{% endblock %}
+
+{% block inner_content %}
+  {# add filters #}
+  {% for row in query %}
+      {{ renderrow(row) | safe }}
+  {% endfor %}
+
+  <nav>
+    <ul class="pagination">
+      <li class="{% if not previous_page %}disabled {% endif %}page-item">
+        <a class="page-link" href="{{ url_for('table_content_plus', table=table, page=1, ordering=ordering) }}">&laquo;</a>
+      </li>
+      <li class="{% if not previous_page %}disabled {% endif %}page-item">
+        <a class="page-link" href="{{ url_for('table_content_plus', table=table, page=previous_page, ordering=ordering) }}">&lsaquo;</a>
+      </li>
+      <li class="page-item disabled">
+        <span class="page-link">Page {{ page }} / {{ total_pages }}</span>
+      </li>
+      <li class="{% if not next_page %}disabled {% endif %}page-item">
+        <a class="page-link" href="{{ url_for('table_content_plus', table=table, page=next_page, ordering=ordering) }}">&rsaquo;</a>
+      </li>
+      <li class="{% if not next_page %}disabled {% endif %}page-item">
+        <a class="page-link" href="{{ url_for('table_content_plus', table=table, page=total_pages, ordering=ordering) }}">&raquo;</a>
+      </li>
+    </ul>
+  </nav>
+{% endblock %}

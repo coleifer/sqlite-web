@@ -1,0 +1,35 @@
+<div class="card m-{%  if is_outermost_level %}4{% else %}2{%  endif %} border border-primary entity_{{ title }}" >
+
+  <span type="button" data-toggle="collapse" data-target="#collapse_{{ col_id }}" aria-expanded="{{ is_outermost_level | lower }}" aria-controls="collapse_{{ col_id }}">
+      <span>{{title}}</span>
+
+  </span>
+
+    <div  class="collapse {%  if is_outermost_level %}show{% endif %} }}" id="collapse_{{ col_id }}">
+    {% for field in field_names %}
+        <div>
+            <span class="fieldname font-weight-bold">
+
+                {{ field }}
+                {%  if field in links %}
+                    <small class="">
+                    (
+                    {%  for link in links[field] %}
+
+                        Referenced in <a href="{{ link[1] }}"> {{link[0] }}</a>
+
+                    {%  endfor  %}
+                        )</small>
+                {% endif %}
+            </span>
+            <span>{% set value = row[field] %}
+              {% if value is none %}
+                NULL
+              {% else %}
+                {{ value|safe }}
+              {% endif %}
+            </span>
+        </div>
+    {% endfor %}
+    </div>
+</div>

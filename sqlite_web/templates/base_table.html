@@ -12,6 +12,10 @@
     <li class="nav-item">
       <a class="nav-link{% block content_tab_class %}{% endblock %}" href="{{ url_for('table_content', table=table) }}">Content</a>
     </li>
+      <li class="nav-item">
+      <a class="nav-link{% block rec_content_tab_class %}{% endblock %}" href="{{ url_for('table_content_plus', table=table) }}">Content+</a>
+    </li>
+
     <li class="nav-item">
       <a class="nav-link{% block query_tab_class %}{% endblock %}" href="{{ url_for('table_query', table=table) }}">Query</a>
     </li>
