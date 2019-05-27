@@ -77,6 +77,7 @@ CUR_DIR = os.path.realpath(os.path.dirname(__file__))
 DEBUG = False
 MAX_RESULT_SIZE = 1000
 ROWS_PER_PAGE = 50
+MAXDEPTH = 5
 SECRET_KEY = 'sqlite-database-browser-0.1.0'
 
 app = Flask(
@@ -471,7 +472,7 @@ def get_foreign_key_lookup(table_name):
     return {f.column: f for f in foreign_keys}
 
 
-def get_renderer(foreignkey_lookup, field_names, suppress, is_outermost_level, title):
+def get_renderer(foreignkey_lookup, field_names, suppress, is_outermost_level, title, i):
     def renderer(row):
         outrow={}
         if row is None:
@@ -483,7 +484,6 @@ def get_renderer(foreignkey_lookup, field_names, suppress, is_outermost_level, t
             if attr.endswith("_rel"):
                 source_table, source_name, _ = attr.split("_")
                 source_foreign_key = get_foreign_key_lookup(source_table)[source_name]
-                print(dir(source_foreign_key))
                 rowvalue = getattr(row, source_foreign_key.dest_column)
                 query = url_for("table_content_plus", table=source_table, filters="{}:{}".format(source_name, rowvalue))
                 links[source_foreign_key.dest_column].append((source_table, query))
@@ -496,12 +496,18 @@ def get_renderer(foreignkey_lookup, field_names, suppress, is_outermost_level, t
                 target_table = dataset[table_name]
 
                 foreignkey_lookup_inner = get_foreign_key_lookup(table_name)
-
-                outrow[field]="{}: ".format(inner_row) + get_renderer(foreignkey_lookup_inner,
+                if i<app.config['MAXDEPTH']:
+                    outrow[field]="{}: ".format(inner_row) + get_renderer(foreignkey_lookup_inner,
                                                                       target_table.columns,
                                                                       [foreignkey_lookup[field].dest_column],
                                                                       is_outermost_level=False,
-                                                                      title=table_name)(inner_row)
+                                                                      title=table_name,
+                                                                      i=i+1)(inner_row)
+                else:
+                    print(foreignkey_lookup)
+                    f="{}:{}".format(foreignkey_lookup[field].dest_column, getattr(inner_row, foreignkey_lookup[field].dest_column))
+                    link=url_for("table_content_plus", table=table_name, filters=f)
+                    outrow[field] = "{} ".format(inner_row)+render_template("row_truncated.html",link=link )
             else:
                 outrow[field]=value_filter(value)
 
@@ -520,7 +526,28 @@ def table_content_plus(table):
 
     dataset.update_cache(table)
     ds_table = dataset[table]
-    total_rows = ds_table.all().count()
+    field_names = ds_table.columns
+
+    query = ds_table.model_class.select()
+
+    header_stri = []
+    filters = request.args.get('filters')
+    if filters:
+        for filterstri in filters.split(","):
+            try:
+                colname, _, value = filterstri.partition(":")
+            except:
+                print("Skipping filter ", filterstri)
+                continue
+            if colname not in field_names:
+                print("Invalid filter", colname)
+                continue
+            query = query.where(getattr(ds_table.model_class,colname)==value)
+            header_stri.append("{}=='{}'".format(colname, value))
+
+    total_rows = query.count()
+    print(total_rows, "Rows")
+
     rows_per_page = app.config['ROWS_PER_PAGE']
     total_pages = int(math.ceil(total_rows / float(rows_per_page)))
     # Restrict bounds.
@@ -529,19 +556,6 @@ def table_content_plus(table):
 
     previous_page = page_number - 1 if page_number > 1 else None
     next_page = page_number + 1 if page_number < total_pages else None
-
-    query = ds_table.model_class.select()
-
-    filters = request.args.get('filters')
-    if filters:
-        filters = filters.split(",")
-        print([getattr(ds_table.model_class, f.split(":")[0])for f in filters])
-        filters = [getattr(ds_table.model_class, f.split(":")[0])==f.split(":")[1] for f in filters]
-        for filter in filters:
-            print("FILTER", filter)
-            query = query.where(filter)
-            print("Q", query)
-
 
     foreign_keys = dataset.get_foreign_keys(table)
     foreignkey_lookup={f.column: f for f in foreign_keys}
@@ -563,7 +577,6 @@ def table_content_plus(table):
     print(query, type(query))
 
 
-    field_names = ds_table.columns
     columns = [f.column_name for f in ds_table.model_class._meta.sorted_fields]
 
     table_sql = dataset.query(
@@ -572,6 +585,8 @@ def table_content_plus(table):
 
     return render_template(
         'table_content_plus.html',
+        title=" & ".join(header_stri),
+        filters=filters,
         columns=columns,
         ds_table=ds_table,
         field_names=field_names,
@@ -583,7 +598,7 @@ def table_content_plus(table):
         table=table,
         total_pages=total_pages,
         total_rows=total_rows,
-        renderrow=get_renderer(foreignkey_lookup, field_names, [], True, title=table)
+        renderrow=get_renderer(foreignkey_lookup, field_names, [], True, title=table, i=0)
         )
 
 
