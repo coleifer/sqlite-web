@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import datetime
+import hashlib
 import math
 import operator
 import optparse
@@ -841,6 +842,11 @@ def main():
 
     if options.browser:
         open_browser_tab(options.host, options.port)
+
+    if password:
+        key = b'sqlite-web-' + args[0].encode('utf8') + password.encode('utf8')
+        app.secret_key = hashlib.sha256(key).hexdigest()
+
     app.run(host=options.host, port=options.port, debug=options.debug)
 
 
