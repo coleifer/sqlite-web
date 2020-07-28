@@ -10,6 +10,9 @@ import sys
 import threading
 import time
 import webbrowser
+import hashlib
+import random
+import string
 from collections import namedtuple, OrderedDict
 from functools import wraps
 from getpass import getpass
@@ -77,6 +80,8 @@ DEBUG = False
 MAX_RESULT_SIZE = 1000
 ROWS_PER_PAGE = 50
 SECRET_KEY = 'sqlite-database-browser-0.1.0'
+global SESSION_SECRET_SET
+SESSION_SECRET_SET = set()
 
 app = Flask(
     __name__,
@@ -193,16 +198,28 @@ def index():
 
 @app.route('/login/', methods=['GET', 'POST'])
 def login():
+    global SESSION_SECRET_SET
     if request.method == 'POST':
         if request.form.get('password') == app.config['PASSWORD']:
-            session['authorized'] = True
+            letters = string.ascii_letters
+            salt = ''.join(random.choice(letters) for i in range(128))
+            secret = hashlib.sha512(app.config['PASSWORD'].encode()).hexdigest()
+            pepper = ''.join(random.choice(letters) for i in range(128))
+            session_secret = hashlib.sha512((salt + secret + pepper).encode()).hexdigest()
+            session['secret'] = session_secret
+            SESSION_SECRET_SET.add(session_secret)
             return redirect(session.get('next_url') or url_for('index'))
         flash('The password you entered is incorrect.', 'danger')
     return render_template('login.html')
 
 @app.route('/logout/', methods=['GET'])
 def logout():
-    session.pop('authorized', None)
+    global SESSION_SECRET_SET
+    try:
+        SESSION_SECRET_SET.remove(session.get('secret'))
+    except KeyError:
+        pass
+    session.pop('secret', None)
     return redirect(url_for('login'))
 
 def require_table(fn):
@@ -781,8 +798,10 @@ def install_auth_handler(password):
 
     @app.before_request
     def check_password():
-        if not session.get('authorized') and request.path != '/login/' and \
-           not request.path.startswith(('/static/', '/favicon')):
+        global SESSION_SECRET_SET
+        if session.get('secret') not in SESSION_SECRET_SET and \
+                request.path != '/login/' and \
+                not request.path.startswith(('/static/', '/favicon')):
             flash('You must log-in to view the database browser.', 'danger')
             session['next_url'] = request.base_url
             return redirect(url_for('login'))
