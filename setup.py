@@ -14,7 +14,7 @@ setup(
     name='sqlite-web',
     version='0.3.7',
     description='Web-based SQLite database browser.',
-    long_description=long_description,
+    long_description='Web-based SQLite database browser.',
     author='Charles Leifer',
     author_email='coleifer@gmail.com',
     url='https://github.com/coleifer/sqlite-web',
