@@ -759,6 +759,24 @@ def get_option_parser():
         '--url-prefix',
         dest='url_prefix',
         help='URL prefix for application.')
+    ssl_opts = optparse.OptionGroup(parser, 'SSL options')
+    ssl_opts.add_option(
+        '-c',
+        '--ssl-cert',
+        dest='ssl_cert',
+        help='SSL certificate file path.')
+    ssl_opts.add_option(
+        '-k',
+        '--ssl-key',
+        dest='ssl_key',
+        help='SSL private key file path.')
+    ssl_opts.add_option(
+        '-a',
+        '--ad-hoc',
+        action='store_true',
+        dest='ssl_ad_hoc',
+        help='Use ad-hoc SSL context.')
+    parser.add_option_group(ssl_opts)
     return parser
 
 def die(msg, exit_code=1):
@@ -847,7 +865,22 @@ def main():
         key = b'sqlite-web-' + args[0].encode('utf8') + password.encode('utf8')
         app.secret_key = hashlib.sha256(key).hexdigest()
 
-    app.run(host=options.host, port=options.port, debug=options.debug)
+    # Set up SSL context, if specified.
+    kwargs = {}
+    if options.ssl_ad_hoc:
+        kwargs['ssl_context'] = 'adhoc'
+
+    if options.ssl_cert and options.ssl_key:
+        if not os.path.exists(options.ssl_cert) or not os.path.exists(options.ssl_key):
+            die('ssl cert or ssl key not found. Please check the file-paths.')
+        kwargs['ssl_context'] = (options.ssl_cert, options.ssl_key)
+    elif options.ssl_cert:
+        die('ssl key "-k" is required alongside the ssl cert')
+    elif options.ssl_key:
+        die('ssl cert "-c" is required alongside the ssl key')
+
+    # Run WSGI application.
+    app.run(host=options.host, port=options.port, debug=options.debug, **kwargs)
 
 
 if __name__ == '__main__':
