@@ -61,7 +61,7 @@ except ImportError:
     raise RuntimeError('Unable to import peewee module. Install by running '
                        'pip install peewee')
 else:
-    if peewee_version <= (3, 0, 0):
+    if peewee_version < (3, 0, 0):
         raise RuntimeError('Peewee >= 3.0.0 is required. Found version %s. '
                            'Please update by running pip install --update '
                            'peewee' % __version__)
