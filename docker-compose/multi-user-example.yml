@@ -1,0 +1,22 @@
+version: "3.4"
+# Example of parametric sqlite web
+# Provide $USERNAME and $USER_PORT
+# to automatically generate an isolated environament
+# Usage example
+#  USERNAME=scott PORT="8081"   docker-compose -f multi-user-example.yml  up
+#  USERNAME=tiger PORT="8082"   docker-compose -f multi-user-example.yml  up
+volumes:
+    sqlite_web:
+        name: sqlite_web_$USERNAME
+        external: false    
+
+services:
+    sqlite_web:
+        image: coleifer/sqlite-web:latest
+        ports:
+            # PORT is optional
+            - "${PORT:-8080}:8080"
+        volumes:
+            - sqlite_web:/data
+        environment:
+            SQLITE_DATABASE: ${USERNAME}_default.db
