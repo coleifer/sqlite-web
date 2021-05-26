@@ -3,6 +3,7 @@
 {% block sidebar %}
   <input class="form-control form-control-sm" id="table-search" placeholder="table name..." type="text" />
   <ul class="nav flex-column nav-pills" role="tablist">
+    {% set virtual_tables = dataset.get_virtual_tables() %}
     {% set virtual_tables_corollary = dataset.get_corollary_virtual_tables() %}
     {% for table_name in dataset.tables|sort %}
       {% if table_name not in virtual_tables_corollary %}
