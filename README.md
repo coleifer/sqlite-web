@@ -75,6 +75,8 @@ The following options are available:
   environment variable, in which case the application will not prompt for a
   password, but will use the value from the environment.
 * ``-r``, ``--read-only``: open database in read-only mode.
+* ``-e``, ``--extension``: path or name of loadable extension(s). To load
+  multiple extensions, specify ``-e [path]`` for each extension.
 * ``-u``, ``--url-prefix``: URL prefix for application, e.g. "/sqlite-web".
 * ``-c``, ``--cert`` and ``-k``, ``--key`` - specify SSL cert and private key.
 * ``-a``, ``--ad-hoc`` - run using an ad-hoc SSL context.

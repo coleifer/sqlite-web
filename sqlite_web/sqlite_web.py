@@ -759,6 +759,11 @@ def get_option_parser():
         '--url-prefix',
         dest='url_prefix',
         help='URL prefix for application.')
+    parser.add_option(
+        '-e',
+        '--extension',
+        action='append',
+        help='Path or name of loadable extension.')
     ssl_opts = optparse.OptionGroup(parser, 'SSL options')
     ssl_opts.add_option(
         '-c',
@@ -806,7 +811,8 @@ def install_auth_handler(password):
             session['next_url'] = request.base_url
             return redirect(url_for('login'))
 
-def initialize_app(filename, read_only=False, password=None, url_prefix=None):
+def initialize_app(filename, read_only=False, password=None, url_prefix=None,
+                   extensions=None):
     global dataset
     global migrator
 
@@ -832,6 +838,10 @@ def initialize_app(filename, read_only=False, password=None, url_prefix=None):
     if url_prefix:
         app.wsgi_app = PrefixMiddleware(app.wsgi_app, prefix=url_prefix)
 
+    if extensions:
+        for ext in extensions:
+            dataset._database.load_extension(ext)
+
     migrator = dataset._migrator
     dataset.close()
 
@@ -856,7 +866,8 @@ def main():
                     break
 
     # Initialize the dataset instance and (optionally) authentication handler.
-    initialize_app(args[0], options.read_only, password, options.url_prefix)
+    initialize_app(args[0], options.read_only, password, options.url_prefix,
+                   options.extensions)
 
     if options.browser:
         open_browser_tab(options.host, options.port)
