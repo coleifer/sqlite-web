@@ -763,6 +763,7 @@ def get_option_parser():
         '-e',
         '--extension',
         action='append',
+        dest='extensions',
         help='Path or name of loadable extension.')
     ssl_opts = optparse.OptionGroup(parser, 'SSL options')
     ssl_opts.add_option(
