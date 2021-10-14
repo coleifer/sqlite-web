@@ -761,7 +761,7 @@ def get_option_parser():
         help='URL prefix for application.')
     parser.add_option(
         '-e',
-        '--extension',
+        '--extensions',
         action='append',
         help='Path or name of loadable extension.')
     ssl_opts = optparse.OptionGroup(parser, 'SSL options')
