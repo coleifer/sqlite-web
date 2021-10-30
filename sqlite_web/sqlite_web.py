@@ -415,6 +415,25 @@ def drop_trigger(table):
         name=name,
         table=table)
 
+@app.route('/<table>/record/<id>')
+@require_table
+def table_record(table, id):
+    dataset.update_cache(table)
+    ds_table = dataset[table]
+    field_names = ds_table.columns
+    columns = [f.column_name for f in ds_table.model_class._meta.sorted_fields]
+    query = ds_table.find_one(id=id)
+    print(query)
+
+    return render_template(
+        'table_record.html',
+        columns=columns,
+        ds_table=ds_table,
+        field_names=field_names,
+        query=query,
+        table=table,
+        )
+
 @app.route('/<table>/content/')
 @require_table
 def table_content(table):

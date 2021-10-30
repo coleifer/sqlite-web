@@ -41,10 +41,14 @@
           {% for field in field_names %}
             {% set value = row[field] %}
             <td>
-              {% if value is none %}
-                NULL
+              {% if field == 'id' %} 
+                <a href="{{ url_for('table_structure', table=table) }}record/{{ value|value_filter|safe }}">{{ value|value_filter|safe }}</a>
               {% else %}
-                {{ value|value_filter|safe }}
+                {% if value is none %}
+                  NULL
+                {% else %}
+                  {{ value|value_filter|safe }}
+                {% endif %} 
               {% endif %}
             </td>
           {% endfor %}

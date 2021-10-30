@@ -1,0 +1,43 @@
+{% extends "base_table.html" %}
+
+{% block extra_scripts %}
+  <script type="text/javascript">
+    $(function() {
+      var valueToggles = $('a.toggle-value');
+      valueToggles.on('click', function(e) {
+        e.preventDefault();
+        var elem = $(this),
+            truncated = elem.siblings('span.truncated'),
+            full = elem.siblings('span.full');
+        truncated.toggle();
+        full.toggle();
+      });
+    });
+  </script>
+{% endblock %}
+
+{% block content_title %}
+  {{ super() }}
+{% endblock %}
+
+{% block content_tab_class %} active{% endblock %}
+
+{% block inner_content %}
+  {# add filters #}
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Field Name</th>
+        <th>Value</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for column in columns %}
+        <tr>
+          <td>{{ column }}</td>
+          <td>{{ query[column] }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}
