@@ -415,6 +415,7 @@ def drop_trigger(table):
         name=name,
         table=table)
 
+# Displays an individual record given by <id> for <table> 
 @app.route('/<table>/record/<id>')
 @require_table
 def table_record(table, id):

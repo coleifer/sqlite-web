@@ -42,7 +42,7 @@
             {% set value = row[field] %}
             <td>
               {% if field == 'id' %} 
-                <a href="{{ url_for('table_structure', table=table) }}record/{{ value|value_filter|safe }}">{{ value|value_filter|safe }}</a>
+                <a href="{{ url_for('table_record', table=table, id=value) }}">{{ value|value_filter|safe }}</a>
               {% else %}
                 {% if value is none %}
                   NULL
