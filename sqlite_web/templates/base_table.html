@@ -17,7 +17,7 @@
     </li>
     {% if not dataset.is_readonly %}
     <li class="nav-item ml-auto">
-      <a class="nav-link{% block edit_record_tab_class %}{% endblock %}" href="{{ url_for('table_record', table=table, id=value) }}">Edit</a>
+      <a class="nav-link{% block edit_record_tab_class %}{% endblock %}" href="{{ url_for('table_record', table=table, id=id) }}">Edit</a>
     </li>
     <li class="nav-item">
       <a class="nav-link{% block drop_tab_class %}{% endblock %}" href="{{ url_for('drop_table', table=table) }}">Drop</a>

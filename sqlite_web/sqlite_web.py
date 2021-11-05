@@ -424,7 +424,6 @@ def table_record(table, id):
     field_names = ds_table.columns
     columns = [f.column_name for f in ds_table.model_class._meta.sorted_fields]
     query = ds_table.find_one(id=id)
-    print(query)
 
     return render_template(
         'table_record.html',
@@ -433,6 +432,7 @@ def table_record(table, id):
         field_names=field_names,
         query=query,
         table=table,
+        id=id,
         )
 
 @app.route('/<table>/content/')
