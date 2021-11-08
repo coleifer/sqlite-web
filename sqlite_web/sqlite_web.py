@@ -416,9 +416,12 @@ def drop_trigger(table):
         table=table)
 
 # Displays an individual record given by <id> for <table> 
-@app.route('/<table>/record/<id>')
+@app.route('/<table>/record/<id>', methods = ['GET', 'POST'])
 @require_table
 def table_record(table, id):
+    if request.method == 'POST':
+        print(request.form)
+
     dataset.update_cache(table)
     ds_table = dataset[table]
     field_names = ds_table.columns
@@ -427,6 +430,26 @@ def table_record(table, id):
 
     return render_template(
         'table_record.html',
+        columns=columns,
+        ds_table=ds_table,
+        field_names=field_names,
+        query=query,
+        table=table,
+        id=id,
+        )
+
+# Edits an individual record given by <id> for <table> 
+@app.route('/<table>/record/<id>/edit')
+@require_table
+def table_edit_record(table, id):
+    dataset.update_cache(table)
+    ds_table = dataset[table]
+    field_names = ds_table.columns
+    columns = [f.column_name for f in ds_table.model_class._meta.sorted_fields]
+    query = ds_table.find_one(id=id)
+
+    return render_template(
+        'table_edit_record.html',
         columns=columns,
         ds_table=ds_table,
         field_names=field_names,

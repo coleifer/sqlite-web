@@ -1,0 +1,40 @@
+{% extends "base_table.html" %}
+
+
+
+{% block content_title %}
+  {{ super() }}
+{% endblock %}
+
+{% block content_tab_class %} active{% endblock %}
+
+{% block inner_content %}
+  {# add filters #}
+  <form id="columns_form" method="POST" action="{{ url_for('table_record', table=table, id=id) }}">
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th scope="col" style="width: 20%">Field Name</th>
+        <th scope="col">Value</th>
+        <th scope="col">New Value</th>
+      </tr>
+    </thead>
+    <tbody>
+      
+      {% for column in columns %}
+        <tr>
+          <td>{{ column }}</td>
+          <td>{{ query[column] }}</td>
+          {% if column == 'id' %}
+            <td><input class="form-control-plaintext" name="id" type="text" value="{{ query[column] }}"></td>
+          {% else %}
+            <td><input type="text" class="form-control" name="{{ column }}" value="{{ query[column] }}"></td>
+          {% endif %}
+        </tr>
+      {% endfor %}
+      
+    </tbody>
+  </table>
+  <button type="submit" class="btn btn-primary mb-2" id="update_record">Update record</button>
+</form>
+{% endblock %}
