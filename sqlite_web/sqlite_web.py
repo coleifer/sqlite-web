@@ -416,14 +416,17 @@ def drop_trigger(table):
         table=table)
 
 # Displays an individual record given by <id> for <table> 
+# If sent here via POST, will update the record before displaying
 @app.route('/<table>/record/<id>', methods = ['GET', 'POST'])
 @require_table
 def table_record(table, id):
-    if request.method == 'POST':
-        print(request.form)
-
     dataset.update_cache(table)
     ds_table = dataset[table]
+    if request.method == 'POST':
+        fields = list(request.form.keys())
+        request_dict = request.form.to_dict()
+        ds_table.update(**request_dict, columns=['id'])
+
     field_names = ds_table.columns
     columns = [f.column_name for f in ds_table.model_class._meta.sorted_fields]
     query = ds_table.find_one(id=id)
