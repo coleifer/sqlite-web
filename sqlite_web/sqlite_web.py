@@ -415,6 +415,16 @@ def drop_trigger(table):
         name=name,
         table=table)
 
+def get_fk_value(table, id):
+    fk_table = dataset[table]
+    query = fk_table.find_one(id=id)
+    columns = [f.column_name for f in fk_table.model_class._meta.sorted_fields]
+    if query is None:
+        return "No matching record"
+    elif 'name' in columns:
+        return query['name']
+    return id
+
 # Displays an individual record given by <id> for <table> 
 # If sent here via POST, will update the record before displaying
 @app.route('/<table>/record/<id>', methods = ['GET', 'POST'])
@@ -430,10 +440,23 @@ def table_record(table, id):
     field_names = ds_table.columns
     columns = [f.column_name for f in ds_table.model_class._meta.sorted_fields]
     query = ds_table.find_one(id=id)
+    foreign_keys=dataset.get_foreign_keys(table)
+    if foreign_keys:
+        fk_columns = []
+        fk_values = {}
+        for fk in foreign_keys:
+            fk_columns.append(fk.column)
+            if query[fk.column]:
+                fk_values[fk.column] = get_fk_value(fk.dest_table, query[fk.column])
+            else:
+                fk_values[fk.column] = query[fk.column]
 
     return render_template(
         'table_record.html',
         columns=columns,
+        foreign_keys=foreign_keys,
+        fk_columns=fk_columns,
+        fk_values=fk_values,
         ds_table=ds_table,
         field_names=field_names,
         query=query,
@@ -453,6 +476,7 @@ def table_edit_record(table, id):
 
     return render_template(
         'table_edit_record.html',
+        foreign_keys=dataset.get_foreign_keys(table),
         columns=columns,
         ds_table=ds_table,
         field_names=field_names,
@@ -871,7 +895,7 @@ def initialize_app(filename, read_only=False, password=None, url_prefix=None,
             die('Python 3.4.0 or newer is required for read-only access.')
         if peewee_version < (3, 5, 1):
             die('Peewee 3.5.1 or newer is required for read-only access.')
-        db = SqliteDatabase('file:%s?mode=ro' % filename, uri=True)
+        db = SqliteDatabase('file:%s?mode=ro' % filename, uri=True, pragmas={'foreign_keys': 1})
         try:
             db.connect()
         except OperationalError:

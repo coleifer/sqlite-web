@@ -28,14 +28,20 @@
     <thead>
       <tr>
         <th scope="col" style="width: 20%">Field Name</th>
-        <th scope="col">Value</th>
+        <th scope="col" style="width: 20%">Value</th>
+        <th scope="col">Foreign Value</th>
       </tr>
     </thead>
     <tbody>
       {% for column in columns %}
         <tr>
           <td>{{ column }}</td>
-          <td>{{ query[column] }}</td>
+          {% if column in fk_columns %}
+            <td>{{ query[column] }}</td>
+            <td>{{ fk_values[column] }}</td>
+          {% else %}
+            <td colspan="2">{{ query[column] }}</td>
+          {% endif %}
         </tr>
       {% endfor %}
     </tbody>
