@@ -18,6 +18,9 @@ $ pip install sqlite-web
 
 ```sh
 $ sqlite_web /path/to/database.db
+
+for Python 3:
+$ python3 -m sqlite_web /path/to/database.db
 ```
 
 ### Features
