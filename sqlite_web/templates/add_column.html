@@ -21,4 +21,9 @@
   <button class="btn btn-primary" type="submit">Add column</button>
   <a class="btn btn-secondary" href="{{ url_for('table_structure', table=table) }}">Cancel</a>
 </form>
+
+<hr style="padding: 16px;" />
+
+<h3 id="sql">Current Schema</h3>
+{{ table_sql|format_create_table|highlight }}
 {% endblock %}

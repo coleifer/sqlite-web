@@ -285,12 +285,17 @@ def add_column(table):
         else:
             flash('Name and column type are required.', 'danger')
 
+    table_sql = dataset.query(
+        'SELECT sql FROM sqlite_master WHERE tbl_name = ? AND type = ?',
+        [table, 'table']).fetchone()[0]
+
     return render_template(
         'add_column.html',
         col_type=col_type,
         column_mapping=column_mapping,
         name=name,
-        table=table)
+        table=table,
+        table_sql=table_sql)
 
 @app.route('/<table>/drop-column/', methods=['GET', 'POST'])
 @require_table
