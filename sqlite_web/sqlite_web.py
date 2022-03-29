@@ -219,7 +219,10 @@ def table_create():
     table = (request.form.get('table_name') or '').strip()
     if not table:
         flash('Table name is required.', 'danger')
-        return redirect(request.form.get('redirect') or url_for('index'))
+        dest = request.form.get('redirect') or url_for('index')
+        if not dest.startswith('/'):
+            dest = '/' + dest
+        return redirect(dest)
 
     dataset[table]
     return redirect(url_for('table_import', table=table))
