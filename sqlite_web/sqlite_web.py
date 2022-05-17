@@ -68,7 +68,7 @@ else:
 
 from peewee import *
 from peewee import IndexMetadata
-from peewee import sqlite3
+import sqlite3
 from playhouse.dataset import DataSet
 from playhouse.migrate import migrate
 
