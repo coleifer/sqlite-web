@@ -31,6 +31,36 @@
           console.log('preference logged, new value: ' + resp.show);
         });
       });
+
+      var recentQueries = JSON.parse(localStorage.getItem('recentQueries') || "[]");
+  {% if sql and not error %}
+      var sql = `{{ sql }}`;
+      var accum = [sql];
+      for (var i = 0; i < recentQueries.length; i++) {
+        if (recentQueries[i] !== sql) { accum.push(recentQueries[i]) };
+      }
+      recentQueries = accum.slice(0, 20);
+      localStorage.setItem('recentQueries', JSON.stringify(recentQueries));
+  {% endif %}
+      var historyIndex = 0;
+      var sqlTextArea = $('textarea#sql');
+
+      sqlTextArea.on('keydown', function(e) {
+        if (e.shiftKey) {
+          if (e.keyCode == 38) { // up.
+            historyIndex += 1;
+            if (historyIndex >= recentQueries.length) { historyIndex = 0; }
+            sqlTextArea.html(recentQueries[historyIndex]);
+            e.preventDefault();
+          } else if (e.keyCode == 40) { // down.
+            historyIndex -= 1;
+            if (historyIndex < 0) { historyIndex = recentQueries.length - 1; }
+            sqlTextArea.html(recentQueries[historyIndex]);
+            e.preventDefault();
+          }
+        }
+      });
+      sqlTextArea.focus();
     });
   </script>
 {% endblock %}
@@ -49,10 +79,10 @@
   </div>
   <form action="." method="post" role="form">
     <div class="form-group{% if error %} has-error has-feedback{% endif %}">
-      <textarea class="form-control" name="sql" style="height: 120px;">{% if sql %}{{ sql }}{% endif %}</textarea>
+      <textarea class="form-control{% if error %} is-invalid{% endif %}" id="sql" name="sql" style="height: 120px;">{% if sql %}{{ sql }}{% endif %}</textarea>
+      <small class="form-text text-muted">Use Shift + Up/Down to navigate recently-executed queries</small>
       {% if error %}
-        <span class="glyphicon glyphicon-remove form-control-feedback"></span>
-        <span class="help-block">{{ error }}</span>
+        <div class="invalid-feedback">{{ error }}</div>
       {% endif %}
     </div>
     <button class="btn btn-primary" type="submit">Execute</button>
