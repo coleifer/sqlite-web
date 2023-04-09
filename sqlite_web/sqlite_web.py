@@ -471,6 +471,24 @@ def table_content(table):
         total_pages=total_pages,
         total_rows=total_rows)
 
+@app.route('/<table>/insert/', methods=['GET', 'POST'])
+@require_table
+def table_insert(table):
+    dataset.update_cache(table)
+    model_class = dataset[table].model_class
+
+@app.route('/<table>/edit/<pk>/', methods=['GET', 'POST'])
+@require_table
+def table_edit(table, pk):
+    dataset.update_cache(table)
+    model_class = dataset[table].model_class
+
+@app.route('/<table>/delete/<pk>/', methods=['GET', 'POST'])
+@require_table
+def table_delete(table, pk):
+    dataset.update_cache(table)
+    model_class = dataset[table].model_class
+
 @app.route('/<table>/query/', methods=['GET', 'POST'])
 @require_table
 def table_query(table):
