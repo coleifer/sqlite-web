@@ -23,6 +23,14 @@
 
 {% block content_tab_class %} active{% endblock %}
 
+{% block inner_nav %}
+  {% if not dataset.is_readonly %}
+    <li class="nav-item">
+      <a class="nav-link{% block insert_tab_class %}{% endblock %}" href="{{ url_for('table_insert', table=table) }}">Insert</a>
+    </li>
+  {% endif %}
+{% endblock %}
+
 {% block inner_content %}
   {# add filters #}
   <table class="table table-striped small">
@@ -33,6 +41,7 @@
             <a href="./?ordering={% if ordering == column %}-{% endif %}{{ column }}">{{ column }}</a>
           </th>
         {% endfor %}
+        {% if not dataset.is_readonly %}<th></th>{% endif %}
       </tr>
     </thead>
     <tbody>
@@ -48,6 +57,12 @@
               {% endif %}
             </td>
           {% endfor %}
+          {% if not dataset.is_readonly %}
+            <td>
+              <a class="small" href="{{ url_for('table_update', table=table, pk=1) }}">Edit</a> |
+              <a class="small" href="{{ url_for('table_delete', table=table, pk=1) }}">Delete</a>
+            </td>
+          {% endif %}
         </tr>
       {% endfor %}
     </tbody>

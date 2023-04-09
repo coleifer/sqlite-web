@@ -477,9 +477,9 @@ def table_insert(table):
     dataset.update_cache(table)
     model_class = dataset[table].model_class
 
-@app.route('/<table>/edit/<pk>/', methods=['GET', 'POST'])
+@app.route('/<table>/update/<pk>/', methods=['GET', 'POST'])
 @require_table
-def table_edit(table, pk):
+def table_update(table, pk):
     dataset.update_cache(table)
     model_class = dataset[table].model_class
 
