@@ -126,7 +126,7 @@
             <tr>
               {% for value in row %}
                 <td>
-                  {% if value is none %}<code>NULL</code>{% else %}{{ value }}{% endif %}
+                  {% if value is none %}<code>NULL</code>{% else %}{{ value|value_filter|safe }}{% endif %}
                 </td>
               {% endfor %}
             </tr>
