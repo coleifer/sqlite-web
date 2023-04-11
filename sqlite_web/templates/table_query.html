@@ -113,7 +113,7 @@
       <h3>
         Results ({{ data|length }})
       </h3>
-      <table class="table table-striped">
+      <table class="table table-striped small">
         <thead>
           <tr>
             {% for col_desc in data_description %}
@@ -126,7 +126,7 @@
             <tr>
               {% for value in row %}
                 <td>
-                  {% if value is none %}NULL{% else %}{{ value }}{% endif %}
+                  {% if value is none %}<code>NULL</code>{% else %}{{ value }}{% endif %}
                 </td>
               {% endfor %}
             </tr>

@@ -43,16 +43,8 @@
         <tr>
           <td><code>{{ column.name }}</code></td>
           <td><code>{{ column.data_type }}</code></td>
-          <td>
-            {% if column.null %}
-              <span class="glyphicon glyphicon-ok"></span>
-            {% endif %}
-          </td>
-          <td>
-            {% if column.primary_key %}
-              <span class="glyphicon glyphicon-ok"></span>
-            {% endif %}
-          </td>
+          <td>{% if column.null %}&check;{% endif %}</td>
+          <td>{% if column.primary_key %}&check;{% endif %}</td>
           <td>
             {% if dataset.is_readonly %}
               <strong>read-only</strong>
@@ -120,11 +112,7 @@
               </ul>
             {% endif %}
           </td>
-          <td>
-            {% if index.unique %}
-              <span class="glyphicon glyphicon-ok"></span>
-            {% endif %}
-          </td>
+          <td>{% if index.unique %}&check;{% endif %}</td>
           <td>
             <a class="view-sql" data-name="{{ index.name }}" href="#">SQL</a>
             <div style="display:none;">{% if index.sql %}{{ index.sql|format_index|highlight }}{% else %}-- no sql found --{% endif %}</div>
