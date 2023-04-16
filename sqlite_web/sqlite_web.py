@@ -35,13 +35,13 @@ else:
 
 try:
     from flask import (
-        Flask, abort, escape, flash, jsonify, make_response, redirect,
+        Flask, abort, flash, jsonify, make_response, redirect,
         render_template, request, session, url_for)
 except ImportError:
     raise RuntimeError('Unable to import flask module. Install by running '
                        'pip install flask')
 try:
-    from markupsafe import Markup
+    from markupsafe import Markup, escape
 except ImportError:
     raise RuntimeError('Unable to import markupsafe module. Install by running'
                        ' pip install markupsafe')
@@ -438,7 +438,9 @@ def get_table_pk(model):
 @require_table
 def table_content(table):
     page_number = request.args.get('page') or ''
+    if page_number == 'last': page_number = '1000000'
     page_number = int(page_number) if page_number.isdigit() else 1
+    session['%s.last_viewed' % table] = page_number
 
     dataset.update_cache(table)
     ds_table = dataset[table]
@@ -551,9 +553,17 @@ def table_insert(table):
             flash('One or more errors prevented the row being inserted.',
                   'danger')
         elif insert:
-            n = model.insert(insert).execute()
-            flash('Successfully inserted record (%s).' % n, 'success')
-            return redirect(url_for('table_content', table=table))
+            try:
+                with dataset.transaction() as txn:
+                    n = model.insert(insert).execute()
+            except Exception as exc:
+                flash('Insert failed: %s' % exc, 'danger')
+            else:
+                flash('Successfully inserted record (%s).' % n, 'success')
+                return redirect(url_for(
+                    'table_content',
+                    table=table,
+                    page='last'))
         else:
             flash('No data was specified to be inserted.', 'warning')
     else:
@@ -619,9 +629,18 @@ def table_update(table, pk):
             flash('One or more errors prevented the row being updated.',
                   'danger')
         elif update:
-            n = model.update(update).where(table_pk == pk).execute()
-            flash('Successfully updated %s record.' % n, 'success')
-            return redirect(url_for('table_content', table=table))
+            try:
+                with dataset.transaction() as txn:
+                    n = model.update(update).where(table_pk == pk).execute()
+            except Exception as exc:
+                flash('Update failed: %s' % exc, 'danger')
+            else:
+                flash('Successfully updated %s record.' % n, 'success')
+                page = session.get('%s.last_viewed' % table) or '1'
+                return redirect(url_for(
+                    'table_content',
+                    table=table,
+                    page=page))
         else:
             flash('No data was specified to be updated.', 'warning')
 
@@ -652,9 +671,18 @@ def table_delete(table, pk):
         return redirect(url_for('table_content', table=table))
 
     if request.method == 'POST':
-        n = model.delete().where(table_pk == pk).execute()
-        flash('Successfully deleted %s record.' % n, 'success')
-        return redirect(url_for('table_content', table=table))
+        try:
+            with dataset.transaction() as txn:
+                n = model.delete().where(table_pk == pk).execute()
+        except Exception as exc:
+            flash('Delete failed: %s' % exc, 'danger')
+        else:
+            flash('Successfully deleted %s record.' % n, 'success')
+            page = session.get('%s.last_viewed' % table) or '1'
+            return redirect(url_for(
+                'table_content',
+                table=table,
+                page=page))
 
     return render_template(
         'table_delete.html',
@@ -670,10 +698,13 @@ def table_query(table):
 
     if request.method == 'POST':
         sql = request.form['sql']
+        model_class = dataset[table].model_class
         if 'export_json' in request.form:
-            return export(table, sql, 'json')
+            query = model_class.raw(sql).dicts()
+            return export(table, query, 'json')
         elif 'export_csv' in request.form:
-            return export(table, sql, 'csv')
+            query = model_class.raw(sql).dicts()
+            return export(table, query, 'csv')
 
         try:
             cursor = dataset.query(sql)
@@ -714,9 +745,7 @@ def set_table_definition_preference():
         del session[key]
     return jsonify({key: show})
 
-def export(table, sql, export_format):
-    model_class = dataset[table].model_class
-    query = model_class.raw(sql).dicts()
+def export(table, query, export_format):
     buf = StringIO()
     if export_format == 'json':
         kwargs = {'indent': 2}
@@ -738,6 +767,28 @@ def export(table, sql, export_format):
     response.headers['Expires'] = 0
     response.headers['Pragma'] = 'public'
     return response
+
+@app.route('/<table>/export/', methods=['GET', 'POST'])
+@require_table
+def table_export(table):
+    columns = dataset.get_columns(table)
+    if request.method == 'POST':
+        export_format = request.form.get('export_format') or 'json'
+        col_dict = {c.name: c for c in columns}
+        selected = [c for c in (request.form.getlist('columns') or [])
+                    if c in col_dict]
+        if not selected:
+            flash('Please select one or more columns to export.', 'danger')
+        else:
+            model = dataset[table].model_class
+            fields = [model._meta.columns[c] for c in selected]
+            query = model.select(*fields).dicts()
+            return export(table, query, export_format)
+
+    return render_template(
+        'table_export.html',
+        columns=columns,
+        table=table)
 
 @app.route('/<table>/import/', methods=['GET', 'POST'])
 @require_table
@@ -954,6 +1005,13 @@ def get_option_parser():
         dest='read_only',
         help='Open database in read-only mode.')
     parser.add_option(
+        '-R',
+        '--rows-per-page',
+        default=50,
+        dest='rows_per_page',
+        help='Number of rows to display per page (default=50)',
+        type='int')
+    parser.add_option(
         '-u',
         '--url-prefix',
         dest='url_prefix',
@@ -1064,6 +1122,9 @@ def main():
                     print('Passwords did not match!')
                 else:
                     break
+
+    if options.rows_per_page:
+        app.config['ROWS_PER_PAGE'] = options.rows_per_page
 
     # Initialize the dataset instance and (optionally) authentication handler.
     initialize_app(args[0], options.read_only, password, options.url_prefix,

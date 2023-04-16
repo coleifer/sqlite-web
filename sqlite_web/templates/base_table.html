@@ -28,6 +28,9 @@
       <a class="nav-link{% block import_tab_class %}{% endblock %}" href="{{ url_for('table_import', table=table) }}">Import</a>
     </li>
     {% endif %}
+    <li class="nav-item">
+      <a class="nav-link{% block export_tab_class %}{% endblock %}" href="{{ url_for('table_export', table=table) }}">Export</a>
+    </li>
     {% block inner_nav %}{% endblock %}
   </ul>
   <div style="margin-top: 20px;">
