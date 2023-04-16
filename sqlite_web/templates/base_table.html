@@ -16,6 +16,11 @@
       <a class="nav-link{% block query_tab_class %}{% endblock %}" href="{{ url_for('table_query', table=table) }}">Query</a>
     </li>
     {% if not dataset.is_readonly %}
+    <li class="nav-item">
+      <a class="nav-link{% block insert_tab_class %}{% endblock %}" href="{{ url_for('table_insert', table=table) }}">Insert</a>
+    </li>
+    {% endif %}
+    {% if not dataset.is_readonly %}
     <li class="nav-item ml-auto">
       <a class="nav-link{% block drop_tab_class %}{% endblock %}" href="{{ url_for('drop_table', table=table) }}">Drop</a>
     </li>

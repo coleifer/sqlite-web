@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import base64
 import datetime
 import hashlib
 import math
@@ -34,11 +35,16 @@ else:
 
 try:
     from flask import (
-        Flask, abort, escape, flash, jsonify, make_response, Markup, redirect,
+        Flask, abort, escape, flash, jsonify, make_response, redirect,
         render_template, request, session, url_for)
 except ImportError:
     raise RuntimeError('Unable to import flask module. Install by running '
                        'pip install flask')
+try:
+    from markupsafe import Markup
+except ImportError:
+    raise RuntimeError('Unable to import markupsafe module. Install by running'
+                       ' pip install markupsafe')
 
 try:
     from pygments import formatters, highlight, lexers
@@ -423,6 +429,11 @@ def drop_trigger(table):
         name=name,
         table=table)
 
+def get_table_pk(model):
+    pk = model._meta.primary_key
+    if pk and not isinstance(pk, CompositeKey):
+        return pk
+
 @app.route('/<table>/content/')
 @require_table
 def table_content(table):
@@ -431,9 +442,11 @@ def table_content(table):
 
     dataset.update_cache(table)
     ds_table = dataset[table]
+    model = ds_table.model_class
+
     total_rows = ds_table.all().count()
     rows_per_page = app.config['ROWS_PER_PAGE']
-    total_pages = int(math.ceil(total_rows / float(rows_per_page)))
+    total_pages = max(1, int(math.ceil(total_rows / float(rows_per_page))))
     # Restrict bounds.
     page_number = min(page_number, total_pages)
     page_number = max(page_number, 1)
@@ -445,7 +458,7 @@ def table_content(table):
 
     ordering = request.args.get('ordering')
     if ordering:
-        field = ds_table.model_class._meta.columns[ordering.lstrip('-')]
+        field = model._meta.columns[ordering.lstrip('-')]
         if ordering.startswith('-'):
             field = field.desc()
         query = query.order_by(field)
@@ -468,26 +481,186 @@ def table_content(table):
         previous_page=previous_page,
         query=query,
         table=table,
+        table_pk=get_table_pk(model),
         total_pages=total_pages,
         total_rows=total_rows)
+
+def minimal_validate_field(field, value):
+    if value.lower().strip() == 'null':
+        value = None
+    if value is None and not field.null:
+        return 'NULL', 'Column does not allow NULL values.'
+    if isinstance(field, IntegerField) and not value.isdigit():
+        return value, 'Value is not a number.'
+    elif isinstance(field, FloatField):
+        try:
+            _ = float(value)
+        except Exception:
+            return value, 'Value is not a numeric/real.'
+    elif isinstance(field, BooleanField):
+        if value.lower() not in ('1', '0', 'true', 'false', 't', 'f'):
+            return value, 'Value must be 1, 0, true, false, t or f.'
+        value = True if value.lower() in ('1', 't', 'true') else False
+    elif isinstance(field, BlobField):
+        try:
+            value = base64.b64decode(value)
+        except Exception as exc:
+            return value, 'Value must be base64-encoded binary data.'
+    try:
+        field.db_value(value)
+    except Exception as exc:
+        return value, str(exc)
+
+    return value, None
 
 @app.route('/<table>/insert/', methods=['GET', 'POST'])
 @require_table
 def table_insert(table):
     dataset.update_cache(table)
-    model_class = dataset[table].model_class
+    model = dataset[table].model_class
+
+    columns = []
+    col_dict = {}
+    row = {}
+    for column in dataset.get_columns(table):
+        field = model._meta.columns[column.name]
+        if isinstance(field, AutoField):
+            continue
+        columns.append(column)
+        col_dict[column.name] = column
+        row[column.name] = ''
+
+    edited = set()
+    errors = {}
+    if request.method == 'POST':
+        insert = {}
+        for key, value in request.form.items():
+            if key not in col_dict: continue
+            column = col_dict[key]
+            edited.add(column.name)
+            row[column.name] = value
+
+            field = model._meta.columns[column.name]
+            value, err = minimal_validate_field(field, value)
+            if err:
+                errors[key] = err
+            else:
+                insert[field] = value
+
+        if errors:
+            flash('One or more errors prevented the row being inserted.',
+                  'danger')
+        elif insert:
+            n = model.insert(insert).execute()
+            flash('Successfully inserted record (%s).' % n, 'success')
+            return redirect(url_for('table_content', table=table))
+        else:
+            flash('No data was specified to be inserted.', 'warning')
+    else:
+        edited = set(col_dict)  # Make all fields editable on load.
+
+    return render_template(
+        'table_insert.html',
+        columns=columns,
+        edited=edited,
+        errors=errors,
+        model=model,
+        row=row,
+        table=table)
 
 @app.route('/<table>/update/<pk>/', methods=['GET', 'POST'])
 @require_table
 def table_update(table, pk):
     dataset.update_cache(table)
-    model_class = dataset[table].model_class
+    model = dataset[table].model_class
+    table_pk = get_table_pk(model)
+    if not table_pk:
+        flash('Table must have a primary key to perform update.', 'danger')
+        return redirect(url_for('table_content', table=table))
+
+    try:
+        obj = model.get(table_pk == pk)
+    except model.DoesNotExist:
+        flash('Could not fetch object with primary-key %s.' % pk, 'danger')
+        return redirect(url_for('table_content', table=table))
+
+    columns = dataset.get_columns(table)
+    col_dict = {}
+    row = {}
+    for column in columns:
+        value = getattr(obj, column.name)
+        if value is None:
+            row[column.name] = None
+        elif column.data_type.lower() == 'blob':
+            row[column.name] = base64.b64encode(value).decode('utf8')
+        else:
+            row[column.name] = value
+
+        col_dict[column.name] = column
+
+    edited = set()
+    errors = {}
+    if request.method == 'POST':
+        update = {}
+        for key, value in request.form.items():
+            if key not in col_dict: continue
+            column = col_dict[key]
+            edited.add(column.name)
+            row[column.name] = value
+
+            field = model._meta.columns[column.name]
+            value, err = minimal_validate_field(field, value)
+            if err:
+                errors[key] = err
+            else:
+                update[field] = value
+
+        if errors:
+            flash('One or more errors prevented the row being updated.',
+                  'danger')
+        elif update:
+            n = model.update(update).where(table_pk == pk).execute()
+            flash('Successfully updated %s record.' % n, 'success')
+            return redirect(url_for('table_content', table=table))
+        else:
+            flash('No data was specified to be updated.', 'warning')
+
+    return render_template(
+        'table_update.html',
+        columns=columns,
+        edited=edited,
+        errors=errors,
+        model=model,
+        pk=pk,
+        row=row,
+        table=table)
 
 @app.route('/<table>/delete/<pk>/', methods=['GET', 'POST'])
 @require_table
 def table_delete(table, pk):
     dataset.update_cache(table)
-    model_class = dataset[table].model_class
+    model = dataset[table].model_class
+    table_pk = get_table_pk(model)
+    if not table_pk:
+        flash('Table must have a primary key to perform delete.', 'danger')
+        return redirect(url_for('table_content', table=table))
+
+    try:
+        obj = model.get(table_pk == pk)
+    except model.DoesNotExist:
+        flash('Could not fetch object with primary-key %s.' % pk, 'danger')
+        return redirect(url_for('table_content', table=table))
+
+    if request.method == 'POST':
+        n = model.delete().where(table_pk == pk).execute()
+        flash('Successfully deleted %s record.' % n, 'success')
+        return redirect(url_for('table_content', table=table))
+
+    return render_template(
+        'table_delete.html',
+        model=model,
+        pk=pk,
+        table=table)
 
 @app.route('/<table>/query/', methods=['GET', 'POST'])
 @require_table
@@ -654,7 +827,7 @@ def value_filter(value, max_length=50):
     if isinstance(value, binary_types):
         if not isinstance(value, (bytes, bytearray)):
             value = bytes(value)  # Handle `buffer` type.
-        value = value.decode('utf-8', decode_handler)
+        value = base64.b64encode(value)[:1024].decode('utf8')
     if isinstance(value, unicode_type):
         value = escape(value)
         if len(value) > max_length:
