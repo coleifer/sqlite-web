@@ -440,7 +440,6 @@ def table_content(table):
     page_number = request.args.get('page') or ''
     if page_number == 'last': page_number = '1000000'
     page_number = int(page_number) if page_number.isdigit() else 1
-    session['%s.last_viewed' % table] = page_number
 
     dataset.update_cache(table)
     ds_table = dataset[table]
@@ -464,6 +463,8 @@ def table_content(table):
         if ordering.startswith('-'):
             field = field.desc()
         query = query.order_by(field)
+
+    session['%s.last_viewed' % table] = (page_number, ordering)
 
     field_names = ds_table.columns
     columns = [f.column_name for f in ds_table.model_class._meta.sorted_fields]
@@ -578,6 +579,18 @@ def table_insert(table):
         row=row,
         table=table)
 
+def redirect_to_previous(table):
+    page_ordering = session.get('%s.last_viewed' % table)
+    if not page_ordering:
+        return redirect(url_for('table_content', table=table))
+    page, ordering = page_ordering
+    kw = {}
+    if page and page != 1:
+        kw['page'] = page
+    if ordering:
+        kw['ordering'] = ordering
+    return redirect(url_for('table_content', table=table, **kw))
+
 @app.route('/<table>/update/<pk>/', methods=['GET', 'POST'])
 @require_table
 def table_update(table, pk):
@@ -636,11 +649,7 @@ def table_update(table, pk):
                 flash('Update failed: %s' % exc, 'danger')
             else:
                 flash('Successfully updated %s record.' % n, 'success')
-                page = session.get('%s.last_viewed' % table) or '1'
-                return redirect(url_for(
-                    'table_content',
-                    table=table,
-                    page=page))
+                return redirect_to_previous(table)
         else:
             flash('No data was specified to be updated.', 'warning')
 
@@ -678,11 +687,7 @@ def table_delete(table, pk):
             flash('Delete failed: %s' % exc, 'danger')
         else:
             flash('Successfully deleted %s record.' % n, 'success')
-            page = session.get('%s.last_viewed' % table) or '1'
-            return redirect(url_for(
-                'table_content',
-                table=table,
-                page=page))
+            return redirect_to_previous(table)
 
     return render_template(
         'table_delete.html',

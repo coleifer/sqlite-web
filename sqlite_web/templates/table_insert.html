@@ -40,9 +40,13 @@
               <div class="invalid-feedback">{{ errors[column.name] }}</div>
             {% endif %}
           </div>
-          {% if column.primary_key %}
-            <small class="form-text text-muted">This column is a primary key.</small>
-          {% endif %}
+          <small class="form-text text-muted">
+            {% if column.primary_key %}
+              <strong>Primary key.</strong>
+            {% endif %}
+            {{ column.data_type|default('ANY') }}{% if not column.null %} NOT NULL{% endif %}
+            {% if column.default %}(default {{ column.default }}{% endif %}
+          </small>
         </div>
       </div>
     {% endfor %}
