@@ -17,7 +17,7 @@
 {% endblock %}
 
 {% block inner_content %}
-  <h3>Update row in {{ table }}</h3>
+<h3>Update row {{ table_pk|pk_display(pk) }} in {{ table }}</h3>
   <form action="{{ url_for('table_update', table=table, pk=pk) }}" method="post" role="form">
     {% for column in columns %}
       <div class="form-group row">

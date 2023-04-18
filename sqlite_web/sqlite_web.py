@@ -31,6 +31,7 @@ else:
     decode_handler = 'backslashreplace'
     numeric = (int, float)
     unicode_type = str
+    from functools import reduce
     from io import StringIO
 
 try:
@@ -429,10 +430,6 @@ def drop_trigger(table):
         name=name,
         table=table)
 
-def get_table_pk(model):
-    pk = model._meta.primary_key
-    if pk and not isinstance(pk, CompositeKey):
-        return pk
 
 @app.route('/<table>/content/')
 @require_table
@@ -484,7 +481,7 @@ def table_content(table):
         previous_page=previous_page,
         query=query,
         table=table,
-        table_pk=get_table_pk(model),
+        table_pk=model._meta.primary_key,
         total_pages=total_pages,
         total_rows=total_rows)
 
@@ -596,15 +593,20 @@ def redirect_to_previous(table):
 def table_update(table, pk):
     dataset.update_cache(table)
     model = dataset[table].model_class
-    table_pk = get_table_pk(model)
+    table_pk = model._meta.primary_key
     if not table_pk:
         flash('Table must have a primary key to perform update.', 'danger')
         return redirect(url_for('table_content', table=table))
+    elif pk == '__uneditable__':
+        flash('Could not encode primary key to perform update.', 'danger')
+        return redirect(url_for('table_content', table=table))
 
+    expr = decode_pk(model, pk)
     try:
-        obj = model.get(table_pk == pk)
+        obj = model.get(expr)
     except model.DoesNotExist:
-        flash('Could not fetch object with primary-key %s.' % pk, 'danger')
+        pk_repr = pk_display(table_pk, pk)
+        flash('Could not fetch row with primary-key %s.' % pk_repr, 'danger')
         return redirect(url_for('table_content', table=table))
 
     columns = dataset.get_columns(table)
@@ -644,7 +646,7 @@ def table_update(table, pk):
         elif update:
             try:
                 with dataset.transaction() as txn:
-                    n = model.update(update).where(table_pk == pk).execute()
+                    n = model.update(update).where(expr).execute()
             except Exception as exc:
                 flash('Update failed: %s' % exc, 'danger')
             else:
@@ -661,28 +663,34 @@ def table_update(table, pk):
         model=model,
         pk=pk,
         row=row,
-        table=table)
+        table=table,
+        table_pk=model._meta.primary_key)
 
 @app.route('/<table>/delete/<pk>/', methods=['GET', 'POST'])
 @require_table
 def table_delete(table, pk):
     dataset.update_cache(table)
     model = dataset[table].model_class
-    table_pk = get_table_pk(model)
+    table_pk = model._meta.primary_key
     if not table_pk:
         flash('Table must have a primary key to perform delete.', 'danger')
         return redirect(url_for('table_content', table=table))
+    elif pk == '__uneditable__':
+        flash('Could not encode primary key to perform delete.', 'danger')
+        return redirect(url_for('table_content', table=table))
 
+    expr = decode_pk(model, pk)
     try:
-        obj = model.get(table_pk == pk)
+        row = model.select().where(expr).dicts().get()
     except model.DoesNotExist:
-        flash('Could not fetch object with primary-key %s.' % pk, 'danger')
+        pk_repr = pk_display(table_pk, pk)
+        flash('Could not fetch row with primary-key %s.' % pk_repr, 'danger')
         return redirect(url_for('table_content', table=table))
 
     if request.method == 'POST':
         try:
             with dataset.transaction() as txn:
-                n = model.delete().where(table_pk == pk).execute()
+                n = model.delete().where(expr).execute()
         except Exception as exc:
             flash('Delete failed: %s' % exc, 'danger')
         else:
@@ -691,9 +699,12 @@ def table_delete(table, pk):
 
     return render_template(
         'table_delete.html',
+        column_names=[c.name for c in dataset.get_columns(table)],
         model=model,
         pk=pk,
-        table=table)
+        row=row,
+        table=table,
+        table_pk=table_pk)
 
 @app.route('/<table>/query/', methods=['GET', 'POST'])
 @require_table
@@ -874,6 +885,30 @@ def format_index(index_sql):
 
     create, definition = split_regex.split(index_sql)
     return '\nON '.join((create.strip(), definition.strip()))
+
+@app.template_filter('encode_pk')
+def encode_pk(row, pk):
+    if isinstance(pk, CompositeKey):
+        try:
+            return ':::'.join([str(row[k]) for k in pk.field_names])
+        except Exception as exc:
+            return '__uneditable__'
+    return row[pk.column_name]
+
+def decode_pk(model, pk_data):
+    pk = model._meta.primary_key
+    if isinstance(pk, CompositeKey):
+        fields = [pk.model._meta.columns[f] for f in pk.field_names]
+        values = pk_data.split(':::')
+        expressions = [(f == v) for f, v in zip(fields, values)]
+        return reduce(operator.and_, expressions)
+    return (pk == pk_data)
+
+@app.template_filter('pk_display')
+def pk_display(table_pk, pk):
+    if isinstance(table_pk, CompositeKey):
+        return tuple(pk.split(':::'))
+    return pk
 
 @app.template_filter('value_filter')
 def value_filter(value, max_length=50):

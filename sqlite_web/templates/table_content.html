@@ -51,8 +51,9 @@
           {% endfor %}
           {% if not dataset.is_readonly and table_pk %}
             <td>
-              <a class="small" href="{{ url_for('table_update', table=table, pk=row[table_pk.column_name]) }}">Edit</a>
-              <a class="small" href="{{ url_for('table_delete', table=table, pk=row[table_pk.column_name]) }}">Delete</a>
+              {% set pk = row|encode_pk(table_pk) %}
+              <a class="small" href="{{ url_for('table_update', table=table, pk=pk) }}">Edit</a>
+              <a class="small" href="{{ url_for('table_delete', table=table, pk=pk) }}">Delete</a>
             </td>
           {% endif %}
         </tr>

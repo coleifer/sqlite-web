@@ -1,8 +1,18 @@
 {% extends "base_table.html" %}
 
 {% block inner_content %}
-  <h3>Delete row {{ pk }} from {{ table }}</h3>
+  <h3>Delete row {{ table_pk|pk_display(pk) }} from {{ table }}</h3>
   <form action="{{ url_for('table_delete', table=table, pk=pk) }}" method="post" role="form">
+    <table class="table table-striped small">
+      <tbody>
+      {% for column in column_names %}
+        <tr>
+          <th>{{ column }}</th>
+          <td>{% if row[column] is none %}NULL{% else %}{{ row[column]|value_filter|safe }}{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
     <button class="btn btn-primary" type="submit">Delete</button>
     <a class="btn btn-secondary" href="{{ url_for('table_content', table=table) }}">Cancel</a>
   </form>
