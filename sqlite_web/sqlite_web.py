@@ -264,12 +264,12 @@ def get_request_data():
 @require_table
 def add_column(table):
     column_mapping = OrderedDict((
-        ('VARCHAR', CharField),
         ('TEXT', TextField),
         ('INTEGER', IntegerField),
         ('REAL', FloatField),
-        ('BOOL', BooleanField),
         ('BLOB', BlobField),
+        ('BOOL', BooleanField),
+        ('VARCHAR', CharField),
         ('DATETIME', DateTimeField),
         ('DATE', DateField),
         ('TIME', TimeField),
