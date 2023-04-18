@@ -772,13 +772,16 @@ def export(table, query, export_format):
         filename = '%s-export.csv' % table
         mimetype = 'text/csv'
 
+    # Avoid any special chars in export filename.
+    filename = re.sub(r'[^\w\d\-\.]+', '', filename)
+
     dataset.freeze(query, export_format, file_obj=buf, **kwargs)
 
     response_data = buf.getvalue()
     response = make_response(response_data)
     response.headers['Content-Length'] = len(response_data)
     response.headers['Content-Type'] = mimetype
-    response.headers['Content-Disposition'] = 'attachment; filename=%s' % (
+    response.headers['Content-Disposition'] = 'attachment; filename="%s"' % (
         filename)
     response.headers['Expires'] = 0
     response.headers['Pragma'] = 'public'
