@@ -32,28 +32,45 @@ $ sqlite_web /path/to/database.db
 * Export data as JSON or CSV.
 * Import JSON or CSV files.
 * Browse table data.
+* Insert, Update or Delete rows.
 
 ### Screenshots
 
 The index page shows some basic information about the database, including the number of tables and indexes, as well as its size on disk:
 
-![](http://media.charlesleifer.com/blog/photos/s1415479324.32.png)
+![](https://media.charlesleifer.com/blog/photos/sqw-index.png)
 
-The `structure` tab displays information about the structure of the table, including columns, indexes, and foreign keys (if any exist). From this page you can also create, rename or drop columns and indexes.
+The `structure` tab displays information about the structure of the table, including columns, indexes, triggers, and foreign keys (if any exist). From this page you can also create, rename or drop columns and indexes.
 
-![](http://media.charlesleifer.com/blog/photos/s1415479418.23.png)
+![](https://media.charlesleifer.com/blog/photos/sqw-structure.png)
+
+Columns are easy to add, drop or rename:
+
+![](https://media.charlesleifer.com/blog/photos/sqw-add-column.png)
 
 The `content` tab displays all the table data. Links in the table header can be used to sort the data:
 
-![](http://media.charlesleifer.com/blog/photos/s1415479502.61.png)
+![](https://media.charlesleifer.com/blog/photos/sqw-content.png)
 
 The `query` tab allows you to execute arbitrary SQL queries on a table. The query results are displayed in a table and can be exported to either JSON or CSV:
 
-![](http://media.charlesleifer.com/blog/photos/s1415487149.3.png)
+![](https://media.charlesleifer.com/blog/photos/sqw-query.png)
 
 The `import` tab supports importing CSV and JSON files into a table. There is an option to automatically create columns for any unrecognized keys in the import file:
 
-![](http://media.charlesleifer.com/blog/photos/s1415479625.44.png)
+![](https://media.charlesleifer.com/blog/photos/sqw-import.png)
+
+The `export` tab supports exporting all, or a subset, of columns:
+
+![](https://media.charlesleifer.com/blog/photos/sqw-export.png)
+
+Basic INSERT, UPDATE and DELETE queries are supported:
+
+![](https://media.charlesleifer.com/blog/photos/sqw-insert.png)
+
+![](https://media.charlesleifer.com/blog/photos/sqw-update.png)
+
+![](https://media.charlesleifer.com/blog/photos/sqw-delete.png)
 
 ### Command-line options
 
@@ -75,6 +92,7 @@ The following options are available:
   environment variable, in which case the application will not prompt for a
   password, but will use the value from the environment.
 * ``-r``, ``--read-only``: open database in read-only mode.
+* ``-R``, ``--rows-per-page``: set pagination on content page, default 50 rows.
 * ``-e``, ``--extension``: path or name of loadable extension(s). To load
   multiple extensions, specify ``-e [path]`` for each extension.
 * ``-u``, ``--url-prefix``: URL prefix for application, e.g. "/sqlite-web".
