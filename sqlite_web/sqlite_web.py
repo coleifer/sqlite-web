@@ -263,17 +263,20 @@ def get_request_data():
 @app.route('/<table>/add-column/', methods=['GET', 'POST'])
 @require_table
 def add_column(table):
+    class JsonField(TextField):
+        field_type = 'JSON'
     column_mapping = OrderedDict((
         ('TEXT', TextField),
         ('INTEGER', IntegerField),
         ('REAL', FloatField),
         ('BLOB', BlobField),
+        ('JSON', JsonField),
         ('BOOL', BooleanField),
-        ('VARCHAR', CharField),
         ('DATETIME', DateTimeField),
         ('DATE', DateField),
+        ('DECIMAL', DecimalField),
         ('TIME', TimeField),
-        ('DECIMAL', DecimalField)))
+        ('VARCHAR', CharField)))
 
     request_data = get_request_data()
     col_type = request_data.get('type')
