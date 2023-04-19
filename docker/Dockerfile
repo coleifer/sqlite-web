@@ -39,6 +39,7 @@ RUN apk update \
       && make install \
       && cd ../ \
       && rm -rf ./sqlite/ ./sqlite.tar.gz \
+      && pip install --upgrade pip \
       && pip install --no-cache-dir cython \
       && pip install --no-cache-dir flask peewee sqlite-web \
       && apk del .build-deps
