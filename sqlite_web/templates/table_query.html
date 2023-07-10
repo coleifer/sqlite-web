@@ -46,6 +46,9 @@
       var sqlTextArea = $('textarea#sql');
 
       sqlTextArea.on('keydown', function(e) {
+        if ((e.metaKey || e.ctrlKey) && e.keyCode == 13) { // ctrl+enter or meta+enter.
+            $("form").submit();
+        }
         if (e.shiftKey) {
           if (e.keyCode == 38) { // up.
             historyIndex += 1;
