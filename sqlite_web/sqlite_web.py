@@ -609,7 +609,7 @@ def table_update(table, pk):
         obj = model.get(expr)
     except model.DoesNotExist:
         pk_repr = pk_display(table_pk, pk)
-        flash('Could not fetch row with primary-key %s.' % pk_repr, 'danger')
+        flash('Could not fetch row with primary-key %s.' % str(pk_repr), 'danger')
         return redirect(url_for('table_content', table=table))
 
     columns = dataset.get_columns(table)
@@ -687,7 +687,7 @@ def table_delete(table, pk):
         row = model.select().where(expr).dicts().get()
     except model.DoesNotExist:
         pk_repr = pk_display(table_pk, pk)
-        flash('Could not fetch row with primary-key %s.' % pk_repr, 'danger')
+        flash('Could not fetch row with primary-key %s.' % str(pk_repr), 'danger')
         return redirect(url_for('table_content', table=table))
 
     if request.method == 'POST':
