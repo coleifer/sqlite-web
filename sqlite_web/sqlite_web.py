@@ -493,6 +493,8 @@ def minimal_validate_field(field, value):
         value = None
     if value is None and not field.null:
         return 'NULL', 'Column does not allow NULL values.'
+    if value is None:
+        return None, None
     if isinstance(field, IntegerField) and not value.isdigit():
         return value, 'Value is not a number.'
     elif isinstance(field, FloatField):
