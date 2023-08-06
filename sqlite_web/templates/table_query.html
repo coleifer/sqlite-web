@@ -90,6 +90,7 @@
   </div>
   <form action="." method="post" role="form">
     <input name="ordering" type="hidden" value="" />
+    <input name="export_ordering" type="hidden" value="{% if ordering %}{{ ordering }}{% endif %}" />
     <div class="form-group{% if error %} has-error has-feedback{% endif %}">
       <textarea class="form-control{% if error %} is-invalid{% endif %}" id="sql" name="sql" style="height: 120px;">{% if sql %}{{ sql }}{% endif %}</textarea>
       <small class="form-text text-muted">Use Shift + Up/Down to navigate recently-executed queries</small>

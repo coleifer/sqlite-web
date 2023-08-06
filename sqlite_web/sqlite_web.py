@@ -749,19 +749,25 @@ def table_query(table):
         sql = qsql = request.form['sql']
         model_class = dataset[table].model_class
 
-        ordering = request.form.get('ordering')
+        if 'export_json' in request.form:
+            ordering = request.form.get('export_ordering')
+            export_format = 'json'
+        elif 'export_csv' in request.form:
+            ordering = request.form.get('export_ordering')
+            export_format = 'csv'
+        else:
+            ordering = request.form.get('ordering')
+            export_format = None
+
         if ordering:
             ordering = int(ordering)
             direction = 'DESC' if ordering < 0 else 'ASC'
             qsql = ('SELECT * FROM (%s) AS _ ORDER BY %d %s' %
                     (sql, abs(ordering), direction))
 
-        if 'export_json' in request.form:
+        if export_format:
             query = model_class.raw(qsql).dicts()
-            return export(table, query, 'json')
-        elif 'export_csv' in request.form:
-            query = model_class.raw(qsql).dicts()
-            return export(table, query, 'csv')
+            return export(table, query, export_format)
 
         try:
             cursor = dataset.query(qsql)
