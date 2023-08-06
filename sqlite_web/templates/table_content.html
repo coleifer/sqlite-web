@@ -52,8 +52,12 @@
           {% if not dataset.is_readonly and table_pk %}
             <td>
               {% set pk = row|encode_pk(table_pk) %}
+              {% if not is_view or 'update' in view_ops %}
               <a class="small" href="{{ url_for('table_update', table=table, pk=pk) }}">Edit</a>
+              {% endif %}
+              {% if not is_view or 'delete' in view_ops %}
               <a class="small" href="{{ url_for('table_delete', table=table, pk=pk) }}">Delete</a>
+              {% endif %}
             </td>
           {% endif %}
         </tr>

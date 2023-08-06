@@ -169,6 +169,14 @@ class SqliteDataSet(DataSet):
             ('trigger',))
         return [TriggerMetadata(*row) for row in cursor.fetchall()]
 
+    def get_view(self, name):
+        cursor = self.query(
+            'SELECT name, sql FROM sqlite_master '
+            'WHERE type = ? AND name = ?', ('view', name))
+        res = cursor.fetchone()
+        if res is not None:
+            return ViewMetadata(*res)
+
     def get_all_views(self):
         cursor = self.query(
             'SELECT name, sql FROM sqlite_master '
@@ -190,6 +198,25 @@ class SqliteDataSet(DataSet):
         return set(
             '%s_%s' % (virtual_table, suffix) for suffix in suffixes
             for virtual_table in virtual_tables)
+
+    def is_view(self, name):
+        cursor = self.query(
+            'SELECT name FROM sqlite_master '
+            'WHERE type = ? AND name = ?', ('view', name))
+        return cursor.fetchone() is not None
+
+    def view_operations(self, name):
+        cursor = self.query(
+            'SELECT sql FROM sqlite_master WHERE type=? AND tbl_name=?',
+            ('trigger', name))
+        triggers = [t for t, in cursor.fetchall()]
+        rgx = re.compile(r'CREATE\s+TRIGGER.+?\sINSTEAD\s+OF\s+'
+                         '(INSERT|UPDATE|DELETE)\s', re.I)
+        operations = set()
+        for trigger in triggers:
+            operations.update([op.lower() for op in rgx.findall(trigger)])
+
+        return operations
 
 #
 # Flask views.
@@ -241,8 +268,8 @@ def table_structure(table):
     model_class = ds_table.model_class
 
     table_sql = dataset.query(
-        'SELECT sql FROM sqlite_master WHERE tbl_name = ? AND type = ?',
-        [table, 'table']).fetchone()[0]
+        'SELECT sql FROM sqlite_master WHERE tbl_name = ? AND type IN (?, ?)',
+        [table, 'table', 'view']).fetchone()[0]
 
     return render_template(
         'table_structure.html',
@@ -470,8 +497,8 @@ def table_content(table):
     columns = [f.column_name for f in ds_table.model_class._meta.sorted_fields]
 
     table_sql = dataset.query(
-        'SELECT sql FROM sqlite_master WHERE tbl_name = ? AND type = ?',
-        [table, 'table']).fetchone()[0]
+        'SELECT sql FROM sqlite_master WHERE tbl_name = ? AND type IN (?, ?)',
+        [table, 'table', 'view']).fetchone()[0]
 
     return render_template(
         'table_content.html',
@@ -742,8 +769,8 @@ def table_query(table):
             sql = 'SELECT *\nFROM "%s"' % (table)
 
     table_sql = dataset.query(
-        'SELECT sql FROM sqlite_master WHERE tbl_name = ? AND type = ?',
-        [table, 'table']).fetchone()[0]
+        'SELECT sql FROM sqlite_master WHERE tbl_name = ? AND type IN (?, ?)',
+        [table, 'table', 'view']).fetchone()[0]
 
     return render_template(
         'table_query.html',
@@ -876,14 +903,21 @@ def table_import(table):
 @app.route('/<table>/drop/', methods=['GET', 'POST'])
 @require_table
 def drop_table(table):
+    is_view = any(v.name == table for v in dataset.get_all_views())
     if request.method == 'POST':
-        model_class = dataset[table].model_class
-        model_class.drop_table()
+        if is_view:
+            dataset.query('DROP VIEW "%s";' % table)
+        else:
+            model_class = dataset[table].model_class
+            model_class.drop_table()
+
         dataset.update_cache()  # Update all tables.
-        flash('Table "%s" dropped successfully.' % table, 'success')
+        flash('%s "%s" dropped successfully.' %
+              ('view' if is_view else 'table', table),
+              'success')
         return redirect(url_for('index'))
 
-    return render_template('drop_table.html', table=table)
+    return render_template('drop_table.html', is_view=is_view, table=table)
 
 @app.template_filter('format_index')
 def format_index(index_sql):
@@ -1125,6 +1159,10 @@ def initialize_app(filename, read_only=False, password=None, url_prefix=None,
     if password:
         install_auth_handler(password)
 
+    dataset_kw = {}
+    if peewee_version >= (3, 14, 9):
+        dataset_kw['include_views'] = True
+
     if read_only:
         if sys.version_info < (3, 4, 0):
             die('Python 3.4.0 or newer is required for read-only access.')
@@ -1137,9 +1175,10 @@ def initialize_app(filename, read_only=False, password=None, url_prefix=None,
             die('Unable to open database file in read-only mode. Ensure that '
                 'the database exists in order to use read-only mode.')
         db.close()
-        dataset = SqliteDataSet(db, bare_fields=True)
+        dataset = SqliteDataSet(db, bare_fields=True, **dataset_kw)
     else:
-        dataset = SqliteDataSet('sqlite:///%s' % filename, bare_fields=True)
+        dataset = SqliteDataSet('sqlite:///%s' % filename, bare_fields=True,
+                                **dataset_kw)
 
     if url_prefix:
         app.wsgi_app = PrefixMiddleware(app.wsgi_app, prefix=url_prefix)

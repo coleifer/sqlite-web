@@ -23,7 +23,7 @@
   {{ table_sql|format_create_table|highlight }}
 
   <h3 id="columns">
-    {% if not dataset.is_readonly %}
+    {% if not dataset.is_readonly and not is_view %}
       <p class="float-right"><a class="btn btn-primary btn-sm" href="{{ url_for('add_column', table=table) }}">+ Add column</a></p>
     {% endif %}
     Columns
@@ -33,9 +33,11 @@
       <tr>
         <th>Column</th>
         <th>Data type</th>
+      {% if not is_view %}
         <th>Allow null</th>
         <th>Primary key</th>
         <th>Actions</th>
+      {% endif %}
       </tr>
     </thead>
     <tbody>
@@ -43,6 +45,7 @@
         <tr>
           <td><code>{{ column.name }}</code></td>
           <td><code>{{ column.data_type }}</code></td>
+        {% if not is_view %}
           <td>{% if column.null %}&check;{% endif %}</td>
           <td>{% if column.primary_key %}&check;{% endif %}</td>
           <td>
@@ -54,6 +57,7 @@
               <a href="{{ url_for('drop_column', table=table, name=column.name) }}">Drop</a>
             {% endif %}
           </td>
+        {% endif %}
         </tr>
       {% endfor %}
     </tbody>
@@ -81,6 +85,7 @@
     <hr />
   {% endif %}
 
+  {% if not is_view %}
   <h3 id="indexes">
     {% if not dataset.is_readonly %}
       <p class="float-right"><a class="btn btn-primary btn-sm" href="{{ url_for('add_index', table=table) }}">+ Add index</a></p>
@@ -128,9 +133,10 @@
       {% endfor %}
     </tbody>
   </table>
+  <hr />
+  {% endif %}
 
   {% if triggers %}
-    <hr />
     <h3 id="triggers">
       {#<p class="float-right"><a class="btn btn-primary btn-sm" href="{{ url_for('add_trigger', table=table) }}">Add trigger</a></p>#}
       Triggers
