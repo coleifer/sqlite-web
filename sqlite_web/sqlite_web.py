@@ -743,19 +743,28 @@ def table_delete(table, pk):
 def table_query(table):
     data = []
     data_description = error = row_count = sql = None
+    ordering = None
 
     if request.method == 'POST':
-        sql = request.form['sql']
+        sql = qsql = request.form['sql']
         model_class = dataset[table].model_class
+
+        ordering = request.form.get('ordering')
+        if ordering:
+            ordering = int(ordering)
+            direction = 'DESC' if ordering < 0 else 'ASC'
+            qsql = ('SELECT * FROM (%s) AS _ ORDER BY %d %s' %
+                    (sql, abs(ordering), direction))
+
         if 'export_json' in request.form:
-            query = model_class.raw(sql).dicts()
+            query = model_class.raw(qsql).dicts()
             return export(table, query, 'json')
         elif 'export_csv' in request.form:
-            query = model_class.raw(sql).dicts()
+            query = model_class.raw(qsql).dicts()
             return export(table, query, 'csv')
 
         try:
-            cursor = dataset.query(sql)
+            cursor = dataset.query(qsql)
         except Exception as exc:
             error = str(exc)
         else:
@@ -777,6 +786,7 @@ def table_query(table):
         data=data,
         data_description=data_description,
         error=error,
+        ordering=ordering,
         query_images=get_query_images(),
         row_count=row_count,
         sql=sql,

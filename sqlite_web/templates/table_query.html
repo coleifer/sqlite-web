@@ -12,6 +12,14 @@
     $(function() {
       var tableInfo = $('div#tableInfo');
 
+      $('a.sort-header').on('click', function(e) {
+        var elem = $(this),
+            order_elem = $('input[name="ordering"]');
+        order_elem.val(elem.data('ordering'));
+        e.preventDefault();
+        $('form').submit();
+      });
+
       $('a.sql-image').on('click', function(e) {
         e.preventDefault();
         var elem = $(this),
@@ -81,6 +89,7 @@
     {{ table_sql|format_create_table|highlight }}
   </div>
   <form action="." method="post" role="form">
+    <input name="ordering" type="hidden" value="" />
     <div class="form-group{% if error %} has-error has-feedback{% endif %}">
       <textarea class="form-control{% if error %} is-invalid{% endif %}" id="sql" name="sql" style="height: 120px;">{% if sql %}{{ sql }}{% endif %}</textarea>
       <small class="form-text text-muted">Use Shift + Up/Down to navigate recently-executed queries</small>
@@ -120,7 +129,9 @@
         <thead>
           <tr>
             {% for col_desc in data_description %}
-              <th>{{ col_desc[0] }}</th>
+              <th>
+                <a class="sort-header" data-ordering="{% if loop.index == ordering %}-{% endif %}{{ loop.index }}" href="#">{{ col_desc[0] }}</a>
+              </th>
             {% endfor %}
           </tr>
         </thead>
