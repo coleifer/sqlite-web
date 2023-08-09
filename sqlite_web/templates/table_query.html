@@ -12,6 +12,18 @@
     $(function() {
       var tableInfo = $('div#tableInfo');
 
+      /* Toggle long values on/off. */
+      var valueToggles = $('a.toggle-value');
+      valueToggles.on('click', function(e) {
+        e.preventDefault();
+        var elem = $(this),
+            truncated = elem.siblings('span.truncated'),
+            full = elem.siblings('span.full');
+        truncated.toggle();
+        full.toggle();
+      });
+
+      /* Allow sorting by columns asc/desc. */
       $('a.sort-header').on('click', function(e) {
         var elem = $(this),
             order_elem = $('input[name="ordering"]');
@@ -20,6 +32,7 @@
         $('form').submit();
       });
 
+      /* Show one of the SQL syntax railroad diagrams. */
       $('a.sql-image').on('click', function(e) {
         e.preventDefault();
         var elem = $(this),
@@ -31,6 +44,7 @@
         modalDiv.modal({'keyboard': true});
       });
 
+      /* Show the table info. */
       $('a#toggleTableInfo').on('click', function(e) {
         var show = !tableInfo.is(':visible');
         e.preventDefault();
@@ -40,6 +54,7 @@
         });
       });
 
+      /* Handle the recent queries functionality. */
       var recentQueries = JSON.parse(localStorage.getItem('recentQueries') || "[]");
   {% if sql and not error %}
       var sql = `{{ sql }}`;
