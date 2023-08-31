@@ -9,6 +9,14 @@
     <link rel=stylesheet type=text/css href="{{ url_for('static', filename='css/bootstrap.min.css') }}" />
     <link rel=stylesheet type=text/css href="{{ url_for('static', filename='css/sqlbrowse.css') }}" />
     <link rel=stylesheet type=text/css href="{{ url_for('static', filename='css/syntax-highlight.css') }}" />
+    <style type="text/css">
+      @media (max-width: 1200px) {
+        h1 { font-size: 1.7rem; }
+        h1 small { font-size: .7rem; }
+        h3 { font-size: 1.2rem; }
+        ul.nav li { font-size: .9rem; }
+      }
+    </style>
     {% block extra_head %}{% endblock %}
     <script src="{{ url_for('static', filename='js/jquery-1.11.0.min.js') }}" type="text/javascript"></script>
     <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>

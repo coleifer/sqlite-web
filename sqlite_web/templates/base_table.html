@@ -3,7 +3,7 @@
 {% set view_ops = dataset.view_operations(table) %}
 
 {% block content_title %}
-  <a href="{{ url_for('index') }}">{{ dataset.base_name }}</a> &mdash; {{ table }}
+  <a href="{{ url_for('index') }}">{{ dataset.base_name }}</a> &mdash; <span title="{{ table }}">{{ table|truncate(24, True, leeway=2) }}</span>
 {% endblock %}
 
 {% block content %}

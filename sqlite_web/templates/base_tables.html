@@ -8,8 +8,8 @@
     {% for table_name in dataset.tables|sort %}
       {% if table_name not in virtual_tables_corollary %}
       <li class="nav-item table-link">
-        <a class="nav-link{% if table and table_name == table %} active{% endif %}" href="{{ url_for('table_structure', table=table_name) }}">
-          {{ table_name }}
+        <a class="nav-link{% if table and table_name == table %} active{% endif %}" href="{{ url_for('table_structure', table=table_name) }}" title="{{ table_name }}">
+          {{ table_name|truncate(24, True, leeway=2) }}
           {% if table_name in virtual_tables %}
             <sup>(v)</sup>
           {% endif %}
@@ -23,8 +23,8 @@
   <ul class="nav nav-pills nav-stacked" id="helper-tables" role="tablist"{% if table not in virtual_tables_corollary %} style="display:none;"{% endif %}>
     {% for table_name in virtual_tables_corollary|sort %}
       <li{% if table and table_name == table %} class="active"{% endif %}>
-        <a href="{{ url_for('table_structure', table=table_name) }}">
-          <small>{{ table_name }}</small>
+        <a href="{{ url_for('table_structure', table=table_name) }}" title="{{ table_name }}">
+          <small>{{ table_name|truncate(24, True, leeway=2) }}</small>
         </a>
       </li>
     {% endfor %}
