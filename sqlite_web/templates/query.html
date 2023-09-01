@@ -30,72 +30,15 @@
         modalDiv.modal({'keyboard': true});
       });
 
-      var bookmarkQueries = JSON.parse(localStorage.getItem('bookmarks') || '[]');
-      var bookmarkModal = $('div#bookmark-modal'),
-          bookmarkName = bookmarkModal.find('input#bookmark-name'),
-          bookmarkContainer = $('div#bookmarks'),
-          sqlTextArea = $('textarea#sql');
+      /* Recent queries and bookmarks. */
+      var sql = {% if sql and not error %}`{{ sql }}`{% else %}''{% endif %};
+      var Recent = new App.Recent();
+      Recent.initialize(sql);
 
-      $('button#add-bookmark').on('click', function(e) {
-        e.preventDefault();
-        bookmarkName.val('');
-        bookmarkModal.modal({'keyboard': true});
-      });
+      var bookmarks = new App.Bookmarks();
+      bookmarks.initialize();
 
-      $('button#save-bookmark').on('click', function(e) {
-        var name = bookmarkName.val();
-        if (name) {
-          bookmarkQueries.unshift([name, sqlTextArea.val()]);
-          bookmarkModal.modal('hide');
-          localStorage.setItem('bookmarkQueries', JSON.stringify(bookmarkQueries));
-          addBookmark(name);
-        }
-      });
-
-      function onBookmarkClick(e) {
-        e.preventDefault();
-        var elem = $(this);
-        console.log(elem);
-      }
-
-      function addBookmark(name) {
-        var newLink = $('<a class="dropdown-item bookmark-link">' + name + '</a>');
-        newLink.on('click', onBookmarkClick);
-        bookmarkContainer.prepend(newLink);
-      }
-
-      /* Handle the recent queries functionality. */
-      var recentQueries = JSON.parse(localStorage.getItem('recentQueries') || '[]');
-  {% if sql and not error %}
-      var sql = `{{ sql }}`;
-      var accum = [sql];
-      for (var i = 0; i < recentQueries.length; i++) {
-        if (recentQueries[i] !== sql) { accum.push(recentQueries[i]) };
-      }
-      recentQueries = accum.slice(0, 20);
-      localStorage.setItem('recentQueries', JSON.stringify(recentQueries));
-  {% endif %}
-      var historyIndex = 0;
-
-      sqlTextArea.on('keydown', function(e) {
-        if ((e.metaKey || e.ctrlKey) && e.keyCode == 13) { // ctrl+enter or meta+enter.
-            $("form#query-form").submit();
-        }
-        if (e.shiftKey) {
-          if (e.keyCode == 38) { // up.
-            historyIndex += 1;
-            if (historyIndex >= recentQueries.length) { historyIndex = 0; }
-            sqlTextArea.html(recentQueries[historyIndex]);
-            e.preventDefault();
-          } else if (e.keyCode == 40) { // down.
-            historyIndex -= 1;
-            if (historyIndex < 0) { historyIndex = recentQueries.length - 1; }
-            sqlTextArea.html(recentQueries[historyIndex]);
-            e.preventDefault();
-          }
-        }
-      });
-      sqlTextArea.focus();
+      $('textarea#sql').focus();
     });
   </script>
 {% endblock %}
@@ -200,7 +143,7 @@
           </button>
         </div>
         <div class="modal-body">
-          <form role="form">
+          <form id="save-form" role="form">
             <div class="form-group">
               <input class="form-control" id="bookmark-name" name="name" placeholder="Bookmark name..." value="" />
             </div>

@@ -29,7 +29,7 @@
             order_elem = $('input[name="ordering"]');
         order_elem.val(elem.data('ordering'));
         e.preventDefault();
-        $('form').submit();
+        $('form#query-form').submit();
       });
 
       /* Show one of the SQL syntax railroad diagrams. */
@@ -54,39 +54,15 @@
         });
       });
 
-      /* Handle the recent queries functionality. */
-      var recentQueries = JSON.parse(localStorage.getItem('recentQueries') || "[]");
-  {% if sql and not error %}
-      var sql = `{{ sql }}`;
-      var accum = [sql];
-      for (var i = 0; i < recentQueries.length; i++) {
-        if (recentQueries[i] !== sql) { accum.push(recentQueries[i]) };
-      }
-      recentQueries = accum.slice(0, 20);
-      localStorage.setItem('recentQueries', JSON.stringify(recentQueries));
-  {% endif %}
-      var historyIndex = 0;
-      var sqlTextArea = $('textarea#sql');
+      /* Recent queries and bookmarks. */
+      var sql = {% if sql and not error %}`{{ sql }}`{% else %}''{% endif %};
+      var Recent = new App.Recent();
+      Recent.initialize(sql);
 
-      sqlTextArea.on('keydown', function(e) {
-        if ((e.metaKey || e.ctrlKey) && e.keyCode == 13) { // ctrl+enter or meta+enter.
-            $("form").submit();
-        }
-        if (e.shiftKey) {
-          if (e.keyCode == 38) { // up.
-            historyIndex += 1;
-            if (historyIndex >= recentQueries.length) { historyIndex = 0; }
-            sqlTextArea.html(recentQueries[historyIndex]);
-            e.preventDefault();
-          } else if (e.keyCode == 40) { // down.
-            historyIndex -= 1;
-            if (historyIndex < 0) { historyIndex = recentQueries.length - 1; }
-            sqlTextArea.html(recentQueries[historyIndex]);
-            e.preventDefault();
-          }
-        }
-      });
-      sqlTextArea.focus();
+      var bookmarks = new App.Bookmarks();
+      bookmarks.initialize();
+
+      $('textarea#sql').focus();
     });
   </script>
 {% endblock %}
@@ -103,7 +79,7 @@
   <div id="tableInfo">
     {{ table_sql|format_create_table|highlight }}
   </div>
-  <form action="." method="post" role="form">
+  <form action="." id="query-form" method="post" role="form">
     <input name="ordering" type="hidden" value="" />
     <input name="export_ordering" type="hidden" value="{% if ordering %}{{ ordering }}{% endif %}" />
     <div class="form-group{% if error %} has-error has-feedback{% endif %}">
@@ -123,6 +99,15 @@
           {% for parts, img_url in query_images %}
             <a class="dropdown-item sql-image" href="{{ url_for('static', filename=img_url) }}">{{ ' : '.join(parts) }}</a>
           {% endfor %}
+        </div>
+      </div>
+    </div>
+    <div class="float-right">
+      <div class="btn-group">
+        <button class="btn btn-secondary" id="add-bookmark" type="button">Bookmark</button>
+        <div class="dropdown">
+          <button type="button" class="btn btn-secondary dropdown-toggle" data-toggle="dropdown" id="dropdownMenuButton" aria-haspopup="true" aria-expanded="false"></button>
+          <div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton" id="bookmarks"></div>
         </div>
       </div>
     </div>
@@ -176,6 +161,29 @@
         </div>
         <div class="modal-body"></div>
         <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal fade" id="bookmark-modal" role="dialog">
+    <div class="modal-dialog modal-sm" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Create Bookmark</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <form id="save-form" role="form">
+            <div class="form-group">
+              <input class="form-control" id="bookmark-name" name="name" placeholder="Bookmark name..." value="" />
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-primary" id="save-bookmark">Save</button>
           <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
         </div>
       </div>
