@@ -240,6 +240,60 @@ def logout():
     session.pop('authorized', None)
     return redirect(url_for('login'))
 
+@app.route('/query/', methods=['GET', 'POST'])
+def generic_query():
+    data = []
+    data_description = error = row_count = sql = None
+    ordering = None
+
+    if request.method == 'POST':
+        sql = qsql = request.form.get('sql') or ''
+
+        if 'export_json' in request.form:
+            ordering = request.form.get('export_ordering')
+            export_format = 'json'
+        elif 'export_csv' in request.form:
+            ordering = request.form.get('export_ordering')
+            export_format = 'csv'
+        else:
+            ordering = request.form.get('ordering')
+            export_format = None
+
+        if ordering:
+            ordering = int(ordering)
+            direction = 'DESC' if ordering < 0 else 'ASC'
+            qsql = ('SELECT * FROM (%s) AS _ ORDER BY %d %s' %
+                    (sql.rstrip(' ;'), abs(ordering), direction))
+
+        if qsql:
+            if export_format:
+                model_class = dataset._base_model
+                query = model_class.raw(qsql).dicts()
+                return export(query, export_format)
+
+            try:
+                cursor = dataset.query(qsql)
+            except Exception as exc:
+                error = str(exc)
+            else:
+                data = cursor.fetchall()[:app.config['MAX_RESULT_SIZE']]
+                data_description = cursor.description
+                row_count = cursor.rowcount
+        else:
+            error = 'No query specified.'
+    elif request.args.get('sql'):
+        sql = request.args.get('sql')
+
+    return render_template(
+        'query.html',
+        data=data,
+        data_description=data_description,
+        error=error,
+        ordering=ordering,
+        query_images=get_query_images(),
+        row_count=row_count,
+        sql=sql)
+
 def require_table(fn):
     @wraps(fn)
     def inner(table, *args, **kwargs):
@@ -763,11 +817,11 @@ def table_query(table):
             ordering = int(ordering)
             direction = 'DESC' if ordering < 0 else 'ASC'
             qsql = ('SELECT * FROM (%s) AS _ ORDER BY %d %s' %
-                    (sql, abs(ordering), direction))
+                    (sql.rstrip(' ;'), abs(ordering), direction))
 
         if export_format:
             query = model_class.raw(qsql).dicts()
-            return export(table, query, export_format)
+            return export(query, export_format, table)
 
         try:
             cursor = dataset.query(qsql)
@@ -809,16 +863,19 @@ def set_table_definition_preference():
         del session[key]
     return jsonify({key: show})
 
-def export(table, query, export_format):
+def export(query, export_format, table=None):
     buf = StringIO()
     if export_format == 'json':
         kwargs = {'indent': 2}
-        filename = '%s-export.json' % table
+        filename = 'export.json'
         mimetype = 'text/javascript'
     else:
         kwargs = {}
-        filename = '%s-export.csv' % table
+        filename = 'export.csv'
         mimetype = 'text/csv'
+
+    if table:
+        filename = '%s-%s' % (table, filename)
 
     # Avoid any special chars in export filename.
     filename = re.sub(r'[^\w\d\-\.]+', '', filename)

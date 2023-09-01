@@ -1,28 +1,14 @@
-{% extends "base_table.html" %}
+{% extends "base_tables.html" %}
 
 {% block extra_head %}
 <style type="text/css">
   pre { clear: right; }
-  {% if not session.get('show') %}div#tableInfo { display: none; }{% endif %}
 </style>
 {% endblock %}
 
 {% block extra_scripts %}
   <script type="text/javascript">
     $(function() {
-      var tableInfo = $('div#tableInfo');
-
-      /* Toggle long values on/off. */
-      var valueToggles = $('a.toggle-value');
-      valueToggles.on('click', function(e) {
-        e.preventDefault();
-        var elem = $(this),
-            truncated = elem.siblings('span.truncated'),
-            full = elem.siblings('span.full');
-        truncated.toggle();
-        full.toggle();
-      });
-
       /* Allow sorting by columns asc/desc. */
       $('a.sort-header').on('click', function(e) {
         var elem = $(this),
@@ -42,16 +28,6 @@
         modalDiv.find('.modal-body').empty().append(
           $('<img src="' + imgUrl + '" style="max-width:100%;" />'));
         modalDiv.modal({'keyboard': true});
-      });
-
-      /* Show the table info. */
-      $('a#toggleTableInfo').on('click', function(e) {
-        var show = !tableInfo.is(':visible');
-        e.preventDefault();
-        tableInfo.toggle('slide');
-        $.post('{{ url_for('set_table_definition_preference') }}', {'show': show}, function(resp) {
-          console.log('preference logged, new value: ' + resp.show);
-        });
       });
 
       /* Handle the recent queries functionality. */
@@ -91,18 +67,9 @@
   </script>
 {% endblock %}
 
-{% block query_tab_class %} active{% endblock %}
+{% block content_title %}<a href="{{ url_for('index') }}">{{ dataset.base_name }}</a> - Query{% endblock %}
 
-{% block inner_content %}
-  <h3>
-    <p class="float-right">
-      <a class="btn btn-primary btn-xs" href="#" id="toggleTableInfo">+/- table definition</a>
-    </p>
-    Query
-  </h3>
-  <div id="tableInfo">
-    {{ table_sql|format_create_table|highlight }}
-  </div>
+{% block content %}
   <form action="." method="post" role="form">
     <input name="ordering" type="hidden" value="" />
     <input name="export_ordering" type="hidden" value="{% if ordering %}{{ ordering }}{% endif %}" />

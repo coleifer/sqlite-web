@@ -44,12 +44,16 @@
       {% block page_header %}
         <div class="page-header">
           {% block content_header %}
-            {% if not dataset.is_readonly %}
-            <form action="{{ url_for('table_create') }}" class="form-inline float-right" method="post" style="margin-top: 10px;">
-              <input name="redirect" type="hidden" value="{{ request.full_path }}" />{# full-path begins with "/" and includes querystring #}
-              <input class="form-control form-control-sm" name="table_name" placeholder="new_table_name" />
-              <button class="btn btn-primary btn-sm" type="submit">Create</button>
-            </form>
+            {% if dataset.is_readonly %}
+              <a class="btn btn-sm btn-secondary float-right" href="{{ url_for('generic_query') }}">Query</a>
+            {% else %}
+              <form action="{{ url_for('table_create') }}" class="form-inline float-right" method="post" style="margin-top: 10px;">
+                <input name="redirect" type="hidden" value="{{ request.full_path }}" />{# full-path begins with "/" and includes querystring #}
+                <input class="form-control form-control-sm" name="table_name" placeholder="new_table_name" />
+                <button class="btn btn-primary btn-sm" type="submit">Create</button>
+                &nbsp;
+                <a class="btn btn-sm btn-secondary" href="{{ url_for('generic_query') }}">Query</a>
+              </form>
             {% endif %}
           {% endblock %}
           <h1>{% block content_title %}{% endblock %}</h1>
