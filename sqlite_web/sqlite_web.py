@@ -853,16 +853,6 @@ def table_query(table):
         table=table,
         table_sql=table_sql)
 
-@app.route('/table-definition/', methods=['POST'])
-def set_table_definition_preference():
-    key = 'show'
-    show = False
-    if request.form.get(key) and request.form.get(key) != 'false':
-        session[key] = show = True
-    elif key in session:
-        del session[key]
-    return jsonify({key: show})
-
 def export(query, export_format, table=None):
     buf = StringIO()
     if export_format == 'json':

@@ -1,21 +1,5 @@
 {% extends "base_table.html" %}
 
-{% block extra_scripts %}
-  <script type="text/javascript">
-    $(function() {
-      var valueToggles = $('a.toggle-value');
-      valueToggles.on('click', function(e) {
-        e.preventDefault();
-        var elem = $(this),
-            truncated = elem.siblings('span.truncated'),
-            full = elem.siblings('span.full');
-        truncated.toggle();
-        full.toggle();
-      });
-    });
-  </script>
-{% endblock %}
-
 {% block content_title %}
   {{ super() }}
   <small>{{ ds_table.all().count() }} rows, showing page {{ page }}</small>

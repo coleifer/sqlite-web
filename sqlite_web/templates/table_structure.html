@@ -1,21 +1,5 @@
 {% extends "base_table.html" %}
 
-{% block extra_scripts %}
-  <script type="text/javascript">
-    $(function() {
-      $('a.view-sql').on('click', function(e) {
-        e.preventDefault();
-        var elem = $(this),
-            pre = elem.siblings('div'),
-            modalDiv = $('div#sql-modal');
-        modalDiv.find('h5.modal-title').text(elem.data('name'));
-        modalDiv.find('.modal-body').empty().append(pre.clone().show());
-        modalDiv.modal({'keyboard': true});
-      });
-    });
-  </script>
-{% endblock %}
-
 {% block structure_tab_class %} active{% endblock %}
 
 {% block inner_content %}

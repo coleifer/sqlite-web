@@ -3,57 +3,12 @@
 {% block extra_head %}
 <style type="text/css">
   pre { clear: right; }
-  {% if not session.get('show') %}div#tableInfo { display: none; }{% endif %}
 </style>
 {% endblock %}
 
 {% block extra_scripts %}
   <script type="text/javascript">
     $(function() {
-      var tableInfo = $('div#tableInfo');
-
-      /* Toggle long values on/off. */
-      var valueToggles = $('a.toggle-value');
-      valueToggles.on('click', function(e) {
-        e.preventDefault();
-        var elem = $(this),
-            truncated = elem.siblings('span.truncated'),
-            full = elem.siblings('span.full');
-        truncated.toggle();
-        full.toggle();
-      });
-
-      /* Allow sorting by columns asc/desc. */
-      $('a.sort-header').on('click', function(e) {
-        var elem = $(this),
-            order_elem = $('input[name="ordering"]');
-        order_elem.val(elem.data('ordering'));
-        e.preventDefault();
-        $('form#query-form').submit();
-      });
-
-      /* Show one of the SQL syntax railroad diagrams. */
-      $('a.sql-image').on('click', function(e) {
-        e.preventDefault();
-        var elem = $(this),
-            imgUrl = elem.attr('href'),
-            modalDiv = $('div#sql-image-modal');
-        modalDiv.find('h5.modal-title').text(elem.text());
-        modalDiv.find('.modal-body').empty().append(
-          $('<img src="' + imgUrl + '" style="max-width:100%;" />'));
-        modalDiv.modal({'keyboard': true});
-      });
-
-      /* Show the table info. */
-      $('a#toggleTableInfo').on('click', function(e) {
-        var show = !tableInfo.is(':visible');
-        e.preventDefault();
-        tableInfo.toggle('slide');
-        $.post('{{ url_for('set_table_definition_preference') }}', {'show': show}, function(resp) {
-          console.log('preference logged, new value: ' + resp.show);
-        });
-      });
-
       /* Recent queries and bookmarks. */
       var sql = {% if sql and not error %}`{{ sql }}`{% else %}''{% endif %};
       var Recent = new App.Recent();
@@ -61,8 +16,6 @@
 
       var bookmarks = new App.Bookmarks();
       bookmarks.initialize();
-
-      $('textarea#sql').focus();
     });
   </script>
 {% endblock %}
@@ -104,11 +57,11 @@
     </div>
     <div class="float-right">
       <div class="btn-group">
-        <button class="btn btn-secondary" id="add-bookmark" type="button">Bookmark</button>
         <div class="dropdown">
-          <button type="button" class="btn btn-secondary dropdown-toggle" data-toggle="dropdown" id="dropdownMenuButton" aria-haspopup="true" aria-expanded="false"></button>
+          <button type="button" class="btn btn-secondary dropdown-toggle" data-toggle="dropdown" id="dropdownMenuButton" aria-haspopup="true" aria-expanded="false">Bookmarks</button>
           <div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton" id="bookmarks"></div>
         </div>
+        <button class="btn btn-secondary" id="add-bookmark" title="Add Bookmark" type="button">+</button>
       </div>
     </div>
   </form>

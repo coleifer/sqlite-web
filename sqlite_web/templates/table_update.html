@@ -1,34 +1,5 @@
 {% extends "base_table.html" %}
 
-{% block extra_scripts %}
-  <script type="text/javascript">
-    $(function() {
-      $('input.chk-enable-column').on('click', function (evt) {
-        var elem = $(this),
-            inp = $('#' + elem.data('target-element'));
-        if (elem.is(':checked')) {
-          inp.prop('disabled', false);
-        } else {
-          inp.prop('disabled', true);
-        }
-      });
-
-      $('input#toggle-checkboxes').on('click', function (evt) {
-        $('input.chk-enable-column').prop('checked', $(this).is(':checked'));
-        $('input.chk-enable-column').each(function(_) {
-          var elem = $(this),
-              inp = $('#' + elem.data('target-element'));
-          if (elem.is(':checked')) {
-            inp.prop('disabled', false);
-          } else {
-            inp.prop('disabled', true);
-          }
-        });
-      });
-    });
-  </script>
-{% endblock %}
-
 {% block inner_content %}
   <h3>Update row {{ table_pk|pk_display(pk) }} in {{ table }}
     <input id="toggle-checkboxes" type="checkbox" />

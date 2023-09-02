@@ -1,6 +1,101 @@
 App = window.App || {};
 
 (function(exports, $) {
+    initialize = function() {
+        /* Allow sorting by columns asc/desc. */
+        $('a.sort-header').on('click', function(e) {
+            e.preventDefault();
+            var elem = $(this),
+                order_elem = $('input[name="ordering"]');
+            order_elem.val(elem.data('ordering'));
+            order_elem.parents('form').submit();
+        });
+
+        /* Toggle long values on/off. */
+        $('a.toggle-value').on('click', function(e) {
+            e.preventDefault();
+            var elem = $(this),
+                truncated = elem.siblings('span.truncated'),
+                full = elem.siblings('span.full');
+            truncated.toggle();
+            full.toggle();
+        });
+
+        /* Show/hide table info div. */
+        var tableInfo = $('div#tableInfo');
+        if (tableInfo.length > 0) {
+            if (localStorage.getItem('tableInfo') === 'false') {
+                tableInfo.hide();
+            }
+
+            $('a#toggleTableInfo').on('click', function(e) {
+                e.preventDefault();
+                var show = !tableInfo.is(':visible');
+                localStorage.setItem('tableInfo', show ? 'true' : 'false')
+                tableInfo.toggle();
+            });
+        }
+
+        /* Show SQL (e.g. for indexes / triggers). */
+        $('a.view-sql').on('click', function(e) {
+            e.preventDefault();
+            var elem = $(this),
+                pre = elem.siblings('div'),
+                modalDiv = $('div#sql-modal');
+            modalDiv.find('h5.modal-title').text(elem.data('name'));
+            modalDiv.find('.modal-body').empty().append(pre.clone().show());
+            modalDiv.modal({'keyboard': true});
+        });
+
+        /* Show one of the SQL syntax railroad diagrams. */
+        $('a.sql-image').on('click', function(e) {
+            e.preventDefault();
+            var elem = $(this),
+                imgUrl = elem.attr('href'),
+                modalDiv = $('div#sql-image-modal');
+            modalDiv.find('h5.modal-title').text(elem.text());
+            modalDiv.find('.modal-body').empty().append(
+                $('<img src="' + imgUrl + '" style="max-width:100%;" />'));
+            modalDiv.modal({'keyboard': true});
+        });
+
+        /* Toggle helper virtual tables and table typeahead search. */
+        $('a#toggle-helper-tables').on('click', function(e) {
+            e.preventDefault();
+            $('ul#helper-tables').toggle();
+        });
+        $('input#table-search').on('keyup', function(e) {
+            var searchQuery = $(this).val().toUpperCase();
+            $('li.table-link').each(function() {
+                var elem = $(this),
+                    tableName = elem.find('a').prop('innerText').toUpperCase();
+                elem.toggle(tableName.indexOf(searchQuery) != -1);
+            });
+        });
+
+        /* Checkboxes for enabling/disabling inputs. */
+        $('input.chk-enable-column').on('click', function (evt) {
+            var elem = $(this),
+                inp = $('#' + elem.data('target-element'));
+            inp.prop('disabled', elem.is(':checked') ? false : true);
+        });
+
+        $('input#toggle-checkboxes').on('click', function (evt) {
+            $('input.chk-enable-column').prop('checked', $(this).is(':checked'));
+            $('input.chk-enable-column').each(function(_) {
+                var elem = $(this),
+                    inp = $('#' + elem.data('target-element'));
+                inp.prop('disabled', elem.is(':checked') ? false : true);
+            });
+        });
+
+        /* Initialize focus on SQL textarea. */
+        var sqlTextarea = $('textarea#sql');
+        if (sqlTextarea.length > 0) {
+            sqlTextarea.focus();
+        }
+    };
+
     Bookmarks = function() {};
 
     Bookmarks.prototype.initialize = function() {
@@ -155,6 +250,7 @@ App = window.App || {};
         });
     };
 
+    exports.initialize = initialize;
     exports.Bookmarks = Bookmarks;
     exports.Recent = Recent;
 })(App, jQuery);
