@@ -169,6 +169,18 @@ class SqliteDataSet(DataSet):
             ('trigger',))
         return [TriggerMetadata(*row) for row in cursor.fetchall()]
 
+    def get_table_sql(self, table):
+        if not table:
+            return
+
+        cursor = dataset.query(
+            'SELECT sql FROM sqlite_master '
+            'WHERE tbl_name = ? AND type IN (?, ?)',
+            [table, 'table', 'view'])
+        res = cursor.fetchone()
+        if res is not None:
+            return res[0]
+
     def get_view(self, name):
         cursor = self.query(
             'SELECT name, sql FROM sqlite_master '
@@ -240,59 +252,68 @@ def logout():
     session.pop('authorized', None)
     return redirect(url_for('login'))
 
-@app.route('/query/', methods=['GET', 'POST'])
-def generic_query():
+def _query_view(template, table=None):
     data = []
     data_description = error = row_count = sql = None
     ordering = None
 
-    if request.method == 'POST':
-        sql = qsql = request.form.get('sql') or ''
+    sql = qsql = request.args.get('sql') or ''
 
-        if 'export_json' in request.form:
-            ordering = request.form.get('export_ordering')
-            export_format = 'json'
-        elif 'export_csv' in request.form:
-            ordering = request.form.get('export_ordering')
-            export_format = 'csv'
+    if 'export_json' in request.args:
+        ordering = request.args.get('export_ordering')
+        export_format = 'json'
+    elif 'export_csv' in request.args:
+        ordering = request.args.get('export_ordering')
+        export_format = 'csv'
+    else:
+        ordering = request.args.get('ordering')
+        export_format = None
+
+    if ordering:
+        ordering = int(ordering)
+        direction = 'DESC' if ordering < 0 else 'ASC'
+        qsql = ('SELECT * FROM (%s) AS _ ORDER BY %d %s' %
+                (sql.rstrip(' ;'), abs(ordering), direction))
+    else:
+        ordering = None
+
+    if table:
+        default_sql = 'SELECT * FROM "%s"' % table
+        model_class = dataset[table].model_class
+    else:
+        default_sql = ''
+        model_class = dataset._base_model
+
+    if qsql:
+        if export_format:
+            query = model_class.raw(qsql).dicts()
+            return export(query, export_format, table)
+
+        try:
+            cursor = dataset.query(qsql)
+        except Exception as exc:
+            error = str(exc)
         else:
-            ordering = request.form.get('ordering')
-            export_format = None
-
-        if ordering:
-            ordering = int(ordering)
-            direction = 'DESC' if ordering < 0 else 'ASC'
-            qsql = ('SELECT * FROM (%s) AS _ ORDER BY %d %s' %
-                    (sql.rstrip(' ;'), abs(ordering), direction))
-
-        if qsql:
-            if export_format:
-                model_class = dataset._base_model
-                query = model_class.raw(qsql).dicts()
-                return export(query, export_format)
-
-            try:
-                cursor = dataset.query(qsql)
-            except Exception as exc:
-                error = str(exc)
-            else:
-                data = cursor.fetchall()[:app.config['MAX_RESULT_SIZE']]
-                data_description = cursor.description
-                row_count = cursor.rowcount
-        else:
-            error = 'No query specified.'
-    elif request.args.get('sql'):
-        sql = request.args.get('sql')
+            data = cursor.fetchall()[:app.config['MAX_RESULT_SIZE']]
+            data_description = cursor.description
+            row_count = cursor.rowcount
 
     return render_template(
-        'query.html',
+        template,
         data=data,
         data_description=data_description,
+        default_sql=default_sql,
         error=error,
         ordering=ordering,
         query_images=get_query_images(),
         row_count=row_count,
-        sql=sql)
+        sql=sql,
+        table=table,
+        table_sql=dataset.get_table_sql(table))
+
+@app.route('/query/', methods=['GET'])
+def generic_query():
+    return _query_view('query.html')
 
 def require_table(fn):
     @wraps(fn)
@@ -321,10 +342,6 @@ def table_structure(table):
     ds_table = dataset[table]
     model_class = ds_table.model_class
 
-    table_sql = dataset.query(
-        'SELECT sql FROM sqlite_master WHERE tbl_name = ? AND type IN (?, ?)',
-        [table, 'table', 'view']).fetchone()[0]
-
     return render_template(
         'table_structure.html',
         columns=dataset.get_columns(table),
@@ -333,7 +350,7 @@ def table_structure(table):
         indexes=dataset.get_indexes(table),
         model_class=model_class,
         table=table,
-        table_sql=table_sql,
+        table_sql=dataset.get_table_sql(table),
         triggers=dataset.get_triggers(table))
 
 def get_request_data():
@@ -376,17 +393,13 @@ def add_column(table):
         else:
             flash('Name and column type are required.', 'danger')
 
-    table_sql = dataset.query(
-        'SELECT sql FROM sqlite_master WHERE tbl_name = ? AND type = ?',
-        [table, 'table']).fetchone()[0]
-
     return render_template(
         'add_column.html',
         col_type=col_type,
         column_mapping=column_mapping,
         name=name,
         table=table,
-        table_sql=table_sql)
+        table_sql=dataset.get_table_sql(table))
 
 @app.route('/<table>/drop-column/', methods=['GET', 'POST'])
 @require_table
@@ -550,10 +563,6 @@ def table_content(table):
     field_names = ds_table.columns
     columns = [f.column_name for f in ds_table.model_class._meta.sorted_fields]
 
-    table_sql = dataset.query(
-        'SELECT sql FROM sqlite_master WHERE tbl_name = ? AND type IN (?, ?)',
-        [table, 'table', 'view']).fetchone()[0]
-
     return render_template(
         'table_content.html',
         columns=columns,
@@ -566,6 +575,7 @@ def table_content(table):
         query=query,
         table=table,
         table_pk=model._meta.primary_key,
+        table_sql=dataset.get_table_sql(table),
         total_pages=total_pages,
         total_rows=total_rows)
 
@@ -792,66 +802,10 @@ def table_delete(table, pk):
         table=table,
         table_pk=table_pk)
 
-@app.route('/<table>/query/', methods=['GET', 'POST'])
+@app.route('/<table>/query/', methods=['GET'])
 @require_table
 def table_query(table):
-    data = []
-    data_description = error = row_count = sql = None
-    ordering = None
-
-    if request.method == 'POST':
-        sql = qsql = request.form['sql']
-        model_class = dataset[table].model_class
-
-        if 'export_json' in request.form:
-            ordering = request.form.get('export_ordering')
-            export_format = 'json'
-        elif 'export_csv' in request.form:
-            ordering = request.form.get('export_ordering')
-            export_format = 'csv'
-        else:
-            ordering = request.form.get('ordering')
-            export_format = None
-
-        if ordering:
-            ordering = int(ordering)
-            direction = 'DESC' if ordering < 0 else 'ASC'
-            qsql = ('SELECT * FROM (%s) AS _ ORDER BY %d %s' %
-                    (sql.rstrip(' ;'), abs(ordering), direction))
-
-        if export_format:
-            query = model_class.raw(qsql).dicts()
-            return export(query, export_format, table)
-
-        try:
-            cursor = dataset.query(qsql)
-        except Exception as exc:
-            error = str(exc)
-        else:
-            data = cursor.fetchall()[:app.config['MAX_RESULT_SIZE']]
-            data_description = cursor.description
-            row_count = cursor.rowcount
-    else:
-        if request.args.get('sql'):
-            sql = request.args.get('sql')
-        else:
-            sql = 'SELECT *\nFROM "%s"' % (table)
-
-    table_sql = dataset.query(
-        'SELECT sql FROM sqlite_master WHERE tbl_name = ? AND type IN (?, ?)',
-        [table, 'table', 'view']).fetchone()[0]
-
-    return render_template(
-        'table_query.html',
-        data=data,
-        data_description=data_description,
-        error=error,
-        ordering=ordering,
-        query_images=get_query_images(),
-        row_count=row_count,
-        sql=sql,
-        table=table,
-        table_sql=table_sql)
+    return _query_view('table_query.html', table)
 
 def export(query, export_format, table=None):
     buf = StringIO()

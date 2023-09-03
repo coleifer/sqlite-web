@@ -32,11 +32,11 @@
   <div id="tableInfo">
     {{ table_sql|format_create_table|highlight }}
   </div>
-  <form action="." id="query-form" method="post" role="form">
+  <form action="." id="query-form" method="get" role="form">
     <input name="ordering" type="hidden" value="" />
     <input name="export_ordering" type="hidden" value="{% if ordering %}{{ ordering }}{% endif %}" />
     <div class="form-group{% if error %} has-error has-feedback{% endif %}">
-      <textarea class="form-control{% if error %} is-invalid{% endif %}" id="sql" name="sql" style="height: 120px;">{% if sql %}{{ sql }}{% endif %}</textarea>
+      <textarea class="form-control{% if error %} is-invalid{% endif %}" id="sql" name="sql" style="height: 120px;">{% if sql %}{{ sql }}{% else %}{{ default_sql }}{% endif %}</textarea>
       <small class="form-text text-muted">Use Shift + Up/Down to navigate recently-executed queries</small>
       {% if error %}
         <div class="invalid-feedback">{{ error }}</div>
@@ -75,7 +75,7 @@
     {% if not data %}
       <p>Empty result set.</p>
     {% else %}
-      <a class="float-right" href="{{ url_for('table_query', table=table, sql=sql) }}">Permalink</a>
+      <a class="float-right" href="{{ url_for('table_query', table=table, sql=sql) }}{% if ordering %}&ordering={{ ordering }}{% endif %}">Permalink</a>
       <h3>
         Results ({{ data|length }})
       </h3>
@@ -84,7 +84,7 @@
           <tr>
             {% for col_desc in data_description %}
               <th>
-                <a class="sort-header" data-ordering="{% if loop.index == ordering %}-{% endif %}{{ loop.index }}" href="#">{{ col_desc[0] }}</a>
+                <a class="sort-header" href="{{ url_for('table_query', table=table, sql=sql) }}&ordering={% if loop.index == ordering %}-{% endif %}{{ loop.index }}">{{ col_desc[0] }}{% if ordering is not none %}{% if loop.index == ordering %}&#9660;{% elif loop.index == -ordering %}&#9650;{% endif %}{% endif %}</a>
               </th>
             {% endfor %}
           </tr>

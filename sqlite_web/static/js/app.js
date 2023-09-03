@@ -2,15 +2,6 @@ App = window.App || {};
 
 (function(exports, $) {
     initialize = function() {
-        /* Allow sorting by columns asc/desc. */
-        $('a.sort-header').on('click', function(e) {
-            e.preventDefault();
-            var elem = $(this),
-                order_elem = $('input[name="ordering"]');
-            order_elem.val(elem.data('ordering'));
-            order_elem.parents('form').submit();
-        });
-
         /* Toggle long values on/off. */
         $('a.toggle-value').on('click', function(e) {
             e.preventDefault();
