@@ -27,7 +27,7 @@ $ sqlite_web /path/to/database.db
 * Works with your existing SQLite databases, or can be used to create new databases.
 * Add or drop:
   * Tables
-  * Columns (yes, you can drop and rename columns!)
+  * Columns (with support for older versions of Sqlite)
   * Indexes
 * Export data as JSON or CSV.
 * Import JSON or CSV files.
@@ -83,21 +83,22 @@ $ sqlite_web [options] /path/to/database-file.db
 
 The following options are available:
 
-* ``-p``, ``--port``: default is 8080
-* ``-H``, ``--host``: default is 127.0.0.1
-* ``-d``, ``--debug``: default is false
-* ``-x``, ``--no-browser``: do not open a web-browser when sqlite-web starts.
-* ``-P``, ``--password``: prompt for password to access sqlite-web.
+* `-p`, `--port`: default is 8080
+* `-H`, `--host`: default is 127.0.0.1
+* `-d`, `--debug`: default is false
+* `-l`, `--log-file`: filename for application logs.
+* `-x`, `--no-browser`: do not open a web-browser when sqlite-web starts.
+* `-P`, `--password`: prompt for password to access sqlite-web.
   Alternatively, the password can be stored in the "SQLITE_WEB_PASSWORD"
   environment variable, in which case the application will not prompt for a
   password, but will use the value from the environment.
-* ``-r``, ``--read-only``: open database in read-only mode.
-* ``-R``, ``--rows-per-page``: set pagination on content page, default 50 rows.
-* ``-e``, ``--extension``: path or name of loadable extension(s). To load
+* `-r`, `--read-only`: open database in read-only mode.
+* `-R`, `--rows-per-page`: set pagination on content page, default 50 rows.
+* `-e`, `--extension`: path or name of loadable extension(s). To load
   multiple extensions, specify ``-e [path]`` for each extension.
-* ``-u``, ``--url-prefix``: URL prefix for application, e.g. "/sqlite-web".
-* ``-c``, ``--cert`` and ``-k``, ``--key`` - specify SSL cert and private key.
-* ``-a``, ``--ad-hoc`` - run using an ad-hoc SSL context.
+* `-u`, `--url-prefix`: URL prefix for application, e.g. "/sqlite-web".
+* `-c`, `--cert` and ``-k``, ``--key`` - specify SSL cert and private key.
+* `-a`, `--ad-hoc` - run using an ad-hoc SSL context.
 
 ### Using docker
 

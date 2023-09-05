@@ -3,6 +3,7 @@
 import base64
 import datetime
 import hashlib
+import logging
 import math
 import operator
 import optparse
@@ -16,6 +17,7 @@ from collections import namedtuple, OrderedDict
 from functools import wraps
 from getpass import getpass
 from io import TextIOWrapper
+from logging.handlers import WatchedFileHandler
 
 # Py2k compat.
 if sys.version_info[0] == 2:
@@ -245,6 +247,8 @@ def login():
             session['authorized'] = True
             return redirect(session.get('next_url') or url_for('index'))
         flash('The password you entered is incorrect.', 'danger')
+        app.logger.debug('Received incorrect password attempt from %s' %
+                         request.remote_addr)
     return render_template('login.html')
 
 @app.route('/logout/', methods=['GET'])
@@ -293,6 +297,7 @@ def _query_view(template, table=None):
             cursor = dataset.query(qsql)
         except Exception as exc:
             error = str(exc)
+            app.logger.exception('Error in user-submitted query.')
         else:
             data = cursor.fetchall()[:app.config['MAX_RESULT_SIZE']]
             data_description = cursor.description
@@ -333,7 +338,11 @@ def table_create():
             dest = '/' + dest
         return redirect(dest)
 
-    dataset[table]
+    try:
+        dataset[table]
+    except Exception as exc:
+        flash('Error: %s' % str(exc), 'danger')
+        app.logger.exception('Error attempting to create table.')
     return redirect(url_for('table_import', table=table))
 
 @app.route('/<table>/')
@@ -382,14 +391,20 @@ def add_column(table):
 
     if request.method == 'POST':
         if name and col_type in column_mapping:
-            migrate(
-                migrator.add_column(
-                    table,
-                    name,
-                    column_mapping[col_type](null=True)))
-            flash('Column "%s" was added successfully!' % name, 'success')
-            dataset.update_cache(table)
-            return redirect(url_for('table_structure', table=table))
+            try:
+                migrate(
+                    migrator.add_column(
+                        table,
+                        name,
+                        column_mapping[col_type](null=True)))
+            except Exception as exc:
+                flash('Error attempting to add column "%s": %s' % (name, exc),
+                      'danger')
+                app.logger.exception('Error attempting to add column.')
+            else:
+                flash('Column "%s" was added successfully!' % name, 'success')
+                dataset.update_cache(table)
+                return redirect(url_for('table_structure', table=table))
         else:
             flash('Name and column type are required.', 'danger')
 
@@ -411,10 +426,16 @@ def drop_column(table):
 
     if request.method == 'POST':
         if name in column_names:
-            migrate(migrator.drop_column(table, name))
-            flash('Column "%s" was dropped successfully!' % name, 'success')
-            dataset.update_cache(table)
-            return redirect(url_for('table_structure', table=table))
+            try:
+                migrate(migrator.drop_column(table, name))
+            except Exception as exc:
+                flash('Error attempting to drop column "%s": %s' % (name, exc),
+                      'danger')
+                app.logger.exception('Error attempting to drop column.')
+            else:
+                flash('Column "%s" was dropped successfully!' % name, 'success')
+                dataset.update_cache(table)
+                return redirect(url_for('table_structure', table=table))
         else:
             flash('Name is required.', 'danger')
 
@@ -437,10 +458,16 @@ def rename_column(table):
 
     if request.method == 'POST':
         if (rename in column_names) and (rename_to not in column_names):
-            migrate(migrator.rename_column(table, rename, rename_to))
-            flash('Column "%s" was renamed successfully!' % rename, 'success')
-            dataset.update_cache(table)
-            return redirect(url_for('table_structure', table=table))
+            try:
+                migrate(migrator.rename_column(table, rename, rename_to))
+            except Exception as exc:
+                flash('Error attempting to rename column "%s": %s' % (name, exc),
+                      'danger')
+                app.logger.exception('Error attempting to rename column.')
+            else:
+                flash('Column "%s" was renamed successfully!' % rename, 'success')
+                dataset.update_cache(table)
+                return redirect(url_for('table_structure', table=table))
         else:
             flash('Column name is required and cannot conflict with an '
                   'existing column\'s name.', 'danger')
@@ -464,13 +491,18 @@ def add_index(table):
 
     if request.method == 'POST':
         if indexed_columns:
-            migrate(
-                migrator.add_index(
-                    table,
-                    indexed_columns,
-                    unique))
-            flash('Index created successfully.', 'success')
-            return redirect(url_for('table_structure', table=table))
+            try:
+                migrate(
+                    migrator.add_index(
+                        table,
+                        indexed_columns,
+                        unique))
+            except Exception as exc:
+                flash('Error attempting to create index: %s' % exc, 'danger')
+                app.logger.exception('Error attempting to create index.')
+            else:
+                flash('Index created successfully.', 'success')
+                return redirect(url_for('table_structure', table=table))
         else:
             flash('One or more columns must be selected.', 'danger')
 
@@ -491,9 +523,14 @@ def drop_index(table):
 
     if request.method == 'POST':
         if name in index_names:
-            migrate(migrator.drop_index(table, name))
-            flash('Index "%s" was dropped successfully!' % name, 'success')
-            return redirect(url_for('table_structure', table=table))
+            try:
+                migrate(migrator.drop_index(table, name))
+            except Exception as exc:
+                flash('Error attempting to drop index: %s' % exc, 'danger')
+                app.logger.exception('Error attempting to drop index.')
+            else:
+                flash('Index "%s" was dropped successfully!' % name, 'success')
+                return redirect(url_for('table_structure', table=table))
         else:
             flash('Index name is required.', 'danger')
 
@@ -514,9 +551,14 @@ def drop_trigger(table):
 
     if request.method == 'POST':
         if name in trigger_names:
-            dataset.query('DROP TRIGGER "%s";' % name)
-            flash('Trigger "%s" was dropped successfully!' % name, 'success')
-            return redirect(url_for('table_structure', table=table))
+            try:
+                dataset.query('DROP TRIGGER "%s";' % name)
+            except Exception as exc:
+                flash('Error attempting to drop trigger: %s' % exc, 'danger')
+                app.logger.exception('Error attempting to drop trigger.')
+            else:
+                flash('Trigger "%s" was dropped successfully!' % name, 'success')
+                return redirect(url_for('table_structure', table=table))
         else:
             flash('Trigger name is required.', 'danger')
 
@@ -652,6 +694,7 @@ def table_insert(table):
                     n = model.insert(insert).execute()
             except Exception as exc:
                 flash('Insert failed: %s' % exc, 'danger')
+                app.logger.exception('Error attempting to insert row into %s.', table)
             else:
                 flash('Successfully inserted record (%s).' % n, 'success')
                 return redirect(url_for(
@@ -745,6 +788,7 @@ def table_update(table, pk):
                     n = model.update(update).where(expr).execute()
             except Exception as exc:
                 flash('Update failed: %s' % exc, 'danger')
+                app.logger.exception('Error attempting to update row from %s.', table)
             else:
                 flash('Successfully updated %s record.' % n, 'success')
                 return redirect_to_previous(table)
@@ -789,6 +833,7 @@ def table_delete(table, pk):
                 n = model.delete().where(expr).execute()
         except Exception as exc:
             flash('Delete failed: %s' % exc, 'danger')
+            app.logger.exception('Error attempting to delete row from %s.', table)
         else:
             flash('Successfully deleted %s record.' % n, 'success')
             return redirect_to_previous(table)
@@ -851,7 +896,11 @@ def table_export(table):
             model = dataset[table].model_class
             fields = [model._meta.columns[c] for c in selected]
             query = model.select(*fields).dicts()
-            return export(table, query, export_format)
+            try:
+                return export(table, query, export_format)
+            except Exception as exc:
+                flash('Error generating export: %s' % exc, 'danger')
+                app.logger.exception('Error generating export.')
 
     return render_template(
         'table_export.html',
@@ -904,6 +953,7 @@ def table_import(table):
                         strict=strict)
             except Exception as exc:
                 flash('Error importing file: %s' % exc, 'danger')
+                app.logger.exception('Error importing file.')
             else:
                 flash(
                     'Successfully imported %s objects from %s.' % (
@@ -921,18 +971,23 @@ def table_import(table):
 @require_table
 def drop_table(table):
     is_view = any(v.name == table for v in dataset.get_all_views())
+    label = 'view' if is_view else 'table'
     if request.method == 'POST':
-        if is_view:
-            dataset.query('DROP VIEW "%s";' % table)
+        try:
+            if is_view:
+                dataset.query('DROP VIEW "%s";' % table)
+            else:
+                model_class = dataset[table].model_class
+                model_class.drop_table()
+        except Exception as exc:
+            flash('Error attempting to drop %s "%s".' % (label, table), 'danger')
+            app.logger.exception('Error attempting to drop %s "%s".', label, table)
         else:
-            model_class = dataset[table].model_class
-            model_class.drop_table()
-
-        dataset.update_cache()  # Update all tables.
-        flash('%s "%s" dropped successfully.' %
-              ('view' if is_view else 'table', table),
-              'success')
-        return redirect(url_for('index'))
+            dataset.update_cache()  # Update all tables.
+            flash('%s "%s" dropped successfully.' %
+                  ('view' if is_view else 'table', table),
+                  'success')
+            return redirect(url_for('index'))
 
     return render_template('drop_table.html', is_view=is_view, table=table)
 
@@ -1092,6 +1147,11 @@ def get_option_parser():
         dest='browser',
         help='Do not automatically open browser page.')
     parser.add_option(
+        '-l',
+        '--log-file',
+        dest='log_file',
+        help='Filename for application logs.')
+    parser.add_option(
         '-P',
         '--password',
         action='store_true',
@@ -1213,6 +1273,13 @@ def main():
     options, args = parser.parse_args()
     if not args:
         die('Error: missing required path to database file.')
+
+    if options.log_file:
+        fmt = logging.Formatter('[%(asctime)s] - [%(levelname)s] - %(message)s')
+        handler = WatchedFileHandler(options.log_file)
+        handler.setLevel(logging.DEBUG if options.debug else logging.WARNING)
+        handler.setFormatter(fmt)
+        app.logger.addHandler(handler)
 
     password = None
     if options.prompt_password:
