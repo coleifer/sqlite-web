@@ -38,39 +38,39 @@ $ sqlite_web /path/to/database.db
 
 The index page shows some basic information about the database, including the number of tables and indexes, as well as its size on disk:
 
-![](https://media.charlesleifer.com/blog/photos/sqw-index.png)
+![](https://media.charlesleifer.com/blog/photos/im-1694620302295.png)
 
 The `structure` tab displays information about the structure of the table, including columns, indexes, triggers, and foreign keys (if any exist). From this page you can also create, rename or drop columns and indexes.
 
-![](https://media.charlesleifer.com/blog/photos/sqw-structure.png)
+![](https://media.charlesleifer.com/blog/photos/im-1694620314144.png)
 
 Columns are easy to add, drop or rename:
 
-![](https://media.charlesleifer.com/blog/photos/sqw-add-column.png)
+![](https://media.charlesleifer.com/blog/photos/im-1694620333535.png)
 
 The `content` tab displays all the table data. Links in the table header can be used to sort the data:
 
-![](https://media.charlesleifer.com/blog/photos/sqw-content.png)
+![](https://media.charlesleifer.com/blog/photos/im-1694620353079.png)
 
 The `query` tab allows you to execute arbitrary SQL queries on a table. The query results are displayed in a table and can be exported to either JSON or CSV:
 
-![](https://media.charlesleifer.com/blog/photos/sqw-query.png)
+![](https://media.charlesleifer.com/blog/photos/im-1694620393808.png)
 
 The `import` tab supports importing CSV and JSON files into a table. There is an option to automatically create columns for any unrecognized keys in the import file:
 
-![](https://media.charlesleifer.com/blog/photos/sqw-import.png)
+![](https://media.charlesleifer.com/blog/photos/im-1694620413940.png)
 
 The `export` tab supports exporting all, or a subset, of columns:
 
-![](https://media.charlesleifer.com/blog/photos/sqw-export.png)
+![](https://media.charlesleifer.com/blog/photos/im-1694620429054.png)
 
 Basic INSERT, UPDATE and DELETE queries are supported:
 
-![](https://media.charlesleifer.com/blog/photos/sqw-insert.png)
+![](https://media.charlesleifer.com/blog/photos/im-1694620441528.png)
 
-![](https://media.charlesleifer.com/blog/photos/sqw-update.png)
+![](https://media.charlesleifer.com/blog/photos/im-1694620459831.png)
 
-![](https://media.charlesleifer.com/blog/photos/sqw-delete.png)
+![](https://media.charlesleifer.com/blog/photos/im-1694620475286.png)
 
 ### Command-line options
 
