@@ -118,7 +118,6 @@ app.config.from_object(__name__)
 LOG = create_logger(app)
 
 _dataset = None
-migrator = None
 
 def get_dataset():
     "Return the relevant dataset for this request"
@@ -461,7 +460,7 @@ def add_column(table):
         if name and col_type in column_mapping:
             try:
                 migrate(
-                    migrator.add_column(
+                    get_dataset()._migrator.add_column(
                         table, name, column_mapping[col_type](null=True)
                     )
                 )
@@ -497,7 +496,7 @@ def drop_column(table):
     if request.method == "POST":
         if name in column_names:
             try:
-                migrate(migrator.drop_column(table, name))
+                migrate(get_dataset()._migrator.drop_column(table, name))
             except Exception as exc:
                 flash(
                     'Error attempting to drop column "%s": %s' % (name, exc), "danger"
@@ -533,7 +532,7 @@ def rename_column(table):
     if request.method == "POST":
         if (rename in column_names) and (rename_to not in column_names):
             try:
-                migrate(migrator.rename_column(table, rename, rename_to))
+                migrate(get_dataset()._migrator.rename_column(table, rename, rename_to))
             except Exception as exc:
                 flash(
                     'Error attempting to rename column "%s": %s' % (rename, exc), "danger"
@@ -572,7 +571,7 @@ def add_index(table):
     if request.method == "POST":
         if indexed_columns:
             try:
-                migrate(migrator.add_index(table, indexed_columns, unique))
+                migrate(get_dataset()._migrator.add_index(table, indexed_columns, unique))
             except Exception as exc:
                 flash("Error attempting to create index: %s" % exc, "danger")
                 LOG.exception("Error attempting to create index.")
@@ -602,7 +601,7 @@ def drop_index(table):
     if request.method == "POST":
         if name in index_names:
             try:
-                migrate(migrator.drop_index(table, name))
+                migrate(get_dataset()._migrator.drop_index(table, name))
             except Exception as exc:
                 flash("Error attempting to drop index: %s" % exc, "danger")
                 LOG.exception("Error attempting to drop index.")
@@ -1346,7 +1345,6 @@ def initialize_app(
     filename, read_only=False, password=None, url_prefix=None, extensions=None
 ):
     global _dataset
-    global migrator
 
     if password:
         install_auth_handler(password)
@@ -1382,7 +1380,6 @@ def initialize_app(
         for ext in extensions:
             _dataset._database.load_extension(ext)
 
-    migrator = _dataset._migrator
     _dataset.close()
 
 
