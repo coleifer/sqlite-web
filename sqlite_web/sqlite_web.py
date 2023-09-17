@@ -20,6 +20,7 @@ from io import TextIOWrapper
 from logging.handlers import WatchedFileHandler
 
 from flask.logging import create_logger
+
 try:
     from flask import (
         Flask,
@@ -72,6 +73,7 @@ except ImportError:
 
     def syntax_highlight(data):
         return "<pre>%s</pre>" % data
+
 else:
 
     def syntax_highlight(data):
@@ -120,6 +122,7 @@ app.config.from_object(__name__)
 LOG = create_logger(app)
 
 _dataset = None
+
 
 def get_dataset():
     "Return the relevant dataset for this request"
@@ -293,9 +296,7 @@ def login():
             session["authorized"] = True
             return redirect(session.get("next_url") or url_for("index"))
         flash("The password you entered is incorrect.", "danger")
-        LOG.debug(
-            "Received incorrect password attempt from %s" % request.remote_addr
-        )
+        LOG.debug("Received incorrect password attempt from %s" % request.remote_addr)
     return render_template("login.html")
 
 
@@ -537,7 +538,8 @@ def rename_column(table):
                 migrate(get_dataset()._migrator.rename_column(table, rename, rename_to))
             except Exception as exc:
                 flash(
-                    'Error attempting to rename column "%s": %s' % (rename, exc), "danger"
+                    'Error attempting to rename column "%s": %s' % (rename, exc),
+                    "danger",
                 )
                 LOG.exception("Error attempting to rename column.")
             else:
@@ -573,7 +575,9 @@ def add_index(table):
     if request.method == "POST":
         if indexed_columns:
             try:
-                migrate(get_dataset()._migrator.add_index(table, indexed_columns, unique))
+                migrate(
+                    get_dataset()._migrator.add_index(table, indexed_columns, unique)
+                )
             except Exception as exc:
                 flash("Error attempting to create index: %s" % exc, "danger")
                 LOG.exception("Error attempting to create index.")
@@ -1343,14 +1347,7 @@ def install_auth_handler(password):
             return redirect(url_for("login"))
 
 
-def initialize_app(
-    filename, read_only=False, password=None, url_prefix=None, extensions=None
-):
-    global _dataset
-
-    if password:
-        install_auth_handler(password)
-
+def load_dataset(filename, read_only=False, extensions=None):
     dataset_kw = {}
     if peewee_version >= (3, 14, 9):
         dataset_kw["include_views"] = True
@@ -1372,17 +1369,30 @@ def initialize_app(
         _dataset = SqliteDataSet(db, bare_fields=True, **dataset_kw)
     else:
         _dataset = SqliteDataSet(
-            "sqlite:///%s" % filename, bare_fields=True, **dataset_kw
+            f"sqlite:///{filename}", bare_fields=True, **dataset_kw
         )
-
-    if url_prefix:
-        app.wsgi_app = PrefixMiddleware(app.wsgi_app, prefix=url_prefix)
 
     if extensions:
         for ext in extensions:
             _dataset._database.load_extension(ext)
 
     _dataset.close()
+
+    return _dataset
+
+
+def initialize_app(
+    filename, read_only=False, password=None, url_prefix=None, extensions=None
+):
+    global _dataset
+
+    if password:
+        install_auth_handler(password)
+
+    _dataset = load_dataset(filename, read_only, extensions)
+
+    if url_prefix:
+        app.wsgi_app = PrefixMiddleware(app.wsgi_app, prefix=url_prefix)
 
 
 def main():
