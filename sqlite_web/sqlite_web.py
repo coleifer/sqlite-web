@@ -18,25 +18,8 @@ from functools import wraps
 from getpass import getpass
 from io import TextIOWrapper
 from logging.handlers import WatchedFileHandler
+
 from flask.logging import create_logger
-
-# Py2k compat.
-if sys.version_info[0] == 2:
-    PY2 = True
-    binary_types = (buffer, bytes, bytearray)
-    decode_handler = "replace"
-    numeric = (int, long, float)
-    unicode_type = unicode
-    from StringIO import StringIO
-else:
-    PY2 = False
-    binary_types = (bytes, bytearray)
-    decode_handler = "backslashreplace"
-    numeric = (int, float)
-    unicode_type = str
-    from functools import reduce
-    from io import StringIO
-
 try:
     from flask import (
         Flask,
@@ -53,6 +36,25 @@ except ImportError:
     raise RuntimeError(
         "Unable to import flask module. Install by running pip install flask"
     )
+
+# Py2k compat.
+if sys.version_info[0] == 2:
+    PY2 = True
+    BINARY_TYPES = (buffer, bytes, bytearray)
+    DECODE_HANDLER = "replace"
+    NUMERIC_TYPES = (int, long, float)
+    UNICODE_TYPES = unicode
+    from StringIO import StringIO
+else:
+    PY2 = False
+    BINARY_TYPES = (bytes, bytearray)
+    DECODE_HANDLER = "backslashreplace"
+    NUMERIC_TYPES = (int, float)
+    UNICODE_TYPES = str
+    from functools import reduce
+    from io import StringIO
+
+
 try:
     from markupsafe import Markup, escape
 except ImportError:
@@ -1121,14 +1123,14 @@ def pk_display(table_pk, pk):
 
 @app.template_filter("value_filter")
 def value_filter(value, max_length=50):
-    if isinstance(value, numeric):
+    if isinstance(value, NUMERIC_TYPES):
         return value
 
-    if isinstance(value, binary_types):
+    if isinstance(value, BINARY_TYPES):
         if not isinstance(value, (bytes, bytearray)):
             value = bytes(value)  # Handle `buffer` type.
         value = base64.b64encode(value)[:1024].decode("utf8")
-    if isinstance(value, unicode_type):
+    if isinstance(value, UNICODE_TYPES):
         value = escape(value)
         if len(value) > max_length:
             return (
