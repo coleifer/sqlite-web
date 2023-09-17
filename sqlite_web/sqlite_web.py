@@ -990,7 +990,7 @@ def table_export(table):
             fields = [model._meta.columns[c] for c in selected]
             query = model.select(*fields).dicts()
             try:
-                return export(table, query, export_format)
+                return export(query, export_format, table)
             except Exception as exc:
                 flash("Error generating export: %s" % exc, "danger")
                 LOG.exception("Error generating export.")
