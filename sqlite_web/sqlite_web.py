@@ -18,6 +18,7 @@ from functools import wraps
 from getpass import getpass
 from io import TextIOWrapper
 from logging.handlers import WatchedFileHandler
+from werkzeug.routing import BaseConverter
 
 # Py2k compat.
 if sys.version_info[0] == 2:
@@ -231,6 +232,15 @@ class SqliteDataSet(DataSet):
             operations.update([op.lower() for op in rgx.findall(trigger)])
 
         return operations
+
+class Base64Converter(BaseConverter):
+    def to_python(self, value):
+        return base64.urlsafe_b64decode(value).decode()
+
+    def to_url(self, value):
+        return base64.urlsafe_b64encode(value.encode()).decode()
+
+app.url_map.converters['b64'] = Base64Converter
 
 #
 # Flask views.
@@ -727,7 +737,7 @@ def redirect_to_previous(table):
         kw['ordering'] = ordering
     return redirect(url_for('table_content', table=table, **kw))
 
-@app.route('/<table>/update/<pk>/', methods=['GET', 'POST'])
+@app.route('/<table>/update/<b64:pk>/', methods=['GET', 'POST'])
 @require_table
 def table_update(table, pk):
     dataset.update_cache(table)
@@ -806,7 +816,7 @@ def table_update(table, pk):
         table=table,
         table_pk=model._meta.primary_key)
 
-@app.route('/<table>/delete/<pk>/', methods=['GET', 'POST'])
+@app.route('/<table>/delete/<b64:pk>/', methods=['GET', 'POST'])
 @require_table
 def table_delete(table, pk):
     dataset.update_cache(table)
