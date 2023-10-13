@@ -238,7 +238,11 @@ class Base64Converter(BaseConverter):
         return base64.urlsafe_b64decode(value).decode()
 
     def to_url(self, value):
-        return base64.urlsafe_b64encode(value.encode()).decode()
+        if not isinstance(value, (bytes, str)):
+            value = str(value).encode('utf8')
+        elif isinstance(value, str):
+            value = value.encode('utf8')
+        return base64.urlsafe_b64encode(value).decode()
 
 app.url_map.converters['b64'] = Base64Converter
 
