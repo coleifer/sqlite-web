@@ -1266,17 +1266,18 @@ def initialize_app(filename, read_only=False, password=None, url_prefix=None,
             die('Unable to open database file in read-only mode. Ensure that '
                 'the database exists in order to use read-only mode.')
         db.close()
-        dataset = SqliteDataSet(db, bare_fields=True, **dataset_kw)
     else:
-        dataset = SqliteDataSet('sqlite:///%s' % filename, bare_fields=True,
-                                **dataset_kw)
+        db = SqliteDatabase(filename)
+
+    if extensions:
+        # Load extensions before performing introspection.
+        for ext in extensions:
+            db.load_extension(ext)
+
+    dataset = SqliteDataSet(db, bare_fields=True, **dataset_kw)
 
     if url_prefix:
         app.wsgi_app = PrefixMiddleware(app.wsgi_app, prefix=url_prefix)
-
-    if extensions:
-        for ext in extensions:
-            dataset._database.load_extension(ext)
 
     migrator = dataset._migrator
     dataset.close()
