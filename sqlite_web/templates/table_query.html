@@ -32,7 +32,7 @@
   <div id="tableInfo">
     {{ table_sql|format_create_table|highlight }}
   </div>
-  <form action="." id="query-form" method="get" role="form">
+  <form action="." id="query-form" method="post" role="form">
     <input name="ordering" type="hidden" value="" />
     <input name="export_ordering" type="hidden" value="{% if ordering %}{{ ordering }}{% endif %}" />
     <div class="form-group{% if error %} has-error has-feedback{% endif %}">

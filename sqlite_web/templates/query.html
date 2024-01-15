@@ -23,7 +23,7 @@
 {% block content_title %}<a href="{{ url_for('index') }}">{{ dataset.base_name }}</a> - Query{% endblock %}
 
 {% block content %}
-  <form action="." id="query-form" method="get" role="form">
+  <form action="." id="query-form" method="post" role="form">
     <input name="ordering" type="hidden" value="" />
     <input name="export_ordering" type="hidden" value="{% if ordering %}{{ ordering }}{% endif %}" />
     <div class="form-group{% if error %} has-error has-feedback{% endif %}">

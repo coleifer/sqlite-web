@@ -275,16 +275,16 @@ def _query_view(template, table=None):
     data_description = error = row_count = sql = None
     ordering = None
 
-    sql = qsql = request.args.get('sql') or ''
+    sql = qsql = request.values.get('sql') or ''
 
-    if 'export_json' in request.args:
-        ordering = request.args.get('export_ordering')
+    if 'export_json' in request.values:
+        ordering = request.values.get('export_ordering')
         export_format = 'json'
-    elif 'export_csv' in request.args:
-        ordering = request.args.get('export_ordering')
+    elif 'export_csv' in request.values:
+        ordering = request.values.get('export_ordering')
         export_format = 'csv'
     else:
-        ordering = request.args.get('ordering')
+        ordering = request.values.get('ordering')
         export_format = None
 
     if ordering:
@@ -330,7 +330,7 @@ def _query_view(template, table=None):
         table=table,
         table_sql=dataset.get_table_sql(table))
 
-@app.route('/query/', methods=['GET'])
+@app.route('/query/', methods=['GET', 'POST'])
 def generic_query():
     return _query_view('query.html')
 
@@ -861,7 +861,7 @@ def table_delete(table, pk):
         table=table,
         table_pk=table_pk)
 
-@app.route('/<table>/query/', methods=['GET'])
+@app.route('/<table>/query/', methods=['GET', 'POST'])
 @require_table
 def table_query(table):
     return _query_view('table_query.html', table)
