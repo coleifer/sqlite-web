@@ -47,7 +47,7 @@
   </table>
   <hr />
   <h3>Query</h3>
-  <form action="{{ url_for('generic_query') }}" method="get" role="form">
+  <form action="{{ url_for('generic_query') }}" method="post" role="form">
     <div class="form-group">
       <textarea class="form-control" name="sql" placeholder="Execute SQL query..." style="height: 120px;"></textarea>
     </div>
