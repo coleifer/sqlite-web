@@ -12,7 +12,7 @@ else:
 
 setup(
     name='sqlite-web',
-    version='0.6.2',
+    version='0.6.3',
     description='Web-based SQLite database browser.',
     long_description='Web-based SQLite database browser.',
     author='Charles Leifer',
