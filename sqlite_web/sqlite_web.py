@@ -1296,6 +1296,10 @@ def main():
         handler.setFormatter(fmt)
         app.logger.addHandler(handler)
 
+        # Remove default handler.
+        from flask.logging import default_handler
+        app.logger.removeHandler(default_handler)
+
     password = None
     if options.prompt_password:
         if os.environ.get('SQLITE_WEB_PASSWORD'):
