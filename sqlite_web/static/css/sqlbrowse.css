@@ -5,3 +5,8 @@ div.page-header {
 }
 #sidebar .nav>li>a {padding: 3px 10px;}
 h1>small {font-size: 50%;}
+table.cell-content td,
+table.cell-content th {
+    padding: 1px 4px 1px 4px;
+    border: 1px dotted #cccccc;
+}
