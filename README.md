@@ -94,6 +94,7 @@ The following options are available:
 * `-R`, `--rows-per-page`: set pagination on content page, default 50 rows.
 * `-e`, `--extension`: path or name of loadable extension(s). To load
   multiple extensions, specify ``-e [path]`` for each extension.
+* `-f`, `--foreign-keys`: enable foreign-key constraint pragma.
 * `-u`, `--url-prefix`: URL prefix for application, e.g. "/sqlite-web".
 * `-c`, `--cert` and ``-k``, ``--key`` - specify SSL cert and private key.
 * `-a`, `--ad-hoc` - run using an ad-hoc SSL context.

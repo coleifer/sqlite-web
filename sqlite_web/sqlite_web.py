@@ -1190,6 +1190,12 @@ def get_option_parser():
         dest='url_prefix',
         help='URL prefix for application.')
     parser.add_option(
+        '-f',
+        '--foreign-keys',
+        action='store_true',
+        dest='foreign_keys',
+        help='Enable the foreign_keys pragma.')
+    parser.add_option(
         '-e',
         '--extension',
         action='append',
@@ -1243,7 +1249,7 @@ def install_auth_handler(password):
             return redirect(url_for('login'))
 
 def initialize_app(filename, read_only=False, password=None, url_prefix=None,
-                   extensions=None):
+                   extensions=None, foreign_keys=None):
     global dataset
     global migrator
 
@@ -1268,6 +1274,9 @@ def initialize_app(filename, read_only=False, password=None, url_prefix=None,
         db.close()
     else:
         db = SqliteDatabase(filename)
+
+    if foreign_keys:
+        db.pragma('foreign_keys', True, permanent=True)
 
     if extensions:
         # Load extensions before performing introspection.
@@ -1318,7 +1327,7 @@ def main():
 
     # Initialize the dataset instance and (optionally) authentication handler.
     initialize_app(args[0], options.read_only, password, options.url_prefix,
-                   options.extensions)
+                   options.extensions, options.foreign_keys)
 
     if options.browser:
         open_browser_tab(options.host, options.port)
