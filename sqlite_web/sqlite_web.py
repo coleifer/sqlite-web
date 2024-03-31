@@ -874,7 +874,7 @@ def export(query, export_format, table=None):
     if export_format == 'json':
         kwargs = {'indent': 2}
         filename = 'export.json'
-        mimetype = 'text/javascript'
+        mimetype = 'application/json'
     else:
         kwargs = {}
         filename = 'export.csv'
