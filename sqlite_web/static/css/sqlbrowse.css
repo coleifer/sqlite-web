@@ -10,3 +10,11 @@ table.cell-content th {
     padding: 1px 4px 1px 4px;
     border: 1px dotted #cccccc;
 }
+ul.pagination .page-item .page-link {
+    border-color: #aaaaaa !important;
+    color: #888;
+}
+ul.pagination .page-item.disabled .page-link {
+    border-color: #dee2e6 !important;
+    color: #aaa;
+}
