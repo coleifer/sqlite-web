@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+__version__ = '0.6.3'
+
 import base64
 import datetime
 import hashlib
@@ -65,8 +67,8 @@ else:
         return highlight(data, lexer, formatter)
 
 try:
-    from peewee import __version__
-    peewee_version = tuple([int(p) for p in __version__.split('.')])
+    from peewee import __version__ as _pw_version
+    peewee_version = tuple([int(p) for p in _pw_version.split('.')])
 except ImportError:
     raise RuntimeError('Unable to import peewee module. Install by running '
                        'pip install peewee')
@@ -74,7 +76,7 @@ else:
     if peewee_version < (3, 0, 0):
         raise RuntimeError('Peewee >= 3.0.0 is required. Found version %s. '
                            'Please update by running pip install --update '
-                           'peewee' % __version__)
+                           'peewee' % _pw_version)
 
 from peewee import *
 from peewee import IndexMetadata
@@ -1103,6 +1105,7 @@ def _general():
     return {
         'dataset': dataset,
         'login_required': bool(app.config.get('PASSWORD')),
+        'version': __version__,
     }
 
 @app.context_processor

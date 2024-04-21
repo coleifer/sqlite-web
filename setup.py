@@ -1,4 +1,5 @@
 import os
+import re
 
 from setuptools import find_packages, setup
 
@@ -10,9 +11,17 @@ if os.path.exists(readme):
 else:
     long_description = ''
 
+with open(os.path.join(cur_dir, 'sqlite_web/sqlite_web.py')) as fh:
+    try:
+        v, = [re.search(r'= \'([\d\.]+)\'', l).groups()[0]
+              for l in fh.read().strip().splitlines()
+              if l.startswith('__version__ = ')]
+    except:
+        v = '0.0.0'
+
 setup(
     name='sqlite-web',
-    version='0.6.3',
+    version=v,
     description='Web-based SQLite database browser.',
     long_description='Web-based SQLite database browser.',
     author='Charles Leifer',
