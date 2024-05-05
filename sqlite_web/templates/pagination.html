@@ -1,0 +1,23 @@
+<nav>
+  <form action="." method="post">
+    <input name="ordering" type="hidden" value="{% if ordering %}{{ ordering }}{% endif %}" />
+    <input name="sql" type="hidden" value="{{ sql|default('') }}" />
+    <ul class="pagination">
+      <li class="{% if page < 2 %}disabled {% endif %}page-item">
+        <button class="page-link" name="page" type="submit" value="1">&laquo;</a>
+      </li>
+      <li class="{% if page < 2 %}disabled {% endif %}page-item">
+        <button class="page-link" name="page" type="submit" value="{{ page_prev }}">&lsaquo;</a>
+      </li>
+      <li class="page-item disabled">
+        <span class="page-link">Page {{ page }} of {{ total_pages }}</span>
+      </li>
+      <li class="{% if page >= total_pages %}disabled {% endif %}page-item">
+        <button class="page-link" name="page" type="submit" value="{{ page_next }}">&rsaquo;</a>
+      </li>
+      <li class="{% if page >= total_pages %}disabled {% endif %}page-item">
+        <button class="page-link" name="page" type="submit" value="{{ total_pages }}">&raquo;</a>
+      </li>
+    </ul>
+  </form>
+</nav>

@@ -87,8 +87,8 @@ from playhouse.migrate import migrate
 
 CUR_DIR = os.path.realpath(os.path.dirname(__file__))
 DEBUG = False
-MAX_RESULT_SIZE = 1000
 ROWS_PER_PAGE = 50
+QUERY_ROWS_PER_PAGE = 1000
 SECRET_KEY = 'sqlite-database-browser-0.1.0'
 
 app = Flask(
@@ -304,10 +304,40 @@ def _query_view(template, table=None):
         default_sql = ''
         model_class = dataset._base_model
 
+    page = page_next = page_prev = page_start = page_end = total_pages = 1
+    total = -1  # Number of rows in query result.
     if qsql:
         if export_format:
             query = model_class.raw(qsql).dicts()
             return export(query, export_format, table)
+
+        try:
+            total, = dataset.query('SELECT COUNT(*) FROM (%s) as _' %
+                                   qsql.rstrip('; ')).fetchone()
+        except Exception as exc:
+            total = -1
+
+        # Apply pagination.
+        rpp = app.config['QUERY_ROWS_PER_PAGE']
+        page = request.values.get('page')
+        if page and page.isdigit():
+            page = max(int(page), 1)
+        else:
+            page = 1
+        offset = (page - 1) * rpp
+        page_prev, page_next = max(page - 1, 1), page + 1
+
+        # Figure out highest page.
+        if total > 0:
+            total_pages = max(1, int(math.ceil(total / float(rpp))))
+            page = max(min(page, total_pages), 1)
+            page_next = min(page + 1, total_pages)
+            page_start = offset + 1
+            page_end = min(total, page_start + rpp - 1)
+
+        if page > 1:
+            qsql = ('SELECT * FROM (%s) AS _ LIMIT %d OFFSET %d' %
+                    (qsql.rstrip(' ;'), rpp, offset))
 
         try:
             cursor = dataset.query(qsql)
@@ -315,7 +345,7 @@ def _query_view(template, table=None):
             error = str(exc)
             app.logger.exception('Error in user-submitted query.')
         else:
-            data = cursor.fetchall()[:app.config['MAX_RESULT_SIZE']]
+            data = cursor.fetchmany(rpp)
             data_description = cursor.description
             row_count = cursor.rowcount
 
@@ -326,11 +356,18 @@ def _query_view(template, table=None):
         default_sql=default_sql,
         error=error,
         ordering=ordering,
+        page=page,
+        page_end=page_end,
+        page_next=page_next,
+        page_prev=page_prev,
+        page_start=page_start,
         query_images=get_query_images(),
         row_count=row_count,
         sql=sql,
         table=table,
-        table_sql=dataset.get_table_sql(table))
+        table_sql=dataset.get_table_sql(table),
+        total=total,
+        total_pages=total_pages)
 
 @app.route('/query/', methods=['GET', 'POST'])
 def generic_query():
@@ -601,8 +638,7 @@ def table_content(table):
     rows_per_page = app.config['ROWS_PER_PAGE']
     total_pages = max(1, int(math.ceil(total_rows / float(rows_per_page))))
     # Restrict bounds.
-    page_number = min(page_number, total_pages)
-    page_number = max(page_number, 1)
+    page_number = max(min(page_number, total_pages), 1)
 
     previous_page = page_number - 1 if page_number > 1 else None
     next_page = page_number + 1 if page_number < total_pages else None
@@ -1188,7 +1224,14 @@ def get_option_parser():
         '--rows-per-page',
         default=50,
         dest='rows_per_page',
-        help='Number of rows to display per page (default=50)',
+        help='Number of rows to display per page in content tab (default=50)',
+        type='int')
+    parser.add_option(
+        '-Q',
+        '--query-rows-per-page',
+        default=1000,
+        dest='query_rows_per_page',
+        help='Number of rows to display per page in query tab (default=1000)',
         type='int')
     parser.add_option(
         '-u',
@@ -1330,6 +1373,8 @@ def main():
 
     if options.rows_per_page:
         app.config['ROWS_PER_PAGE'] = options.rows_per_page
+    if options.query_rows_per_page:
+        app.config['QUERY_ROWS_PER_PAGE'] = options.query_rows_per_page
 
     # Initialize the dataset instance and (optionally) authentication handler.
     initialize_app(args[0], options.read_only, password, options.url_prefix,

@@ -66,9 +66,9 @@
     {% if not data %}
       <p>Empty result set.</p>
     {% else %}
-      <a class="float-right" href="{{ url_for('generic_query', sql=sql) }}{% if ordering %}&ordering={{ ordering }}{% endif %}">Permalink</a>
+      <a class="float-right" href="{{ url_for('generic_query', sql=sql) }}{% if ordering %}&ordering={{ ordering }}{% endif %}{% if page > 1 %}&page={{ page }}{% endif %}">Permalink</a>
       <h3>
-        Results ({{ data|length }})
+        Results ({% if total >= 0 %}{% if total_pages > 1 %}{{ page_start }}&ndash;{{ page_end }} of {% endif %}{{ total }}{% else %}unable to determine{% endif %})
       </h3>
       <table class="table table-striped small cell-content">
         <thead>
@@ -92,6 +92,7 @@
           {% endfor %}
         </tbody>
       </table>
+      {% include "pagination.html" %}
     {% endif %}
   {% endif %}
   <div class="modal fade" id="sql-image-modal" role="dialog">

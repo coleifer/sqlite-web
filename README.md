@@ -92,6 +92,7 @@ The following options are available:
   password, but will use the value from the environment.
 * `-r`, `--read-only`: open database in read-only mode.
 * `-R`, `--rows-per-page`: set pagination on content page, default 50 rows.
+* `-Q`, `--query-rows-per-page`: set pagination on query page, default 1000 rows.
 * `-e`, `--extension`: path or name of loadable extension(s). To load
   multiple extensions, specify ``-e [path]`` for each extension.
 * `-f`, `--foreign-keys`: enable foreign-key constraint pragma.
