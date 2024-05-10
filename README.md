@@ -93,6 +93,8 @@ The following options are available:
 * `-r`, `--read-only`: open database in read-only mode.
 * `-R`, `--rows-per-page`: set pagination on content page, default 50 rows.
 * `-Q`, `--query-rows-per-page`: set pagination on query page, default 1000 rows.
+* `-T`, `--no-truncate`: disable ellipsis for long text values. If this option
+  is used, the full text value is always shown.
 * `-e`, `--extension`: path or name of loadable extension(s). To load
   multiple extensions, specify ``-e [path]`` for each extension.
 * `-f`, `--foreign-keys`: enable foreign-key constraint pragma.

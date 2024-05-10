@@ -89,6 +89,7 @@ CUR_DIR = os.path.realpath(os.path.dirname(__file__))
 DEBUG = False
 ROWS_PER_PAGE = 50
 QUERY_ROWS_PER_PAGE = 1000
+TRUNCATE_VALUES = True
 SECRET_KEY = 'sqlite-database-browser-0.1.0'
 
 app = Flask(
@@ -1090,7 +1091,7 @@ def value_filter(value, max_length=50):
         value = base64.b64encode(value)[:1024].decode('utf8')
     if isinstance(value, unicode_type):
         value = escape(value)
-        if len(value) > max_length:
+        if len(value) > max_length and app.config['TRUNCATE_VALUES']:
             return ('<span class="truncated">%s</span> '
                     '<span class="full" style="display:none;">%s</span>'
                     '<a class="toggle-value" href="#">...</a>') % (
@@ -1234,6 +1235,15 @@ def get_option_parser():
         help='Number of rows to display per page in query tab (default=1000)',
         type='int')
     parser.add_option(
+        '-T',
+        '--no-truncate',
+        action='store_false',
+        default=True,
+        dest='truncate_values',
+        help=('Disable truncating long text values. By default text values '
+              'are ellipsized after 50 characters and the full text is shown '
+              'on click.'))
+    parser.add_option(
         '-u',
         '--url-prefix',
         dest='url_prefix',
@@ -1375,6 +1385,8 @@ def main():
         app.config['ROWS_PER_PAGE'] = options.rows_per_page
     if options.query_rows_per_page:
         app.config['QUERY_ROWS_PER_PAGE'] = options.query_rows_per_page
+
+    app.config['TRUNCATE_VALUES'] = options.truncate_values
 
     # Initialize the dataset instance and (optionally) authentication handler.
     initialize_app(args[0], options.read_only, password, options.url_prefix,
