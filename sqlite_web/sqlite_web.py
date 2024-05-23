@@ -715,11 +715,14 @@ def table_insert(table):
 
     columns = []
     col_dict = {}
+    defaults = {}
     row = {}
     for column in dataset.get_columns(table):
         field = model._meta.columns[column.name]
         if isinstance(field, AutoField):
             continue
+        if column.default:
+            defaults[column.name] = column.default
         columns.append(column)
         col_dict[column.name] = column
         row[column.name] = ''
@@ -760,11 +763,12 @@ def table_insert(table):
         else:
             flash('No data was specified to be inserted.', 'warning')
     else:
-        edited = set(col_dict)  # Make all fields editable on load.
+        edited = set(col_dict) - set(defaults)  # Make all fields editable on load.
 
     return render_template(
         'table_insert.html',
         columns=columns,
+        defaults=defaults,
         edited=edited,
         errors=errors,
         model=model,
