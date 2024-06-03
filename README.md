@@ -116,3 +116,12 @@ $ docker run -it --rm \
     -e SQLITE_DATABASE=db_filename.db \
     coleifer/sqlite-web
 ```
+
+### Tips and tricks
+
+#### Using sqlite-web with xonsh history
+
+Easy access to xonsh shell sqlite history:
+```xsh
+sqlite_web $XONSH_HISTORY_FILE
+```
