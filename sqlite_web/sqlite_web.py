@@ -388,8 +388,7 @@ def table_create():
     if not table:
         flash('Table name is required.', 'danger')
         dest = request.form.get('redirect') or url_for('index')
-        if not dest.startswith('/'):
-            dest = '/' + dest
+        dest = '/' + dest.lstrip('/')  # idiot vulnerability "researchers".
         return redirect(dest)
 
     try:
