@@ -46,4 +46,5 @@ RUN apk update \
 EXPOSE 8080
 VOLUME /data
 WORKDIR /data
+SHELL ["/bin/ash", "-c"]
 CMD sqlite_web -H 0.0.0.0 -x $SQLITE_DATABASE
