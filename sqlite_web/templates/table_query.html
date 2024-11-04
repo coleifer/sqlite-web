@@ -87,6 +87,7 @@
                 <a class="sort-header" href="{{ url_for('table_query', table=table, sql=sql) }}&ordering={% if loop.index == ordering %}-{% endif %}{{ loop.index }}">{{ col_desc[0] }}{% if ordering is not none %}{% if loop.index == ordering %}&#9660;{% elif loop.index == -ordering %}&#9650;{% endif %}{% endif %}</a>
               </th>
             {% endfor %}
+            {% if not dataset.is_readonly and pk_index is not none %}<th></th>{% endif %}
           </tr>
         </thead>
         <tbody>
@@ -97,6 +98,16 @@
                   {% if value is none %}<code>NULL</code>{% else %}{{ value|value_filter|safe }}{% endif %}
                 </td>
               {% endfor %}
+              {% if not dataset.is_readonly and pk_index is not none %}
+                <td>
+                  {% if not is_view or 'update' in view_ops %}
+                  <a class="small" href="{{ url_for('table_update', table=table, pk=row[pk_index]) }}">Edit</a>
+                  {% endif %}
+                  {% if not is_view or 'delete' in view_ops %}
+                  <a class="small" href="{{ url_for('table_delete', table=table, pk=row[pk_index]) }}">Delete</a>
+                  {% endif %}
+                </td>
+              {% endif %}
             </tr>
           {% endfor %}
         </tbody>

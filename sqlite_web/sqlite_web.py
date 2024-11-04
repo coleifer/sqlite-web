@@ -277,6 +277,7 @@ def _query_view(template, table=None):
     data = []
     data_description = error = row_count = sql = None
     ordering = None
+    pk_index = None
 
     sql = qsql = request.values.get('sql') or ''
 
@@ -350,18 +351,28 @@ def _query_view(template, table=None):
             data_description = cursor.description
             row_count = cursor.rowcount
 
+    if data_description is not None and table:
+        col_names = [r[0] for r in data_description]
+        pk = model_class._meta.primary_key
+        if not isinstance(pk, CompositeKey):
+            pk = pk.column_name
+            if pk in col_names:
+                pk_index = col_names.index(pk)
+
     return render_template(
         template,
         data=data,
         data_description=data_description,
         default_sql=default_sql,
         error=error,
+        is_view=any(v.name == table for v in dataset.get_all_views()),
         ordering=ordering,
         page=page,
         page_end=page_end,
         page_next=page_next,
         page_prev=page_prev,
         page_start=page_start,
+        pk_index=pk_index,
         query_images=get_query_images(),
         row_count=row_count,
         sql=sql,
