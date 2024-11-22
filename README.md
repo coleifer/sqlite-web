@@ -20,6 +20,18 @@ $ pip install sqlite-web
 $ sqlite_web /path/to/database.db
 ```
 
+Or run with docker:
+
+```sh
+$ docker run -it --rm \
+    -p 8080:8080 \
+    -v /path/to/your-data:/data \
+    -e SQLITE_DATABASE=db_filename.db \
+    ghcr.io/coleifer/sqlite-web:latest
+```
+
+Then navigate to http://localhost:8080/ to view your database.
+
 ### Features
 
 * Works with your existing SQLite databases, or can be used to create new databases.
@@ -107,6 +119,19 @@ The following options are available:
 A Dockerfile is provided with sqlite-web. To use:
 
 ```console
+#
+# Use GitHub container registry:
+#
+
+$ docker run -it --rm \
+    -p 8080:8080 \
+    -v /path/to/your-data:/data \
+    -e SQLITE_DATABASE=db_filename.db \
+    ghcr.io/coleifer/sqlite-web:latest
+
+#
+# OR build the image yourself:
+#
 
 $ cd docker/  # Change dirs to the dir containing Dockerfile
 $ docker build -t coleifer/sqlite-web .
