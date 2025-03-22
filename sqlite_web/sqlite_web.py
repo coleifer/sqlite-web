@@ -1102,7 +1102,10 @@ def value_filter(value, max_length=50):
     if isinstance(value, binary_types):
         if not isinstance(value, (bytes, bytearray)):
             value = bytes(value)  # Handle `buffer` type.
-        value = base64.b64encode(value)[:1024].decode('utf8')
+        try:
+            value = value.decode('utf8')
+        except UnicodeDecodeError:
+            value = base64.b64encode(value)[:1024].decode('utf8')
     if isinstance(value, unicode_type):
         value = escape(value)
         if len(value) > max_length and app.config['TRUNCATE_VALUES']:
