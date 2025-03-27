@@ -454,6 +454,7 @@ def add_column(table):
     name = request_data.get('name', '')
 
     if request.method == 'POST':
+        name = re.sub(r'[^\w]+', '_', name.strip())
         if name and col_type in column_mapping:
             try:
                 migrate(
@@ -521,6 +522,7 @@ def rename_column(table):
     column_names = [column.name for column in columns]
 
     if request.method == 'POST':
+        rename_to = re.sub(r'[^\w]+', '_', rename_to.strip())
         if (rename in column_names) and (rename_to not in column_names):
             try:
                 migrate(migrator.rename_column(table, rename, rename_to))
@@ -724,7 +726,7 @@ def table_insert(table):
     model = dataset[table].model_class
 
     columns = []
-    col_dict = {}
+    fields = []
     defaults = {}
     row = {}
     for column in dataset.get_columns(table):
@@ -734,20 +736,19 @@ def table_insert(table):
         if column.default:
             defaults[column.name] = column.default
         columns.append(column)
-        col_dict[column.name] = column
-        row[column.name] = ''
+        fields.append(field)
+        row[field.name] = ''
 
     edited = set()
     errors = {}
     if request.method == 'POST':
         insert = {}
         for key, value in request.form.items():
-            if key not in col_dict: continue
-            column = col_dict[key]
-            edited.add(column.name)
-            row[column.name] = value
+            if key not in model._meta.fields: continue
+            field = model._meta.fields[key]
+            edited.add(field.name)
+            row[field.name] = value
 
-            field = model._meta.columns[column.name]
             value, err = minimal_validate_field(field, value)
             if err:
                 errors[key] = err
@@ -773,11 +774,13 @@ def table_insert(table):
         else:
             flash('No data was specified to be inserted.', 'warning')
     else:
-        edited = set(col_dict) - set(defaults)  # Make all fields editable on load.
+        edited = set(model._meta.sorted_field_names) - set(defaults)  # Make all fields editable on load.
+
+    columns_fields = zip(columns, fields)
 
     return render_template(
         'table_insert.html',
-        columns=columns,
+        columns_fields=columns_fields,
         defaults=defaults,
         edited=edited,
         errors=errors,
@@ -819,30 +822,27 @@ def table_update(table, pk):
         return redirect(url_for('table_content', table=table))
 
     columns = dataset.get_columns(table)
-    col_dict = {}
+    fields = model._meta.sorted_fields
     row = {}
-    for column in columns:
-        value = getattr(obj, column.name)
+    for field in fields:
+        value = getattr(obj, field.name)
         if value is None:
-            row[column.name] = None
-        elif column.data_type.lower() == 'blob':
-            row[column.name] = base64.b64encode(value).decode('utf8')
+            row[field.name] = None
+        elif isinstance(field, BlobField):
+            row[field.name] = base64.b64encode(value).decode('utf8')
         else:
-            row[column.name] = value
-
-        col_dict[column.name] = column
+            row[field.name] = value
 
     edited = set()
     errors = {}
     if request.method == 'POST':
         update = {}
         for key, value in request.form.items():
-            if key not in col_dict: continue
-            column = col_dict[key]
-            edited.add(column.name)
-            row[column.name] = value
+            if key not in model._meta.fields: continue
+            field = model._meta.fields[key]
+            edited.add(field.name)
+            row[field.name] = value
 
-            field = model._meta.columns[column.name]
             value, err = minimal_validate_field(field, value)
             if err:
                 errors[key] = err
@@ -865,11 +865,14 @@ def table_update(table, pk):
         else:
             flash('No data was specified to be updated.', 'warning')
 
+    columns_fields = zip(columns, fields)
+
     return render_template(
         'table_update.html',
-        columns=columns,
+        columns_fields=columns_fields,
         edited=edited,
         errors=errors,
+        fields=fields,
         model=model,
         pk=pk,
         row=row,
@@ -910,7 +913,6 @@ def table_delete(table, pk):
 
     return render_template(
         'table_delete.html',
-        column_names=[c.name for c in dataset.get_columns(table)],
         model=model,
         pk=pk,
         row=row,

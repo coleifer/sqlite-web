@@ -5,10 +5,10 @@
   <form action="{{ url_for('table_delete', table=table, pk=pk) }}" method="post" role="form">
     <table class="table table-striped small">
       <tbody>
-      {% for column in column_names %}
+      {% for field in model._meta.sorted_fields %}
         <tr>
-          <th>{{ column }}</th>
-          <td>{% if row[column] is none %}NULL{% else %}{{ row[column]|value_filter|safe }}{% endif %}</td>
+          <th>{{ field.column_name }}</th>
+          <td>{% if row[field.name] is none %}NULL{% else %}{{ row[field.name]|value_filter|safe }}{% endif %}</td>
         </tr>
       {% endfor %}
       </tbody>

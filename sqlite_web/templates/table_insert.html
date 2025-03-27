@@ -7,23 +7,23 @@
     <input checked="checked" id="toggle-checkboxes" type="checkbox" />
   </h3>
   <form action="{{ url_for('table_insert', table=table) }}" method="post" role="form">
-    {% for column in columns %}
+    {% for column, field in columns_fields %}
       <div class="form-group row">
-        <label for="id_{{ column.name }}" class="col-sm-2 col-form-label">{{ column.name }}</label>
+        <label for="id_{{ field.name }}" class="col-sm-2 col-form-label">{{ column.name }}</label>
         <div class="col-sm-10">
           <div class="input-group">
             <div class="input-group-prepend">
               <div class="input-group-text">
-                <input {% if column.name in edited %}checked {% endif %}class="chk-enable-column" data-target-element="id_{{ column.name }}" tabindex="-1" type="checkbox" name="chk_{{ column.name }}" aria-label="Allow updating this column.">
+                <input {% if field.name in edited %}checked {% endif %}class="chk-enable-column" data-target-element="id_{{ field.name }}" tabindex="-1" type="checkbox" name="chk_{{ field.name }}" aria-label="Allow updating this column.">
               </div>
             </div>
             {% if column.data_type.lower() in ('text', 'blob') %}
-              <textarea class="form-control{% if column.name in errors %} is-invalid{% endif %}" {% if column.name not in edited %}disabled {% endif %} id="id_{{ column.name }}" name="{{ column.name }}">{% if row[column.name] == None %}NULL{% else %}{{ row[column.name] }}{% endif %}</textarea>
+              <textarea class="form-control{% if field.name in errors %} is-invalid{% endif %}" {% if field.name not in edited %}disabled {% endif %} id="id_{{ field.name }}" name="{{ field.name }}">{% if row[field.name] == None %}NULL{% else %}{{ row[field.name] }}{% endif %}</textarea>
             {% else %}
-              <input class="form-control{% if column.name in errors %} is-invalid{% endif %}" {% if column.name not in edited %}disabled {% endif %} id="id_{{ column.name }}" name="{{ column.name }}" value="{% if row[column.name] == None %}NULL{% else %}{{ row[column.name] }}{% endif %}" />
+              <input class="form-control{% if field.name in errors %} is-invalid{% endif %}" {% if field.name not in edited %}disabled {% endif %} id="id_{{ field.name }}" name="{{ field.name }}" value="{% if row[field.name] == None %}NULL{% else %}{{ row[field.name] }}{% endif %}" />
             {% endif %}
-            {% if column.name in errors %}
-              <div class="invalid-feedback">{{ errors[column.name] }}</div>
+            {% if field.name in errors %}
+              <div class="invalid-feedback">{{ errors[field.name] }}</div>
             {% endif %}
           </div>
           <small class="form-text text-muted">
