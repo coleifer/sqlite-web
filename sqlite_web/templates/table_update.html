@@ -4,7 +4,7 @@
   <h3>Update row {{ table_pk|pk_display(pk) }} in {{ table }}
     <input id="toggle-checkboxes" type="checkbox" />
   </h3>
-  <form action="{{ url_for('table_update', table=table, pk=pk) }}" method="post" role="form">
+  <form action="{{ url_for('table_update', table=table, pk=pk, **request.args) }}" method="post" role="form">
     {% for column, field in columns_fields %}
       <div class="form-group row">
         <label for="id_{{ field.name }}" class="col-sm-2 col-form-label">{{ column.name }}</label>
@@ -35,6 +35,6 @@
       </div>
     {% endfor %}
     <button class="btn btn-primary" type="submit">Update</button>
-    <a class="btn btn-secondary" href="{{ url_for('table_content', table=table) }}">Cancel</a>
+      <a class="btn btn-secondary" href="{{ url_for('table_content', table=table, **request.args) }}">Cancel</a>
   </form>
 {% endblock %}

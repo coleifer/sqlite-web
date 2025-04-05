@@ -647,7 +647,39 @@ def table_content(table):
     ds_table = dataset[table]
     model = ds_table.model_class
 
-    total_rows = ds_table.all().count()
+    filter_column = request.args.get('filter_column')
+    filter_operator = request.args.get('filter_operator', '=')
+    filter_value = request.args.get('filter_value')
+
+    query = ds_table.all()
+
+    if filter_column and filter_column in model._meta.columns:
+        field = model._meta.columns[filter_column]
+
+        if filter_operator in ('IS NULL', 'IS NOT NULL'):
+            if filter_operator == 'IS NULL':
+                query = query.where(field.is_null())
+            else:
+                query = query.where(field.is_null(False))
+        elif filter_value:
+            if filter_operator == '=':
+                query = query.where(field == filter_value)
+            elif filter_operator == '!=':
+                query = query.where(field != filter_value)
+            elif filter_operator == '>':
+                query = query.where(field > filter_value)
+            elif filter_operator == '>=':
+                query = query.where(field >= filter_value)
+            elif filter_operator == '<':
+                query = query.where(field < filter_value)
+            elif filter_operator == '<=':
+                query = query.where(field <= filter_value)
+            elif filter_operator == 'LIKE':
+                query = query.where(field ** f'%{filter_value}%')
+            elif filter_operator == 'NOT LIKE':
+                query = query.where(~(field ** f'%{filter_value}%'))
+
+    total_rows = query.count()
     rows_per_page = app.config['ROWS_PER_PAGE']
     total_pages = max(1, int(math.ceil(total_rows / float(rows_per_page))))
     # Restrict bounds.
@@ -656,7 +688,7 @@ def table_content(table):
     previous_page = page_number - 1 if page_number > 1 else None
     next_page = page_number + 1 if page_number < total_pages else None
 
-    query = ds_table.all().paginate(page_number, rows_per_page)
+    query = query.paginate(page_number, rows_per_page)
 
     ordering = request.args.get('ordering')
     if ordering:
@@ -684,7 +716,10 @@ def table_content(table):
         table_pk=model._meta.primary_key,
         table_sql=dataset.get_table_sql(table),
         total_pages=total_pages,
-        total_rows=total_rows)
+        total_rows=total_rows,
+        filter_column=filter_column,
+        filter_operator=filter_operator,
+        filter_value=filter_value)
 
 def minimal_validate_field(field, value):
     if value.lower().strip() == 'null':
@@ -789,16 +824,24 @@ def table_insert(table):
         table=table)
 
 def redirect_to_previous(table):
-    page_ordering = session.get('%s.last_viewed' % table)
-    if not page_ordering:
-        return redirect(url_for('table_content', table=table))
-    page, ordering = page_ordering
-    kw = {}
-    if page and page != 1:
-        kw['page'] = page
-    if ordering:
-        kw['ordering'] = ordering
-    return redirect(url_for('table_content', table=table, **kw))
+    preserved_args = {
+        'page': request.args.get('page'),
+        'ordering': request.args.get('ordering'),
+        'filter_column': request.args.get('filter_column'),
+        'filter_operator': request.args.get('filter_operator'),
+        'filter_value': request.args.get('filter_value')
+    }
+
+    if not any(preserved_args.values()) and f'{table}.last_viewed' in session:
+        last_page, last_ordering = session.get(f'{table}.last_viewed')
+        preserved_args.update({
+            'page': last_page,
+            'ordering': last_ordering
+        })
+
+    preserved_args = {k: v for k, v in preserved_args.items() if v is not None}
+
+    return redirect(url_for('table_content', table=table, **preserved_args))
 
 @app.route('/<table>/update/<b64:pk>/', methods=['GET', 'POST'])
 @require_table

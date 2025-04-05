@@ -8,13 +8,49 @@
 {% block content_tab_class %} active{% endblock %}
 
 {% block inner_content %}
-  {# add filters #}
+  <div class="row mb-3">
+    <div class="col-md-6">
+      <form method="get" class="form-inline">
+        <div class="form-group mr-2">
+          <label for="filter_column" class="mr-2">Filter:</label>
+          <select name="filter_column" id="filter_column" class="form-control form-control-sm">
+            <option value="">-- Select Column --</option>
+            {% for column in columns %}
+              <option value="{{ column }}" {% if filter_column == column %}selected{% endif %}>{{ column }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group mr-2">
+          <select name="filter_operator" class="form-control form-control-sm">
+            <option value="=" {% if filter_operator == '=' %}selected{% endif %}>=</option>
+            <option value="!=" {% if filter_operator == '!=' %}selected{% endif %}>!=</option>
+            <option value=">" {% if filter_operator == '>' %}selected{% endif %}>&gt;</option>
+            <option value=">=" {% if filter_operator == '>=' %}selected{% endif %}>&gt;=</option>
+            <option value="<" {% if filter_operator == '<' %}selected{% endif %}>&lt;</option>
+            <option value="<=" {% if filter_operator == '<=' %}selected{% endif %}>&lt;=</option>
+            <option value="LIKE" {% if filter_operator == 'LIKE' %}selected{% endif %}>LIKE</option>
+            <option value="NOT LIKE" {% if filter_operator == 'NOT LIKE' %}selected{% endif %}>NOT LIKE</option>
+            <option value="IS NULL" {% if filter_operator == 'IS NULL' %}selected{% endif %}>IS NULL</option>
+            <option value="IS NOT NULL" {% if filter_operator == 'IS NOT NULL' %}selected{% endif %}>IS NOT NULL</option>
+          </select>
+        </div>
+        <div class="form-group mr-2">
+          <input type="text" name="filter_value" class="form-control form-control-sm"
+                 value="{{ filter_value if filter_value and filter_operator not in ['IS NULL', 'IS NOT NULL'] }}"
+                 {% if filter_operator in ['IS NULL', 'IS NOT NULL'] %}disabled{% endif %}>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm mr-2 mt-2">Apply</button>
+        <a href="{{ url_for('table_content', table=table, ordering=ordering) }}" class="btn btn-secondary btn-sm mr-2 mt-2">Clear</a>
+      </form>
+    </div>
+  </div>
+
   <table class="table table-striped small cell-content">
     <thead>
       <tr>
         {% for column in columns %}
           <th>
-            <a href="./?ordering={% if ordering == column %}-{% endif %}{{ column }}">{{ column }}</a>
+            <a href="./?ordering={% if ordering == column %}-{% endif %}{{ column }}{% if filter_column %}&filter_column={{ filter_column }}&filter_operator={{ filter_operator }}&filter_value={{ filter_value }}{% endif %}">{{ column }}</a>
           </th>
         {% endfor %}
         {% if not dataset.is_readonly and table_pk %}<th></th>{% endif %}
@@ -37,10 +73,10 @@
             <td>
               {% set pk = row|encode_pk(table_pk) %}
               {% if not is_view or 'update' in view_ops %}
-              <a class="small" href="{{ url_for('table_update', table=table, pk=pk) }}">Edit</a>
+              <a class="small" href="{{ url_for('table_update', table=table, pk=pk, **request.args) }}">Edit</a>
               {% endif %}
               {% if not is_view or 'delete' in view_ops %}
-              <a class="small" href="{{ url_for('table_delete', table=table, pk=pk) }}">Delete</a>
+              <a class="small" href="{{ url_for('table_delete', table=table, pk=pk, **request.args) }}">Delete</a>
               {% endif %}
             </td>
           {% endif %}
@@ -51,19 +87,23 @@
   <nav>
     <ul class="pagination">
       <li class="{% if not previous_page %}disabled {% endif %}page-item">
-        <a class="page-link" href="{{ url_for('table_content', table=table, page=1, ordering=ordering) }}">&laquo;</a>
+        <a class="page-link"
+           href="{{ url_for('table_content', table=table, page=1, ordering=ordering, filter_column=filter_column, filter_operator=filter_operator, filter_value=filter_value) }}">&laquo;</a>
       </li>
       <li class="{% if not previous_page %}disabled {% endif %}page-item">
-        <a class="page-link" href="{{ url_for('table_content', table=table, page=previous_page, ordering=ordering) }}">&lsaquo;</a>
+        <a class="page-link"
+           href="{{ url_for('table_content', table=table, page=previous_page, ordering=ordering, filter_column=filter_column, filter_operator=filter_operator, filter_value=filter_value) }}">&lsaquo;</a>
       </li>
       <li class="page-item disabled">
         <span class="page-link">Page {{ page }} / {{ total_pages }}</span>
       </li>
       <li class="{% if not next_page %}disabled {% endif %}page-item">
-        <a class="page-link" href="{{ url_for('table_content', table=table, page=next_page, ordering=ordering) }}">&rsaquo;</a>
+        <a class="page-link"
+           href="{{ url_for('table_content', table=table, page=next_page, ordering=ordering, filter_column=filter_column, filter_operator=filter_operator, filter_value=filter_value) }}">&rsaquo;</a>
       </li>
       <li class="{% if not next_page %}disabled {% endif %}page-item">
-        <a class="page-link" href="{{ url_for('table_content', table=table, page=total_pages, ordering=ordering) }}">&raquo;</a>
+        <a class="page-link"
+           href="{{ url_for('table_content', table=table, page=total_pages, ordering=ordering, filter_column=filter_column, filter_operator=filter_operator, filter_value=filter_value) }}">&raquo;</a>
       </li>
     </ul>
   </nav>
