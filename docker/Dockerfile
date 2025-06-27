@@ -34,7 +34,7 @@ RUN apk update \
       && tar xzf sqlite.tar.gz \
       && cd sqlite \
       && buildArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)" \
-      && LIBS="-lm" PREFIX="/usr/local" ./configure --build="$buildArch" --disable-tcl --enable-shared --enable-static --enable-tempstore=always --prefix="/usr/local" \
+      && LIBS="-lm" PREFIX="/usr/local" ./configure --build="$buildArch" --disable-tcl --enable-shared --enable-static --prefix="/usr/local" \
       && make -j4 \
       && make install \
       && cd ../ \
