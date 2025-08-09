@@ -5,6 +5,7 @@ __version__ = '0.6.4'
 import base64
 import datetime
 import hashlib
+import json
 import logging
 import math
 import operator
@@ -1097,25 +1098,67 @@ def pk_display(table_pk, pk):
     return pk
 
 @app.template_filter('value_filter')
-def value_filter(value, max_length=50):
+def value_filter(value, param=None, table=None):
+    """
+    Render a database value for display.
+
+    Usage in templates:
+      {{ value|value_filter }}                      -> default behavior
+      {{ value|value_filter(100) }}                 -> specify max_length
+      {{ value|value_filter(field_name, table_name) }} -> attempt JSON-aware rendering
+
+    If a value is bytes, try to decode as UTF-8. If decoding fails, fall back to
+    base64 encoding. If the decoded text (or a plain string value) parses as
+    JSON, pretty-print it inside a <pre> block.
+    """
+    # Preserve numeric values as-is.
     if isinstance(value, numeric):
         return value
 
+    # Determine whether `param` is a max_length (int) or a field name (str).
+    if isinstance(param, int):
+        max_length = param
+        field_name = None
+    else:
+        max_length = 50
+        field_name = param
+
+    # Handle binary types (bytes, bytearray, buffer, etc).
     if isinstance(value, binary_types):
         if not isinstance(value, (bytes, bytearray)):
             value = bytes(value)  # Handle `buffer` type.
         try:
-            value = value.decode('utf8')
+            text = value.decode('utf8')
         except UnicodeDecodeError:
-            value = base64.b64encode(value)[:1024].decode('utf8')
+            # Non-text binary: show a short base64 representation.
+            return base64.b64encode(value)[:1024].decode('utf8')
+        else:
+            # For decoded text, attempt to parse as JSON first.
+            try:
+                obj = json.loads(text)
+            except Exception:
+                value = escape(text)
+            else:
+                pretty = json.dumps(obj, indent=2, ensure_ascii=False)
+                return Markup('<pre>%s</pre>' % escape(pretty))
+
+    # At this point, value may be a (decoded) string.
     if isinstance(value, unicode_type):
-        value = escape(value)
-        if len(value) > max_length and app.config['TRUNCATE_VALUES']:
-            return ('<span class="truncated">%s</span> '
-                    '<span class="full" style="display:none;">%s</span>'
-                    '<a class="toggle-value" href="#">...</a>') % (
-                        value[:max_length],
-                        value)
+        # Try to parse strings as JSON and pretty-print if possible.
+        try:
+            obj = json.loads(value)
+        except Exception:
+            value = escape(value)
+            if len(value) > max_length and app.config['TRUNCATE_VALUES']:
+                return ('<span class="truncated">%s</span> '
+                        '<span class="full" style="display:none;">%s</span>'
+                        '<a class="toggle-value" href="#">...</a>') % (
+                            value[:max_length],
+                            value)
+        else:
+            pretty = json.dumps(obj, indent=2, ensure_ascii=False)
+            return Markup('<pre>%s</pre>' % escape(pretty))
+
     return value
 
 column_re = re.compile('(.+?)\((.+)\)', re.S)
