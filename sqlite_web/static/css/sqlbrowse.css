@@ -1,20 +1,84 @@
-div.page-header {
-  margin: 40px 0 20px;
-  padding-bottom: 9px;
-  border-bottom: 1px solid #f8f5f0;
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: #f8f9fa;
+    color: #212529;
 }
-#sidebar .nav>li>a {padding: 3px 10px;}
-h1>small {font-size: 50%;}
+
+.page-header {
+    margin: 20px 0;
+    padding-bottom: 9px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+#sidebar {
+    background-color: #fff;
+    padding: 15px;
+    border-right: 1px solid #dee2e6;
+}
+
+#sidebar .nav>li>a {
+    padding: 5px 15px;
+    color: #343a40;
+}
+
+#sidebar .nav>li>a:hover {
+    background-color: #e9ecef;
+}
+
+h1 {
+    font-size: 2rem;
+}
+
+h1>small {
+    font-size: 65%;
+    color: #6c757d;
+}
+
+.table {
+    background-color: #fff;
+}
+
 table.cell-content td,
 table.cell-content th {
-    padding: 1px 4px 1px 4px;
-    border: 1px dotted #cccccc;
+    padding: 8px 12px;
+    border: 1px solid #dee2e6;
+    vertical-align: middle;
 }
-ul.pagination .page-item .page-link {
-    border-color: #aaaaaa !important;
-    color: #888;
+
+table.cell-content th {
+    background-color: #e9ecef;
 }
-ul.pagination .page-item.disabled .page-link {
-    border-color: #dee2e6 !important;
-    color: #aaa;
+
+.btn-primary {
+    background-color: #007bff;
+    border-color: #007bff;
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+
+.alert {
+    border-radius: .25rem;
+}
+
+footer {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #dee2e6;
+    color: #6c757d;
+    font-size: 0.9em;
+}
+
+code {
+    color: #e83e8c;
+    word-wrap: break-word;
+}
+
+.main-content {
+    background-color: #fff;
+    padding: 20px;
+    border: 1px solid #dee2e6;
+    border-radius: .25rem;
 }

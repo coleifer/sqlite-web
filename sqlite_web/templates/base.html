@@ -55,13 +55,15 @@
           {% block logout %}{% if login_required %}<a href="{{ url_for('logout') }}">Log-out</a>{% endif %}{% endblock %}
         </div>
         <div class="col-9" id="content">
-          {% for category, message in get_flashed_messages(with_categories=true) %}
-            <div class="alert alert-{{ category }} alert-dismissable">
-              <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
-              <p>{{ message }}</p>
-            </div>
-          {% endfor %}
-          {% block content %}{% endblock %}
+          <div class="main-content">
+            {% for category, message in get_flashed_messages(with_categories=true) %}
+              <div class="alert alert-{{ category }} alert-dismissable">
+                <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
+                <p>{{ message }}</p>
+              </div>
+            {% endfor %}
+            {% block content %}{% endblock %}
+          </div>
         </div>
       </div>
       <div class="row">

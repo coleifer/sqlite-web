@@ -924,6 +924,51 @@ def table_delete(table, pk):
 def table_query(table):
     return _query_view('table_query.html', table)
 
+
+@app.route('/<table>/raw/<b64:pk>/<column>')
+@require_table
+def raw_cell_content(table, pk, column):
+    dataset.update_cache(table)
+    model = dataset[table].model_class
+    table_pk = model._meta.primary_key
+    if not table_pk:
+        abort(404)
+
+    expr = decode_pk(model, pk)
+    try:
+        # Select only the desired column.
+        query = model.select(model._meta.columns[column]).where(expr).tuples()
+        value, = query.get()
+    except (model.DoesNotExist, KeyError):
+        abort(404)
+
+    if value is None:
+        return ''
+
+    response = make_response(value)
+    if isinstance(value, bytes):
+        content_type = 'application/octet-stream'  # Default
+        if value.startswith(b'\xff\xd8\xff'):
+            content_type = 'image/jpeg'
+        elif value.startswith(b'\x89PNG\r\n\x1a\n'):
+            content_type = 'image/png'
+        elif value.startswith(b'GIF87a') or value.startswith(b'GIF89a'):
+            content_type = 'image/gif'
+        elif value.startswith(b'BM'):
+            content_type = 'image/bmp'
+        elif value.startswith(b'RIFF') and value[8:12] == b'WEBP':
+            content_type = 'image/webp'
+        elif b'ftyp' in value[4:8]:
+            content_type = 'video/mp4'
+        elif value.startswith(b'\x1aE\xdf\xa3'):
+             content_type = 'video/webm'
+
+        response.headers['Content-Type'] = content_type
+    else:
+        response.headers['Content-Type'] = 'text/plain'
+    return response
+
+
 def export(query, export_format, table=None):
     buf = StringIO()
     if export_format == 'json':
@@ -1096,18 +1141,36 @@ def pk_display(table_pk, pk):
         return tuple(pk.split(':::'))
     return pk
 
+@app.template_filter('b64encode')
+def b64encode_filter(value):
+    if isinstance(value, binary_types):
+        return base64.b64encode(value).decode('utf-8')
+    return value
+
+@app.template_filter('get_media_type')
+def get_media_type(value):
+    if not isinstance(value, binary_types):
+        return None
+    if not isinstance(value, (bytes, bytearray)):
+        value = bytes(value)
+
+    if value.startswith(b'\xff\xd8\xff'): return 'image'
+    if value.startswith(b'\x89PNG\r\n\x1a\n'): return 'image'
+    if value.startswith(b'GIF87a') or value.startswith(b'GIF89a'): return 'image'
+    if value.startswith(b'BM'): return 'image'
+    if value.startswith(b'RIFF') and value[8:12] == b'WEBP': return 'image'
+    if b'ftyp' in value[4:8]: return 'video'
+    if value.startswith(b'\x1aE\xdf\xa3'): return 'video'
+    return 'binary'
+
 @app.template_filter('value_filter')
 def value_filter(value, max_length=50):
     if isinstance(value, numeric):
         return value
 
     if isinstance(value, binary_types):
-        if not isinstance(value, (bytes, bytearray)):
-            value = bytes(value)  # Handle `buffer` type.
-        try:
-            value = value.decode('utf8')
-        except UnicodeDecodeError:
-            value = base64.b64encode(value)[:1024].decode('utf8')
+        return 'BLOB, %s bytes' % len(value)
+
     if isinstance(value, unicode_type):
         value = escape(value)
         if len(value) > max_length and app.config['TRUNCATE_VALUES']:

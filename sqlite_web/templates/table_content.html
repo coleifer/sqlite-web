@@ -25,9 +25,17 @@
         <tr>
           {% for field in field_names %}
             {% set value = row[field] %}
+            {% set media_type = value|get_media_type %}
             <td>
               {% if value is none %}
                 <code>NULL</code>
+              {% elif media_type == 'image' %}
+                <img src="data:image;base64,{{ value|b64encode }}" style="max-height: 100px; max-width: 100px;" />
+              {% elif media_type == 'video' %}
+                <video controls style="max-height: 100px; max-width: 100px;">
+                  <source src="{{ url_for('raw_cell_content', table=table, pk=row|encode_pk(table_pk), column=field) }}">
+                  Your browser does not support the video tag.
+                </video>
               {% else %}
                 {{ value|value_filter|safe }}
               {% endif %}
