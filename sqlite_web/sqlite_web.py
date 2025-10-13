@@ -354,7 +354,7 @@ def _query_view(template, table=None):
     if data_description is not None and table:
         col_names = [r[0] for r in data_description]
         pk = model_class._meta.primary_key
-        if not isinstance(pk, CompositeKey):
+        if not isinstance(pk, CompositeKey) and pk is not False:
             pk = pk.column_name
             if pk in col_names:
                 pk_index = col_names.index(pk)
