@@ -354,10 +354,10 @@ def _query_view(template, table=None):
     if data_description is not None and table:
         col_names = [r[0] for r in data_description]
         pk = model_class._meta.primary_key
-        if not isinstance(pk, CompositeKey):
-            pk = pk.column_name
-            if pk in col_names:
-                pk_index = col_names.index(pk)
+        if hasattr(pk, 'column_name'):
+            pk_col_name = pk.column_name  # Use a new variable for clarity
+            if pk_col_name in col_names:
+                pk_index = col_names.index(pk_col_name)
 
     return render_template(
         template,
