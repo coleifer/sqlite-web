@@ -5,6 +5,7 @@ __version__ = '0.6.5'
 import base64
 import datetime
 import hashlib
+import importlib
 import logging
 import math
 import operator
@@ -1171,6 +1172,8 @@ def _now():
 @app.before_request
 def _connect_db():
     dataset.connect()
+    if app.config.get('STARTUP_HOOK'):
+        app.config['STARTUP_HOOK'](dataset._database)
 
 @app.teardown_request
 def _close_db(exc):
@@ -1279,6 +1282,12 @@ def get_option_parser():
         action='append',
         dest='extensions',
         help='Path or name of loadable extension.')
+    parser.add_option(
+        '-s',
+        '--startup-hook',
+        dest='startup_hook',
+        help=('Path to a startup hook used to initialize the connection '
+              'before each request, e.g. my.module.some_callable'))
     ssl_opts = optparse.OptionGroup(parser, 'SSL options')
     ssl_opts.add_option(
         '-c',
@@ -1327,7 +1336,7 @@ def install_auth_handler(password):
             return redirect(url_for('login'))
 
 def initialize_app(filename, read_only=False, password=None, url_prefix=None,
-                   extensions=None, foreign_keys=None):
+                   extensions=None, foreign_keys=None, startup_hook=None):
     global dataset
     global migrator
 
@@ -1360,6 +1369,9 @@ def initialize_app(filename, read_only=False, password=None, url_prefix=None,
         # Load extensions before performing introspection.
         for ext in extensions:
             db.load_extension(ext)
+
+    if startup_hook:
+        startup_hook(db)
 
     dataset = SqliteDataSet(db, bare_fields=True, **dataset_kw)
 
@@ -1407,9 +1419,24 @@ def main():
 
     app.config['TRUNCATE_VALUES'] = options.truncate_values
 
+    if options.startup_hook:
+        try:
+            module_path, hook_name = options.startup_hook.rsplit('.', 1)
+        except Exception:
+            die('startup hook must be dotted-path to module.hook_function')
+        module = importlib.import_module(module_path)
+        try:
+            hook = getattr(module, hook_name)
+        except AttributeError:
+            die('Hook named "%s" not found in %s' % (hook_name, module))
+
+        app.config['STARTUP_HOOK'] = hook
+    else:
+        hook = None
+
     # Initialize the dataset instance and (optionally) authentication handler.
     initialize_app(args[0], options.read_only, password, options.url_prefix,
-                   options.extensions, options.foreign_keys)
+                   options.extensions, options.foreign_keys, hook)
 
     if options.browser:
         open_browser_tab(options.host, options.port)

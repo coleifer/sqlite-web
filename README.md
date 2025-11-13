@@ -109,6 +109,9 @@ The following options are available:
   is used, the full text value is always shown.
 * `-e`, `--extension`: path or name of loadable extension(s). To load
   multiple extensions, specify ``-e [path]`` for each extension.
+* `-s`, `--startup-hook`: path to a startup hook used to initialize the
+    connection before each request, e.g. `my.module.some_callable`. Should
+    accept one parameter, the `SqliteDatabase` instance.
 * `-f`, `--foreign-keys`: enable foreign-key constraint pragma.
 * `-u`, `--url-prefix`: URL prefix for application, e.g. "/sqlite-web".
 * `-c`, `--cert` and ``-k``, ``--key`` - specify SSL cert and private key.
