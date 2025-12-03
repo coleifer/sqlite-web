@@ -42,9 +42,10 @@ RUN apk update \
       && pip install --upgrade pip \
       && pip install --no-cache-dir cython \
       && pip install --no-cache-dir flask peewee sqlite-web \
-      && apk del .build-deps
+      && apk del .build-deps \
+      && apk add --no-cache tini
 EXPOSE 8080
 VOLUME /data
 WORKDIR /data
-SHELL ["/bin/ash", "-c"]
-CMD sqlite_web -H 0.0.0.0 -x $SQLITE_DATABASE
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["sqlite_web", "-H", "0.0.0.0", "-x", "$SQLITE_DATABASE"]
