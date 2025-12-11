@@ -1,4 +1,4 @@
-FROM python:3-alpine3.7
+FROM python:3-alpine3.12
 ENV CFLAGS="-DSQLITE_DEFAULT_CACHE_SIZE=-8000 \
             -DSQLITE_DEFAULT_FOREIGN_KEYS=1 \
             -DSQLITE_DEFAULT_MEMSTATUS=0 \
@@ -46,5 +46,4 @@ RUN apk update \
 EXPOSE 8080
 VOLUME /data
 WORKDIR /data
-SHELL ["/bin/ash", "-c"]
-CMD sqlite_web -H 0.0.0.0 -x $SQLITE_DATABASE
+ENTRYPOINT ["sqlite_web", "-H", "0.0.0.0", "-x"]

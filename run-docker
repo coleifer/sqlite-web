@@ -8,7 +8,7 @@ fi
 default_port="8012"
 port=${2:-$default_port}
 
-db_dir=$(dirname $1)
-db_file=$(basename $1)
+db_dir="$(realpath $(dirname "$1"))"
+db_file="$(basename "$1")"
 echo "Starting on: http://0.0.0.0:$port"
-docker run -it --rm -p "$port:8080" -v $db_dir:/data -e SQLITE_DATABASE="$db_file" coleifer/sqlite-web
+docker run -it --rm -p "$port:8080" -v $db_dir:/data coleifer/sqlite-web "$db_file" 

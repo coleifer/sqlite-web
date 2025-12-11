@@ -26,8 +26,8 @@ Or run with docker:
 $ docker run -it --rm \
     -p 8080:8080 \
     -v /path/to/your-data:/data \
-    -e SQLITE_DATABASE=db_filename.db \
-    ghcr.io/coleifer/sqlite-web:latest
+    ghcr.io/coleifer/sqlite-web:latest \
+    db_filename.db
 ```
 
 Then navigate to http://localhost:8080/ to view your database.
@@ -129,8 +129,8 @@ A Dockerfile is provided with sqlite-web. To use:
 $ docker run -it --rm \
     -p 8080:8080 \
     -v /path/to/your-data:/data \
-    -e SQLITE_DATABASE=db_filename.db \
-    ghcr.io/coleifer/sqlite-web:latest
+    ghcr.io/coleifer/sqlite-web:latest \
+    db_filename.db
 
 #
 # OR build the image yourself:
@@ -141,6 +141,6 @@ $ docker build -t coleifer/sqlite-web .
 $ docker run -it --rm \
     -p 8080:8080 \
     -v /path/to/your-data:/data \
-    -e SQLITE_DATABASE=db_filename.db \
     coleifer/sqlite-web
+    db_filename.db
 ```
