@@ -230,7 +230,7 @@ class SqliteDataSet(DataSet):
             ('trigger', name))
         triggers = [t for t, in cursor.fetchall()]
         rgx = re.compile(r'CREATE\s+TRIGGER.+?\sINSTEAD\s+OF\s+'
-                         '(INSERT|UPDATE|DELETE)\s', re.I)
+                         r'(INSERT|UPDATE|DELETE)\s', re.I)
         operations = set()
         for trigger in triggers:
             operations.update([op.lower() for op in rgx.findall(trigger)])
@@ -1119,7 +1119,7 @@ def value_filter(value, max_length=50):
                         value)
     return value
 
-column_re = re.compile('(.+?)\((.+)\)', re.S)
+column_re = re.compile(r'(.+?)\((.+)\)', re.S)
 column_split_re = re.compile(r'(?:[^,(]|\([^)]*\))+')
 
 def _format_create_table(sql):
