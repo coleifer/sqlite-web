@@ -239,7 +239,11 @@ class SqliteDataSet(DataSet):
 
 class Base64Converter(BaseConverter):
     def to_python(self, value):
-        return base64.urlsafe_b64decode(value).decode()
+        value = base64.urlsafe_b64decode(value)
+        try:
+            return value.decode('utf8')
+        except UnicodeDecodeError:
+            return value
 
     def to_url(self, value):
         if not isinstance(value, (bytes, str)):
@@ -1095,6 +1099,8 @@ def decode_pk(model, pk_data):
 def pk_display(table_pk, pk):
     if isinstance(table_pk, CompositeKey):
         return tuple(pk.split(':::'))
+    elif isinstance(pk, bytes):
+        pk = base64.b64encode(pk).decode()
     return pk
 
 @app.template_filter('value_filter')
