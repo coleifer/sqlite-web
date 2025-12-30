@@ -1103,6 +1103,8 @@ def pk_display(table_pk, pk):
         pk = base64.b64encode(pk).decode()
     return pk
 
+link_re = re.compile(r'(?:https?|mailto)://[^\s]+')
+
 @app.template_filter('value_filter')
 def value_filter(value, max_length=50):
     if isinstance(value, numeric):
@@ -1116,6 +1118,11 @@ def value_filter(value, max_length=50):
         except UnicodeDecodeError:
             value = base64.b64encode(value)[:1024].decode('utf8')
     if isinstance(value, unicode_type):
+        if link_re.match(value):
+            label = value
+            if len(value) > max_length and app.config['TRUNCATE_VALUES']:
+                label = value[:max_length]
+            return '<a href="%s">%s</a>' % (value.replace('"', '&quot;'), escape(label))
         value = escape(value)
         if len(value) > max_length and app.config['TRUNCATE_VALUES']:
             return ('<span class="truncated">%s</span> '
