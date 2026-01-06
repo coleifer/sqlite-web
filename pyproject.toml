@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sqlite-web"
-version = "0.6.6"
+version = "0.6.7"
 description = "web-based sqlite database browser"
 dependencies = [
     "flask",
