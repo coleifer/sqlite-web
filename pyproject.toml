@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sqlite-web"
+version = "0.6.6"
+description = "web-based sqlite database browser"
+dependencies = [
+    "flask",
+    "peewee>=3.0.0",
+    "pygments"
+]
+readme = "README.md"
+license = "MIT"
+authors = [
+    { name = "Charles Leifer", email = "coleifer@gmail.com" }
+]
+classifiers = [
+    "Environment :: Web Environment",
+    "Programming Language :: Python :: 3",
+    "Topic :: Database",
+    "Topic :: Database :: Front-Ends",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[project.scripts]
+sqlite_web = "sqlite_web.sqlite_web:main"
+
+[project.urls]
+Repository = "https://github.com/coleifer/sqlite-web"
