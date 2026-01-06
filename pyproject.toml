@@ -12,7 +12,6 @@ dependencies = [
     "pygments"
 ]
 readme = "README.md"
-license = "MIT"
 authors = [
     { name = "Charles Leifer", email = "coleifer@gmail.com" }
 ]
