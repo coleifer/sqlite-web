@@ -28,3 +28,6 @@ sqlite_web = "sqlite_web.sqlite_web:main"
 
 [project.urls]
 Repository = "https://github.com/coleifer/sqlite-web"
+
+[tool.setuptools.packages.find]
+include= ["sqlite_web*"]
