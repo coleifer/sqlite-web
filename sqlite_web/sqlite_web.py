@@ -307,9 +307,31 @@ def _query_view(template, table=None):
     if table:
         default_sql = 'SELECT * FROM "%s"' % table
         model_class = dataset[table].model_class
+        pk = model_class._meta.primary_key
+        is_composite_pk = isinstance(pk, CompositeKey)
+        allow_edit = not dataset.is_readonly and pk is not False
+        allow_bulk = allow_edit and not is_composite_pk
     else:
         default_sql = ''
         model_class = dataset._base_model
+        pk = None
+        is_composite_pk = False
+        allow_edit = False
+        allow_bulk = False
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+        pks = request.form.getlist('pk')
+        if action == 'bulk-delete':
+            if not allow_bulk:
+                flash('Cannot perform bulk operation on this table.', 'warning')
+            elif not pks:
+                flash('No rows were selected.', 'warning')
+            else:
+                n = (model_class.delete()
+                     .where(model_class._meta.primary_key.in_(pks))
+                     .execute())
+                flash('Successfully deleted %s row(s)' % n, 'success')
 
     page = page_next = page_prev = page_start = page_end = total_pages = 1
     total = -1  # Number of rows in query result.
@@ -358,19 +380,17 @@ def _query_view(template, table=None):
 
     if data_description is not None and table:
         col_names = [r[0] for r in data_description]
-        pk = model_class._meta.primary_key
-        if not isinstance(pk, CompositeKey) and pk is not False:
-            pk = pk.column_name
-            if pk in col_names:
-                pk_index = col_names.index(pk)
+        if pk and not is_composite_pk and pk.column_name in col_names:
+            pk_index = col_names.index(pk.column_name)
 
     return render_template(
         template,
+        allow_bulk=allow_bulk,
+        allow_edit=allow_edit,
         data=data,
         data_description=data_description,
         default_sql=default_sql,
         error=error,
-        is_view=any(v.name == table for v in dataset.get_all_views()),
         ordering=ordering,
         page=page,
         page_end=page_end,
@@ -641,16 +661,37 @@ def drop_trigger(table):
         table=table)
 
 
-@app.route('/<table>/content/')
+@app.route('/<table>/content/', methods=['GET', 'POST'])
 @require_table
 def table_content(table):
-    page_number = request.args.get('page') or ''
-    if page_number == 'last': page_number = '1000000'
-    page_number = int(page_number) if page_number.isdigit() else 1
-
     dataset.update_cache(table)
     ds_table = dataset[table]
     model = ds_table.model_class
+    is_composite_pk = isinstance(model._meta.primary_key, CompositeKey)
+
+    allow_edit = not dataset.is_readonly and model._meta.primary_key is not False
+    allow_bulk = allow_edit and not is_composite_pk
+
+    if request.method == 'POST':
+        if not allow_bulk:
+            flash('Cannot perform bulk operation on this table.', 'warning')
+        else:
+            action = request.form['action']
+            pks = request.form.getlist('pk')
+            if not pks:
+                flash('No rows were selected.', 'warning')
+            elif action == 'bulk-delete':
+                n = (model.delete()
+                     .where(model._meta.primary_key.in_(pks))
+                     .execute())
+                flash('Successfully deleted %s row(s)' % n, 'success')
+            else:
+                flash('Unrecognized action', 'warning')
+        return redirect(request.full_path)
+
+    page_number = request.args.get('page') or ''
+    if page_number == 'last': page_number = '1000000'
+    page_number = int(page_number) if page_number.isdigit() else 1
 
     total_rows = ds_table.all().count()
     rows_per_page = app.config['ROWS_PER_PAGE']
@@ -677,9 +718,12 @@ def table_content(table):
 
     return render_template(
         'table_content.html',
+        allow_bulk=allow_bulk,
+        allow_edit=allow_edit,
         columns=columns,
         ds_table=ds_table,
         field_names=field_names,
+        is_composite_pk=isinstance(model._meta.primary_key, CompositeKey),
         next_page=next_page,
         ordering=ordering,
         page=page_number,

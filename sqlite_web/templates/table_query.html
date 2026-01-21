@@ -75,43 +75,57 @@
     {% if not data %}
       <p>Empty result set.</p>
     {% else %}
-      <a class="float-right" href="{{ url_for('table_query', table=table, sql=sql) }}{% if ordering %}&ordering={{ ordering }}{% endif %}{% if page > 1 %}&page={{ page }}{% endif %}">Permalink</a>
+      {% if allow_bulk %}
+        <form action="." autocomplete="off" method="post">
+          <textarea name="sql" style="display: none;">{% if sql %}{{ sql }}{% else %}{{ default_sql }}{% endif %}</textarea>
+          <div class="float-right">
+            <a class="btn btn-default" href="{{ url_for('table_query', table=table, sql=sql) }}{% if ordering %}&ordering={{ ordering }}{% endif %}{% if page > 1 %}&page={{ page }}{% endif %}">Permalink</a>
+            <button class="btn btn-danger bulk-action" disabled name="action" type="submit" value="bulk-delete">Bulk Delete</button>
+          </div>
+      {% else %}
+        <div class="float-right">
+          <a class="btn btn-default" href="{{ url_for('table_query', table=table, sql=sql) }}{% if ordering %}&ordering={{ ordering }}{% endif %}{% if page > 1 %}&page={{ page }}{% endif %}">Permalink</a>
+        </div>
+      {% endif %}
       <h3>
         Results ({% if total >= 0 %}{% if total_pages > 1 %}{{ page_start }}&ndash;{{ page_end }} of {% endif %}{{ total }}{% else %}unable to determine{% endif %})
       </h3>
       <table class="table table-striped small cell-content">
         <thead>
           <tr>
+            {% if allow_bulk %}
+              <th style="width:24px;"><input id="toggle-pk-all" type="checkbox" /></th>
+            {% endif %}
             {% for col_desc in data_description %}
               <th>
                 <a class="sort-header" href="{{ url_for('table_query', table=table, sql=sql) }}&ordering={% if loop.index == ordering %}-{% endif %}{{ loop.index }}">{{ col_desc[0] }}{% if ordering is not none %}{% if loop.index == ordering %}&#9660;{% elif loop.index == -ordering %}&#9650;{% endif %}{% endif %}</a>
               </th>
             {% endfor %}
-            {% if not dataset.is_readonly and pk_index is not none %}<th></th>{% endif %}
+            {% if allow_edit %}<th></th>{% endif %}
           </tr>
         </thead>
         <tbody>
           {% for row in data %}
             <tr>
+              {% if allow_bulk %}
+                <td><input class="toggle-pk" name="pk" type="checkbox" value="{{ row[pk_index] }}" /></td>
+              {% endif %}
               {% for value in row %}
                 <td>
                   {% if value is none %}<code>NULL</code>{% else %}{{ value|value_filter|safe }}{% endif %}
                 </td>
               {% endfor %}
-              {% if not dataset.is_readonly and pk_index is not none %}
+              {% if allow_edit %}
                 <td>
-                  {% if not is_view or 'update' in view_ops %}
                   <a class="small" href="{{ url_for('table_update', table=table, pk=row[pk_index]) }}">Edit</a>
-                  {% endif %}
-                  {% if not is_view or 'delete' in view_ops %}
                   <a class="small" href="{{ url_for('table_delete', table=table, pk=row[pk_index]) }}">Delete</a>
-                  {% endif %}
                 </td>
               {% endif %}
             </tr>
           {% endfor %}
         </tbody>
       </table>
+      {% if pk_index is not none and not dataset.is_readonly %}</form>{% endif %}
       {% include "pagination.html" %}
     {% endif %}
   {% endif %}

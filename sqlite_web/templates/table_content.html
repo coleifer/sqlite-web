@@ -9,20 +9,35 @@
 
 {% block inner_content %}
   {# add filters #}
+  {% if allow_bulk %}
+    <form action="." autocomplete="off" method="post">
+      <div class="float-right">
+        <button class="btn btn-sm btn-danger bulk-action" disabled name="action" type="submit" value="bulk-delete">Bulk Delete</button>
+      </div>
+  {% endif %}
   <table class="table table-striped small cell-content">
     <thead>
       <tr>
+        {% if allow_bulk %}
+          <th style="width:24px;"><input id="toggle-pk-all" type="checkbox" /></th>
+        {% endif %}
         {% for column in columns %}
           <th>
             <a href="./?ordering={% if ordering == column %}-{% endif %}{{ column }}">{{ column }}</a>
           </th>
         {% endfor %}
-        {% if not dataset.is_readonly and table_pk %}<th></th>{% endif %}
+        {% if allow_edit %}<th></th>{% endif %}
       </tr>
     </thead>
     <tbody>
       {% for row in query %}
+        {% if allow_edit %}
+          {% set pk = row|encode_pk(table_pk) %}
+        {% endif %}
         <tr>
+          {% if allow_bulk %}
+            <td><input class="toggle-pk" name="pk" type="checkbox" value="{{ pk }}" /></td>
+          {% endif %}
           {% for field in field_names %}
             {% set value = row[field] %}
             <td>
@@ -33,21 +48,17 @@
               {% endif %}
             </td>
           {% endfor %}
-          {% if not dataset.is_readonly and table_pk %}
+          {% if allow_edit %}
             <td>
-              {% set pk = row|encode_pk(table_pk) %}
-              {% if not is_view or 'update' in view_ops %}
               <a class="small" href="{{ url_for('table_update', table=table, pk=pk) }}">Edit</a>
-              {% endif %}
-              {% if not is_view or 'delete' in view_ops %}
               <a class="small" href="{{ url_for('table_delete', table=table, pk=pk) }}">Delete</a>
-              {% endif %}
             </td>
           {% endif %}
         </tr>
       {% endfor %}
     </tbody>
   </table>
+  {% if allow_bulk %}</form>{% endif %}
   <nav>
     <ul class="pagination">
       <li class="{% if not previous_page %}disabled {% endif %}page-item">

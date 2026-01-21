@@ -80,6 +80,14 @@ App = window.App || {};
             });
         });
 
+        $('input#toggle-pk-all').on('click', function (evt) {
+            $('input.toggle-pk').prop('checked', $(this).is(':checked'));
+            $('button.bulk-action').prop('disabled', ($('input.toggle-pk:checked').length == 0));
+        });
+        $('input.toggle-pk').on('click', function (evt) {
+            $('button.bulk-action').prop('disabled', ($('input.toggle-pk:checked').length == 0));
+        });
+
         /* Initialize focus on SQL textarea. */
         var sqlTextarea = $('textarea#sql');
         if (sqlTextarea.length > 0) {
