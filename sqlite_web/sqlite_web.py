@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-__version__ = '0.6.7'
+__version__ = '0.6.8'
 
 import base64
 import datetime
