@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sqlite-web"
-version = "0.6.8"
+dynamic = ["version"]
 description = "web-based sqlite database browser"
 dependencies = [
     "flask",
@@ -28,6 +28,9 @@ sqlite_web = "sqlite_web.sqlite_web:main"
 
 [project.urls]
 Repository = "https://github.com/coleifer/sqlite-web"
+
+[tool.setuptools.dynamic]
+version = { attr = "sqlite_web.sqlite_web.__version__" }
 
 [tool.setuptools.packages.find]
 include= ["sqlite_web*"]
