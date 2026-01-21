@@ -18,8 +18,3 @@ ul.pagination .page-item.disabled .page-link {
     border-color: #dee2e6 !important;
     color: #aaa;
 }
-.btn-sm {
-    line-height: 1;
-    padding: 0.125rem 0.25rem;
-    font-size: 0.75rem;
-}

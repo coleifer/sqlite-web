@@ -60,11 +60,11 @@ Columns are easy to add, drop or rename:
 
 The `content` tab displays all the table data. Links in the table header can be used to sort the data:
 
-![](https://media.charlesleifer.com/blog/photos/im-1707415896996.png)
+![](https://media.charlesleifer.com/blog/photos/sqlite-web-content-0.png)
 
 The `query` tab allows you to execute arbitrary SQL queries on a table. The query results are displayed in a table and can be exported to either JSON or CSV:
 
-![](https://media.charlesleifer.com/blog/photos/im-1707415396996.png)
+![](https://media.charlesleifer.com/blog/photos/sqlite-web-query-0.png)
 
 The `import` tab supports importing CSV and JSON files into a table. There is an option to automatically create columns for any unrecognized keys in the import file:
 
