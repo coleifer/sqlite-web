@@ -870,8 +870,12 @@ def table_update(table, pk):
         flash('Could not fetch row with primary-key %s.' % str(pk_repr), 'danger')
         return redirect(url_for('table_content', table=table))
 
-    columns = dataset.get_columns(table)
-    fields = model._meta.sorted_fields
+    columns = []
+    fields = []
+    for column in dataset.get_columns(table):
+        columns.append(column)
+        fields.append(model._meta.columns[column.name])
+
     row = {}
     for field in fields:
         value = getattr(obj, field.name)
