@@ -849,6 +849,12 @@ def redirect_to_previous(table):
         kw['ordering'] = ordering
     return redirect(url_for('table_content', table=table, **kw))
 
+def reorder_and_zip(columns, fields):
+    # Reorder items in columns[] to match with the items in fields[]
+    columns_by_name = {column.name: column for column in columns}
+    reordered_columns = [columns_by_name[field.name] for field in fields]
+    return zip(reordered_columns, fields)
+
 @app.route('/<table>/update/<b64:pk>/', methods=['GET', 'POST'])
 @require_table
 def table_update(table, pk):
@@ -914,7 +920,7 @@ def table_update(table, pk):
         else:
             flash('No data was specified to be updated.', 'warning')
 
-    columns_fields = zip(columns, fields)
+    columns_fields = reorder_and_zip(columns, fields)
 
     return render_template(
         'table_update.html',
