@@ -144,3 +144,15 @@ $ docker run -it --rm \
     coleifer/sqlite-web
     db_filename.db
 ```
+
+Command-line options can be passed in when running via Docker. For example, if
+you want to run it at a separate URL prefix, for example `/sqlite-web/`:
+
+```
+$ docker run -it --rm \
+    -p 8080:8080 \
+    -v /path/to/your-data:/data \
+    ghcr.io/coleifer/sqlite-web:latest \
+    db_filename.db \
+    --url-prefix="/sqlite-web/"
+```
