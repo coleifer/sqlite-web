@@ -2,6 +2,26 @@ App = window.App || {};
 
 (function(exports, $) {
     initialize = function() {
+        const textareas = document.querySelectorAll('textarea.remember-size');
+        const resizeObserver = new ResizeObserver(entries => {
+            for (const entry of entries) {
+                const id = entry.target.id;
+                const textarea = $(entry.target);
+                const newHeight = entry.contentRect.height;
+                localStorage.setItem('textarea-' + id + '-height', newHeight);
+            }
+        });
+
+        textareas.forEach(textarea => {
+            if (textarea.id) {
+                var height = localStorage.getItem('textarea-' + textarea.id + '-height');
+                if (height) {
+                    $(textarea).height(height);
+                }
+                resizeObserver.observe(textarea);
+            }
+        });
+
         /* Toggle long values on/off. */
         $('a.toggle-value').on('click', function(e) {
             e.preventDefault();

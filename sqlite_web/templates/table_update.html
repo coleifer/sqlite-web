@@ -16,7 +16,7 @@
               </div>
             </div>
             {% if column.data_type.lower() in ('text', 'blob') %}
-              <textarea class="form-control{% if field.name in errors %} is-invalid{% endif %}" {% if field.name not in edited %}disabled {% endif %} id="id_{{ field.name }}" name="{{ field.name }}">{% if row[field.name] == None %}NULL{% else %}{{ row[field.name] }}{% endif %}</textarea>
+              <textarea class="form-control remember-size{% if field.name in errors %} is-invalid{% endif %}" {% if field.name not in edited %}disabled {% endif %} id="id_{{ field.name }}" name="{{ field.name }}">{% if row[field.name] == None %}NULL{% else %}{{ row[field.name] }}{% endif %}</textarea>
             {% else %}
               <input class="form-control{% if field.name in errors %} is-invalid{% endif %}" {% if field.name not in edited %}disabled {% endif %} id="id_{{ field.name }}" name="{{ field.name }}" value="{% if row[field.name] == None %}NULL{% else %}{{ row[field.name] }}{% endif %}" />
             {% endif %}
