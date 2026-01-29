@@ -20,6 +20,12 @@ $ pip install sqlite-web
 $ sqlite_web /path/to/database.db
 ```
 
+If you have multiple databases:
+
+```sh
+$ sqlite_web /path/to/db1.db /path/to/db2.db /path/to/db3.db
+```
+
 Or run with docker:
 
 ```sh
@@ -43,44 +49,50 @@ Then navigate to http://localhost:8080/ to view your database.
 * Import JSON or CSV files.
 * Browse table data.
 * Insert, Update or Delete rows.
+* Load and unload databases at run-time (see `--enable-load` or `--enable-filesystem`)
 
 ### Screenshots
 
 The index page shows some basic information about the database, including the number of tables and indexes, as well as its size on disk:
 
-![](https://media.charlesleifer.com/blog/photos/im-1694620302295.png)
+![](https://media.charlesleifer.com/blog/photos/im-1769707703-035.png')
 
 The `structure` tab displays information about the structure of the table, including columns, indexes, triggers, and foreign keys (if any exist). From this page you can also create, rename or drop columns and indexes.
 
-![](https://media.charlesleifer.com/blog/photos/im-1694620314144.png)
+![](https://media.charlesleifer.com/blog/photos/im-1769707732-655.png)
 
 Columns are easy to add, drop or rename:
 
-![](https://media.charlesleifer.com/blog/photos/im-1694620333535.png)
+![](https://media.charlesleifer.com/blog/photos/im-1769707758-757.png)
 
 The `content` tab displays all the table data. Links in the table header can be used to sort the data:
 
-![](https://media.charlesleifer.com/blog/photos/sqlite-web-content-0.png)
+![](https://media.charlesleifer.com/blog/photos/im-1769707793-097.png)
 
 The `query` tab allows you to execute arbitrary SQL queries on a table. The query results are displayed in a table and can be exported to either JSON or CSV:
 
-![](https://media.charlesleifer.com/blog/photos/sqlite-web-query-0.png)
+![](https://media.charlesleifer.com/blog/photos/im-1769707835-748.png)
 
 The `import` tab supports importing CSV and JSON files into a table. There is an option to automatically create columns for any unrecognized keys in the import file:
 
-![](https://media.charlesleifer.com/blog/photos/im-1694620413940.png)
+![](https://media.charlesleifer.com/blog/photos/im-1769707873-413.png)
 
 The `export` tab supports exporting all, or a subset, of columns:
 
-![](https://media.charlesleifer.com/blog/photos/im-1694620429054.png)
+![](https://media.charlesleifer.com/blog/photos/im-1769707900-844.png)
 
 Basic INSERT, UPDATE and DELETE queries are supported:
 
-![](https://media.charlesleifer.com/blog/photos/im-1694620441528.png)
+![](https://media.charlesleifer.com/blog/photos/im-1769707924-932.png)
 
-![](https://media.charlesleifer.com/blog/photos/im-1694620459831.png)
+![](https://media.charlesleifer.com/blog/photos/im-1769707958-136.png)
 
-![](https://media.charlesleifer.com/blog/photos/im-1694620475286.png)
+![](https://media.charlesleifer.com/blog/photos/im-1769707985-292.png)
+
+When configured with `--enable-load` or `--enable-filesystem` additional
+databases can be loaded or unloaded at run-time:
+
+![](https://media.charlesleifer.com/blog/photos/im-1769708009-636.png)
 
 ### Command-line options
 
