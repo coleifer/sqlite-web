@@ -1425,9 +1425,16 @@ def get_option_parser():
         '-x',
         '--no-browser',
         action='store_false',
-        default=True,
+        default=False,
         dest='browser',
         help='Do not automatically open browser page.')
+    parser.add_option(
+        '-b',
+        '--browser',
+        action='store_true',
+        default=False,
+        dest='browser',
+        help='Automatically open browser page.')
     parser.add_option(
         '-l',
         '--log-file',

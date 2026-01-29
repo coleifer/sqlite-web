@@ -97,6 +97,7 @@ The following options are available:
 * `-H`, `--host`: default is 127.0.0.1
 * `-d`, `--debug`: default is false
 * `-l`, `--log-file`: filename for application logs.
+* `-b`, `--browser`: open a web-browser when sqlite-web starts.
 * `-x`, `--no-browser`: do not open a web-browser when sqlite-web starts.
 * `-P`, `--password`: prompt for password to access sqlite-web.
   Alternatively, the password can be stored in the "SQLITE_WEB_PASSWORD"

@@ -46,4 +46,4 @@ RUN apk update \
 EXPOSE 8080
 VOLUME /data
 WORKDIR /data
-ENTRYPOINT ["sqlite_web", "-H", "0.0.0.0", "-x"]
+ENTRYPOINT ["sqlite_web", "-H", "0.0.0.0"]
