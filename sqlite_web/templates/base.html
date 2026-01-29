@@ -30,31 +30,59 @@
   </head>
 
   <body class="{% block body_class %}{% endblock %}">
-    <div class="container-fluid">
-      {% block page_header %}
-        <div class="page-header">
-          {% block content_header %}
-            {% if dataset.is_readonly %}
-              <a class="btn btn-sm btn-secondary float-right" href="{{ url_for('generic_query') }}">Query</a>
-            {% else %}
-              <form action="{{ url_for('table_create') }}" class="form-inline float-right" method="post" style="margin-top: 10px;">
-                <input name="redirect" type="hidden" value="{{ request.full_path }}" />{# full-path begins with "/" and includes querystring #}
-                <input class="form-control form-control-sm" name="table_name" placeholder="new_table_name" />
-                <button class="btn btn-primary btn-sm" type="submit">Create</button>
-                &nbsp;
-                <a class="btn btn-sm btn-secondary" href="{{ url_for('generic_query') }}">Query</a>
-              </form>
-            {% endif %}
-          {% endblock %}
-          <h1>{% block content_title %}{% endblock %}</h1>
-        </div>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark primary-nav">
+      <a class="navbar-brand" href="{{ url_for('index') }}">sqlite-web {{ version }}</a>
+      <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      {% block content_header %}
+      <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <ul class="navbar-nav">
+          {% if datasets|length() > 1 or enable_load or enable_filesystem %}
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" id="datasetDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                {{ dataset.basename }}
+              </a>
+              <div class="dropdown-menu" aria-labelledby="datasetDropdown">
+                {% for name in datasets %}
+                  <a class="dropdown-item" href="{{ url_for('select_dataset') }}?name={{ name }}">{{ name }}</a>
+                {% endfor %}
+                {% if enable_load or enable_filesystem %}
+                  <a class="dropdown-item" href="{{ url_for('load') }}">Add Database...</a>
+                {% endif %}
+              </div>
+            </li>
+          {% else %}
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('index') }}">{{ dataset.basename }}</a>
+            </li>
+          {% endif %}
+        </ul>
+        <span class="navbar-text mr-auto">{% block content_title %}{% endblock %}</span>
+        {% if dataset.is_readonly %}
+          <a class="btn btn-sm btn-secondary" href="{{ url_for('generic_query') }}">Query</a>
+        {% else %}
+          <form action="{{ url_for('table_create') }}" class="form-inline" method="post">
+            <input name="redirect" type="hidden" value="{{ request.full_path }}" />{# full-path begins with "/" and includes querystring #}
+            <input class="form-control form-control-sm" name="table_name" placeholder="new_table_name" />
+            <button class="btn btn-primary btn-sm" type="submit">Create</button>
+            &nbsp;
+            <a class="btn btn-sm btn-secondary" href="{{ url_for('generic_query') }}">Query</a>
+          </form>
+        {% endif %}
+        {% if datasets|length() > 1 and (enable_load or enable_filesystem) %}
+          <a class="btn btn-sm btn-danger" href="{{ url_for('unload') }}?dataset={{ dataset.basename }}" style="margin-left: 3px;">Unload Database</a>
+        {% endif %}
+      </div>
       {% endblock %}
+    </nav>
+    <div class="container-fluid">
       <div class="row">
-        <div class="col-3" id="sidebar">
+        <div class="col-2" id="sidebar">
           {% block sidebar %}{% endblock %}
           {% block logout %}{% if login_required %}<a href="{{ url_for('logout') }}">Log-out</a>{% endif %}{% endblock %}
         </div>
-        <div class="col-9" id="content">
+        <div class="col-10" id="content">
           {% for category, message in get_flashed_messages(with_categories=true) %}
             <div class="alert alert-{{ category }} alert-dismissable">
               <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
@@ -62,17 +90,13 @@
             </div>
           {% endfor %}
           {% block content %}{% endblock %}
-        </div>
-      </div>
-      <div class="row">
-        <div class="col-9 offset-3">
           <footer>
             <hr />
-            <p>
-              Web-based SQLite database browser <span>v{{ version }}</span>, powered by
+            <p><small>
+              SQLite database browser <span>v{{ version }}</span>, powered by
               <a href="http://flask.pocoo.org/">Flask</a> and <a href="http://docs.peewee-orm.com/">Peewee</a>.
-              &copy; {{ now.year }} <a href="http://charlesleifer.com/">Charles Leifer</a>
-            </p>
+              &copy; {{ now.year }} <a href="https://charlesleifer.com/">Charles Leifer</a>
+            </small></p>
           </footer>
         </div>
       </div>

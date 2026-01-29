@@ -88,7 +88,7 @@ The syntax for invoking sqlite-web is:
 
 ```console
 
-$ sqlite_web [options] /path/to/database-file.db
+$ sqlite_web [options] /path/to/database.db /path/to/another.db
 ```
 
 The following options are available:
@@ -114,6 +114,12 @@ The following options are available:
     accept one parameter, the `SqliteDatabase` instance.
 * `-f`, `--foreign-keys`: enable foreign-key constraint pragma.
 * `-u`, `--url-prefix`: URL prefix for application, e.g. "/sqlite-web".
+* `-L`, `--enable-load`: Enable loading additional databases at runtime (upload
+  only). For adding local databases use `--enable-filesystem`.
+* `-U`, `--upload-dir`: Destination directory for uploaded database (`-L`). If
+  not specified, a system tempdir will be used.
+* `-F`, `--enable-filesystem`: Enable loading additional databases by
+  specifying on-disk path at runtime. **Be careful with this**.
 * `-c`, `--cert` and ``-k``, ``--key`` - specify SSL cert and private key.
 * `-a`, `--ad-hoc` - run using an ad-hoc SSL context.
 

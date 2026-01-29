@@ -1,0 +1,35 @@
+{% extends "base_tables.html" %}
+
+{% block content %}
+  {% if error %}
+    <div class="alert alert-dismissable alert-danger">
+      <button class="close" type="button" data-dismiss="alert">×</button>
+      <strong>Error:</strong> {{ error }}
+    </div>
+  {% endif %}
+
+  {% if enable_load %}
+    <h3>Upload a Sqlite Database</h3>
+    <form action="." method="post" role="form" enctype="multipart/form-data">
+      <div class="form-group">
+        <input class="form-control" name="database" type="file" />
+        <small class="form-text text-muted">Open a new database.</small>
+      </div>
+      <button class="btn btn-primary" name="mode" type="submit" value="upload">Load</button>
+      <a class="btn btn-default" href="{{ url_for('index') }}">Cancel</a>
+    </form>
+  {% endif %}
+
+  {% if enable_filesystem %}
+    {% if enable_load %}<hr />{% endif %}
+    <h3>Load a Sqlite Database from File-System</h3>
+    <form action="." method="post" role="form">
+      <div class="form-group">
+        <input class="form-control" name="filename" type="text" value="{% if filename %}{{ filename }}{% endif %}" />
+        <small class="form-text text-muted">Path to database on the server file-system.</small>
+      </div>
+      <button class="btn btn-primary" name="mode" type="submit" value="filesystem">Load</button>
+      <a class="btn btn-default" href="{{ url_for('index') }}">Cancel</a>
+    </form>
+  {% endif %}
+{% endblock %}

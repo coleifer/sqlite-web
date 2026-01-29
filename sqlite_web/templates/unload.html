@@ -1,0 +1,25 @@
+{% extends "base_tables.html" %}
+
+{% block content %}
+  {% if error %}
+    <div class="alert alert-dismissable alert-danger">
+      <button class="close" type="button" data-dismiss="alert">×</button>
+      <strong>Error:</strong> {{ error }}
+    </div>
+  {% endif %}
+
+  <h3>Unload a Database</h3>
+  <form action="." method="post" role="form">
+    <div class="form-group">
+      <select class="form-control" name="dataset">
+        {% for name in datasets %}
+          <option value="{{ name }}"{% if selected and selected == name %} selected="selected"{% endif %}>{{ name }}</option>
+        {% endfor %}
+      </select>
+      <small class="form-text text-muted">Select database to unload.</small>
+    </div>
+    <button class="btn btn-primary" type="submit">Unload</button>
+    <a class="btn btn-default" href="{{ url_for('index') }}">Cancel</a>
+  </form>
+{% endblock %}
+

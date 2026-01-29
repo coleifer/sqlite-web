@@ -13,6 +13,7 @@ import optparse
 import os
 import re
 import sys
+import tempfile
 import threading
 import time
 import webbrowser
@@ -22,6 +23,7 @@ from getpass import getpass
 from io import TextIOWrapper
 from logging.handlers import WatchedFileHandler
 from werkzeug.routing import BaseConverter
+from werkzeug.utils import secure_filename
 
 # Py2k compat.
 if sys.version_info[0] == 2:
@@ -42,7 +44,7 @@ else:
 
 try:
     from flask import (
-        Flask, abort, flash, jsonify, make_response, redirect,
+        Flask, abort, flash, g, jsonify, make_response, redirect,
         render_template, request, session, url_for)
 except ImportError:
     raise RuntimeError('Unable to import flask module. Install by running '
@@ -98,8 +100,8 @@ app = Flask(
     static_folder=os.path.join(CUR_DIR, 'static'),
     template_folder=os.path.join(CUR_DIR, 'templates'))
 app.config.from_object(__name__)
-dataset = None
-migrator = None
+datasets = {}
+dataset_config = {}
 
 #
 # Database metadata objects.
@@ -116,14 +118,18 @@ ViewMetadata = namedtuple('ViewMetadata', ('name', 'sql'))
 class SqliteDataSet(DataSet):
     @property
     def filename(self):
-        db_file = dataset._database.database
+        db_file = self._database.database
         if db_file.startswith('file:'):
             db_file = db_file[5:]
         return os.path.realpath(db_file.rsplit('?', 1)[0])
 
     @property
+    def basename(self):
+        return os.path.basename(self.filename)
+
+    @property
     def is_readonly(self):
-        db_file = dataset._database.database
+        db_file = self._database.database
         return db_file.endswith('?mode=ro')
 
     @property
@@ -146,7 +152,7 @@ class SqliteDataSet(DataSet):
         return stat.st_size
 
     def get_indexes(self, table):
-        return dataset._database.get_indexes(table)
+        return self._database.get_indexes(table)
 
     def get_all_indexes(self):
         cursor = self.query(
@@ -157,10 +163,10 @@ class SqliteDataSet(DataSet):
                 for row in cursor.fetchall()]
 
     def get_columns(self, table):
-        return dataset._database.get_columns(table)
+        return self._database.get_columns(table)
 
     def get_foreign_keys(self, table):
-        return dataset._database.get_foreign_keys(table)
+        return self._database.get_foreign_keys(table)
 
     def get_triggers(self, table):
         cursor = self.query(
@@ -180,7 +186,7 @@ class SqliteDataSet(DataSet):
         if not table:
             return
 
-        cursor = dataset.query(
+        cursor = self.query(
             'SELECT sql FROM sqlite_master '
             'WHERE tbl_name = ? AND type IN (?, ?)',
             [table, 'table', 'view'])
@@ -254,6 +260,15 @@ class Base64Converter(BaseConverter):
 
 app.url_map.converters['b64'] = Base64Converter
 
+def get_dataset():
+    if not hasattr(g, 'dataset'):
+        dataset_key = session.get('dataset')
+        if dataset_key is None or dataset_key not in datasets:
+            dataset_key = list(datasets)[0]
+            session['dataset'] = dataset_key
+        g.dataset = datasets[dataset_key]
+    return g.dataset
+
 #
 # Flask views.
 #
@@ -278,7 +293,113 @@ def logout():
     session.pop('authorized', None)
     return redirect(url_for('login'))
 
+@app.route('/select-dataset/', methods=['GET'])
+def select_dataset():
+    dataset = request.args.get('name')
+    if dataset and dataset in datasets:
+        session['dataset'] = dataset
+    else:
+        flash('Unable to load selected database.', 'danger')
+    return redirect(url_for('index'))
+
+@app.route('/load/', methods=['GET', 'POST'])
+def load():
+    enable_load = app.config.get('ENABLE_LOAD')
+    enable_filesystem = app.config.get('ENABLE_FILESYSTEM')
+    if not (enable_load or enable_filesystem):
+        flash('Loading databases at run-time is not supported.', 'warning')
+        return redirect(url_for('index'))
+
+    dataset = None
+    filename = None
+    error = None
+    if request.method == 'POST':
+        filename = request.form.get('filename')
+        try:
+            dataset, error = _add_dataset(enable_load, enable_filesystem)
+        except ValueError as exc:
+            error = str(exc)
+
+        if dataset and not error:
+            flash('Successfully loaded database.', 'success')
+            return redirect(url_for('index'))
+
+    return render_template(
+        'load.html',
+        filename=filename,
+        error=error)
+
+def _add_dataset(enable_load, enable_filesystem):
+    mode = request.form.get('mode')
+    if mode == 'upload':
+        if not enable_load:
+            return None, 'Uploading databases is not allowed.'
+
+        database = request.files.get('database')
+        if not database:
+            return None, 'Database file is required.'
+
+        if app.config['DB_UPLOAD_DIR']:
+            dirname = app.config['DB_UPLOAD_DIR']
+            os.makedirs(dirname, exist_ok=True)
+        else:
+            dirname = tempfile.mkdtemp(prefix='sqlite-web')
+        filename = secure_filename(database.filename) or 'database.db'
+        path = os.path.join(dirname, filename)
+        database.save(path)
+    elif mode == 'filesystem':
+        if not enable_filesystem:
+            return None, 'Loading databases from the filesystem is not allowed.'
+        path = request.form.get('filename')
+        if not path:
+            return None, 'Filename is required.'
+        if not os.path.exists(path):
+            return None, 'File "%s" not found.' % path
+    else:
+        return None, 'Error: unrecognized mode "%s".' % mode
+
+    try:
+        dataset = initialize_dataset(path)
+    except Exception as exc:
+        return None, 'Unable to load database: %s' % exc
+    else:
+        basename = os.path.basename(path)
+        datasets[basename] = dataset
+        session['dataset'] = basename
+
+    return dataset, None
+
+@app.route('/unload/', methods=['GET', 'POST'])
+def unload():
+    enable_load = app.config.get('ENABLE_LOAD')
+    enable_filesystem = app.config.get('ENABLE_FILESYSTEM')
+    if not (enable_load or enable_filesystem):
+        flash('Unloading databases is not supported.', 'danger')
+        return redirect(url_for('index'))
+    if len(datasets) == 1:
+        flash('Cannot unload dataset.', 'danger')
+        return redirect(url_for('index'))
+
+    if request.method == 'POST':
+        dataset = request.form.get('dataset')
+        if not dataset or dataset not in datasets:
+            flash('Database not found.', 'warning')
+            return redirect(url_for('unload'))
+
+        datasets.pop(dataset)
+
+        current = session.get('dataset')
+        if current == dataset:
+            session['dataset'] = list(datasets)[0]
+        flash('Database "%s" unloaded successfully.' % dataset, 'success')
+        return redirect(url_for('index'))
+    else:
+        dataset = request.args.get('dataset')
+
+    return render_template('unload.html', selected=dataset)
+
 def _query_view(template, table=None):
+    dataset = get_dataset()
     data = []
     data_description = error = row_count = sql = None
     ordering = None
@@ -413,7 +534,7 @@ def generic_query():
 def require_table(fn):
     @wraps(fn)
     def inner(table, *args, **kwargs):
-        if table not in dataset.tables:
+        if table not in get_dataset().tables:
             abort(404)
         return fn(table, *args, **kwargs)
     return inner
@@ -428,7 +549,7 @@ def table_create():
         return redirect(dest)
 
     try:
-        dataset[table]
+        get_dataset()[table]
     except Exception as exc:
         flash('Error: %s' % str(exc), 'danger')
         app.logger.exception('Error attempting to create table.')
@@ -437,6 +558,7 @@ def table_create():
 @app.route('/<table>/')
 @require_table
 def table_structure(table):
+    dataset = get_dataset()
     ds_table = dataset[table]
     model_class = ds_table.model_class
 
@@ -459,6 +581,8 @@ def get_request_data():
 @app.route('/<table>/add-column/', methods=['GET', 'POST'])
 @require_table
 def add_column(table):
+    dataset = get_dataset()
+
     class JsonField(TextField):
         field_type = 'JSON'
     column_mapping = OrderedDict((
@@ -483,7 +607,7 @@ def add_column(table):
         if name and col_type in column_mapping:
             try:
                 migrate(
-                    migrator.add_column(
+                    dataset._migrator.add_column(
                         table,
                         name,
                         column_mapping[col_type](null=True)))
@@ -509,6 +633,7 @@ def add_column(table):
 @app.route('/<table>/drop-column/', methods=['GET', 'POST'])
 @require_table
 def drop_column(table):
+    dataset = get_dataset()
     request_data = get_request_data()
     name = request_data.get('name', '')
     columns = dataset.get_columns(table)
@@ -517,7 +642,7 @@ def drop_column(table):
     if request.method == 'POST':
         if name in column_names:
             try:
-                migrate(migrator.drop_column(table, name))
+                migrate(dataset._migrator.drop_column(table, name))
             except Exception as exc:
                 flash('Error attempting to drop column "%s": %s' % (name, exc),
                       'danger')
@@ -539,6 +664,7 @@ def drop_column(table):
 @app.route('/<table>/rename-column/', methods=['GET', 'POST'])
 @require_table
 def rename_column(table):
+    dataset = get_dataset()
     request_data = get_request_data()
     rename = request_data.get('rename', '')
     rename_to = request_data.get('rename_to', '')
@@ -550,7 +676,7 @@ def rename_column(table):
         rename_to = re.sub(r'[^\w]+', '_', rename_to.strip())
         if (rename in column_names) and (rename_to not in column_names):
             try:
-                migrate(migrator.rename_column(table, rename, rename_to))
+                migrate(dataset._migrator.rename_column(table, rename, rename_to))
             except Exception as exc:
                 flash('Error attempting to rename column "%s": %s' % (name, exc),
                       'danger')
@@ -574,6 +700,7 @@ def rename_column(table):
 @app.route('/<table>/add-index/', methods=['GET', 'POST'])
 @require_table
 def add_index(table):
+    dataset = get_dataset()
     request_data = get_request_data()
     indexed_columns = request_data.getlist('indexed_columns')
     unique = bool(request_data.get('unique'))
@@ -584,7 +711,7 @@ def add_index(table):
         if indexed_columns:
             try:
                 migrate(
-                    migrator.add_index(
+                    dataset._migrator.add_index(
                         table,
                         indexed_columns,
                         unique))
@@ -607,6 +734,7 @@ def add_index(table):
 @app.route('/<table>/drop-index/', methods=['GET', 'POST'])
 @require_table
 def drop_index(table):
+    dataset = get_dataset()
     request_data = get_request_data()
     name = request_data.get('name', '')
     indexes = dataset.get_indexes(table)
@@ -615,7 +743,7 @@ def drop_index(table):
     if request.method == 'POST':
         if name in index_names:
             try:
-                migrate(migrator.drop_index(table, name))
+                migrate(dataset._migrator.drop_index(table, name))
             except Exception as exc:
                 flash('Error attempting to drop index: %s' % exc, 'danger')
                 app.logger.exception('Error attempting to drop index.')
@@ -635,6 +763,7 @@ def drop_index(table):
 @app.route('/<table>/drop-trigger/', methods=['GET', 'POST'])
 @require_table
 def drop_trigger(table):
+    dataset = get_dataset()
     request_data = get_request_data()
     name = request_data.get('name', '')
     triggers = dataset.get_triggers(table)
@@ -664,6 +793,7 @@ def drop_trigger(table):
 @app.route('/<table>/content/', methods=['GET', 'POST'])
 @require_table
 def table_content(table):
+    dataset = get_dataset()
     dataset.update_cache(table)
     ds_table = dataset[table]
     model = ds_table.model_class
@@ -771,6 +901,7 @@ def minimal_validate_field(field, value):
 @app.route('/<table>/insert/', methods=['GET', 'POST'])
 @require_table
 def table_insert(table):
+    dataset = get_dataset()
     dataset.update_cache(table)
     model = dataset[table].model_class
 
@@ -852,6 +983,7 @@ def redirect_to_previous(table):
 @app.route('/<table>/update/<b64:pk>/', methods=['GET', 'POST'])
 @require_table
 def table_update(table, pk):
+    dataset = get_dataset()
     dataset.update_cache(table)
     model = dataset[table].model_class
     table_pk = model._meta.primary_key
@@ -935,6 +1067,7 @@ def table_update(table, pk):
 @app.route('/<table>/delete/<b64:pk>/', methods=['GET', 'POST'])
 @require_table
 def table_delete(table, pk):
+    dataset = get_dataset()
     dataset.update_cache(table)
     model = dataset[table].model_class
     table_pk = model._meta.primary_key
@@ -978,6 +1111,7 @@ def table_query(table):
     return _query_view('table_query.html', table)
 
 def export(query, export_format, table=None):
+    dataset = get_dataset()
     buf = StringIO()
     if export_format == 'json':
         kwargs = {'indent': 2}
@@ -1009,6 +1143,7 @@ def export(query, export_format, table=None):
 @app.route('/<table>/export/', methods=['GET', 'POST'])
 @require_table
 def table_export(table):
+    dataset = get_dataset()
     columns = dataset.get_columns(table)
     if request.method == 'POST':
         export_format = request.form.get('export_format') or 'json'
@@ -1035,6 +1170,7 @@ def table_export(table):
 @app.route('/<table>/import/', methods=['GET', 'POST'])
 @require_table
 def table_import(table):
+    dataset = get_dataset()
     count = None
     request_data = get_request_data()
     strict = bool(request_data.get('strict'))
@@ -1095,6 +1231,7 @@ def table_import(table):
 @app.route('/<table>/drop/', methods=['GET', 'POST'])
 @require_table
 def drop_table(table):
+    dataset = get_dataset()
     is_view = any(v.name == table for v in dataset.get_all_views())
     label = 'view' if is_view else 'table'
     if request.method == 'POST':
@@ -1221,7 +1358,10 @@ def get_query_images():
 @app.context_processor
 def _general():
     return {
-        'dataset': dataset,
+        'dataset': get_dataset(),
+        'datasets': datasets,
+        'enable_load': app.config.get('ENABLE_LOAD'),
+        'enable_filesystem': app.config.get('ENABLE_FILESYSTEM'),
         'login_required': bool(app.config.get('PASSWORD')),
         'version': __version__,
     }
@@ -1232,12 +1372,14 @@ def _now():
 
 @app.before_request
 def _connect_db():
+    dataset = get_dataset()
     dataset.connect()
-    if app.config.get('STARTUP_HOOK'):
-        app.config['STARTUP_HOOK'](dataset._database)
+    if dataset_config.get('startup_hook'):
+        dataset_config['startup_hook'](dataset._database)
 
 @app.teardown_request
 def _close_db(exc):
+    dataset = get_dataset()
     if not dataset._database.is_closed():
         dataset.close()
 
@@ -1349,6 +1491,26 @@ def get_option_parser():
         dest='startup_hook',
         help=('Path to a startup hook used to initialize the connection '
               'before each request, e.g. my.module.some_callable'))
+    parser.add_option(
+        '-L',
+        '--enable-load',
+        action='store_true',
+        dest='enable_load',
+        help=('Enable loading additional databases at runtime (upload only). '
+              'For adding local databases use --enable-filesystem'))
+    parser.add_option(
+        '-U',
+        '--upload-dir',
+        dest='upload_dir',
+        help=('Destination directory for uploaded databases (-L). If not '
+              'specified, a system tempdir will be used.'))
+    parser.add_option(
+        '-F',
+        '--enable-filesystem',
+        action='store_true',
+        dest='enable_filesystem',
+        help=('Enable loading additional databases by specifying on-disk '
+              'path at runtime.'))
     ssl_opts = optparse.OptionGroup(parser, 'SSL options')
     ssl_opts.add_option(
         '-c',
@@ -1396,19 +1558,12 @@ def install_auth_handler(password):
             session['next_url'] = request.base_url
             return redirect(url_for('login'))
 
-def initialize_app(filename, read_only=False, password=None, url_prefix=None,
-                   extensions=None, foreign_keys=None, startup_hook=None):
-    global dataset
-    global migrator
-
-    if password:
-        install_auth_handler(password)
-
+def initialize_dataset(filename):
     dataset_kw = {}
     if peewee_version >= (3, 14, 9):
         dataset_kw['include_views'] = True
 
-    if read_only:
+    if dataset_config['read_only']:
         if sys.version_info < (3, 4, 0):
             die('Python 3.4.0 or newer is required for read-only access.')
         if peewee_version < (3, 5, 1):
@@ -1423,24 +1578,40 @@ def initialize_app(filename, read_only=False, password=None, url_prefix=None,
     else:
         db = SqliteDatabase(filename)
 
-    if foreign_keys:
+    if dataset_config['foreign_keys']:
         db.pragma('foreign_keys', True, permanent=True)
 
-    if extensions:
+    if dataset_config['extensions']:
         # Load extensions before performing introspection.
         for ext in extensions:
             db.load_extension(ext)
 
-    if startup_hook:
+    if dataset_config['startup_hook']:
         startup_hook(db)
 
     dataset = SqliteDataSet(db, bare_fields=True, **dataset_kw)
+    dataset.close()
+    return dataset
+
+def initialize_app(filenames, read_only=False, password=None, url_prefix=None,
+                   extensions=None, foreign_keys=None, startup_hook=None):
+    global datasets
+    global dataset_config
+
+    dataset_config.update(
+        read_only=read_only,
+        extensions=extensions,
+        foreign_keys=foreign_keys,
+        startup_hook=startup_hook)
+
+    if password:
+        install_auth_handler(password)
 
     if url_prefix:
         app.wsgi_app = PrefixMiddleware(app.wsgi_app, prefix=url_prefix)
 
-    migrator = dataset._migrator
-    dataset.close()
+    for filename in filenames:
+        datasets[os.path.basename(filename)] = initialize_dataset(filename)
 
 def main():
     # This function exists to act as a console script entry-point.
@@ -1480,6 +1651,11 @@ def main():
 
     app.config['TRUNCATE_VALUES'] = options.truncate_values
 
+    # Store reference to these config options.
+    app.config['ENABLE_LOAD'] = options.enable_load
+    app.config['ENABLE_FILESYSTEM'] = options.enable_filesystem
+    app.config['DB_UPLOAD_DIR'] = options.upload_dir
+
     if options.startup_hook:
         try:
             module_path, hook_name = options.startup_hook.rsplit('.', 1)
@@ -1490,13 +1666,11 @@ def main():
             hook = getattr(module, hook_name)
         except AttributeError:
             die('Hook named "%s" not found in %s' % (hook_name, module))
-
-        app.config['STARTUP_HOOK'] = hook
     else:
         hook = None
 
-    # Initialize the dataset instance and (optionally) authentication handler.
-    initialize_app(args[0], options.read_only, password, options.url_prefix,
+    # Initialize the dataset instances and (optionally) authentication handler.
+    initialize_app(args, options.read_only, password, options.url_prefix,
                    options.extensions, options.foreign_keys, hook)
 
     if options.browser:
