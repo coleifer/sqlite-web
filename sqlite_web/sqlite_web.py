@@ -1626,7 +1626,7 @@ def initialize_app(filenames, read_only=False, password=None, url_prefix=None,
     for filename in filenames:
         datasets[os.path.basename(filename)] = initialize_dataset(filename)
 
-def main():
+def configure_app():
     # This function exists to act as a console script entry-point.
     parser = get_option_parser()
     options, args = parser.parse_args()
@@ -1700,7 +1700,12 @@ def main():
         app.secret_key = hashlib.sha256(key).hexdigest()
 
     # Set up SSL context, if specified.
-    kwargs = {}
+    kwargs = {
+        'host': options.host,
+        'port': options.port,
+        'debug': options.debug,
+    }
+
     if options.ssl_ad_hoc:
         kwargs['ssl_context'] = 'adhoc'
 
@@ -1713,8 +1718,14 @@ def main():
     elif options.ssl_key:
         die('ssl cert "-c" is required alongside the ssl key')
 
+    return kwargs
+
+
+def main():
+    kwargs = configure_app()  # Read options from command-line, configure app.
+
     # Run WSGI application.
-    app.run(host=options.host, port=options.port, debug=options.debug, **kwargs)
+    app.run(**kwargs)
 
 
 if __name__ == '__main__':
