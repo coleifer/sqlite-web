@@ -1441,6 +1441,12 @@ def get_option_parser():
         dest='log_file',
         help='Filename for application logs.')
     parser.add_option(
+        '-q',
+        '--quiet',
+        action='store_true',
+        dest='quiet',
+        help='Only log errors to console.')
+    parser.add_option(
         '-P',
         '--password',
         action='store_true',
@@ -1624,9 +1630,11 @@ def main():
     # This function exists to act as a console script entry-point.
     parser = get_option_parser()
     options, args = parser.parse_args()
+
     if not args:
         die('Error: missing required path to database file.')
 
+    werkzeug_logger = logging.getLogger('werkzeug')
     if options.log_file:
         fmt = logging.Formatter('[%(asctime)s] - [%(levelname)s] - %(message)s')
         handler = WatchedFileHandler(options.log_file)
@@ -1637,6 +1645,10 @@ def main():
         # Remove default handler.
         from flask.logging import default_handler
         app.logger.removeHandler(default_handler)
+
+    if options.quiet:
+        app.logger.setLevel(logging.ERROR)
+        werkzeug_logger.setLevel(logging.ERROR)
 
     password = None
     if options.prompt_password:
