@@ -11,19 +11,19 @@ cur_dir = os.path.dirname(__file__)
 sys.path.insert(0, os.path.realpath(os.path.join(cur_dir, '../sqlite_web')))
 
 from sqlite_web import app
-from sqlite_web import initialize_app
+from sqlite_web import configure_app
 
 
-def main(db_file):
-    initialize_app(db_file)
+def main():
     pool = Pool(50)
-    server = WSGIServer(('127.0.0.1', 8080), app, log=None, spawn=pool)
+    kwargs = configure_app()
+
+    # Get host and port from config.
+    bind_address = (kwargs.pop('host'), kwargs.pop('port'))
+
+    server = WSGIServer(bind_address, app, log=None, spawn=pool)
     server.serve_forever()
 
 
 if __name__ == '__main__':
-    if len(sys.argv) != 2:
-        print('missing required database file.')
-        sys.exit(1)
-
-    main(sys.argv[1])
+    main()
