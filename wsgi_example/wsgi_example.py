@@ -7,11 +7,11 @@ import os
 import sys
 
 # Put sqlite_web on our python-path.
-cur_dir = os.path.dirname(__file__)
-sys.path.insert(0, os.path.realpath(os.path.join(cur_dir, '../sqlite_web')))
+checkout = os.path.dirname(os.path.dirname(__file__))
+sys.path.insert(0, os.path.realpath(checkout))
 
-from sqlite_web import app
-from sqlite_web import configure_app
+from sqlite_web.sqlite_web import app
+from sqlite_web.sqlite_web import configure_app
 
 
 def main():
