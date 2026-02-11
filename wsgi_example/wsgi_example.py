@@ -4,11 +4,11 @@ from gevent.pool import Pool
 from gevent.pywsgi import WSGIServer
 
 import os
-import sys
+import sysconfig
 
 # Put sqlite_web on our python-path.
-cur_dir = os.path.dirname(__file__)
-sys.path.insert(0, os.path.realpath(os.path.join(cur_dir, '../sqlite_web')))
+sqlite_web_dir = os.path.join(sysconfig.get_paths()["purelib"], 'sqlite_web')
+os.sys.path.insert(0, sqlite_web_dir)
 
 from sqlite_web import app
 from sqlite_web import configure_app
