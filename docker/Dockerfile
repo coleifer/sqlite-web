@@ -40,7 +40,7 @@ RUN apk update \
       && cd ../ \
       && rm -rf ./sqlite/ ./sqlite.tar.gz \
       && pip install --upgrade pip \
-      && pip install --no-cache-dir cython \
+      && pip install --no-cache-dir cython gevent \
       && pip install --no-cache-dir flask peewee sqlite-web \
       && apk del .build-deps
 EXPOSE 8080

@@ -36,6 +36,12 @@ $ docker run -it --rm \
     db_filename.db
 ```
 
+Or run with the high-performance gevent WSGI server (requires `gevent`):
+
+```console
+$ sqlite_wsgi /path/to/db.db
+```
+
 Then navigate to http://localhost:8080/ to view your database.
 
 ### Features
@@ -175,4 +181,19 @@ $ docker run -it --rm \
     ghcr.io/coleifer/sqlite-web:latest \
     db_filename.db \
     --url-prefix="/sqlite-web/"
+```
+
+### High-performance WSGI Server
+
+To run sqlite-web with a high-performance gevent WSGI server, you can run
+`sqlite_wsgi` instead of `sqlite_web`:
+
+```console
+$ sqlite_wsgi /path/to/db.db
+```
+
+More complete example:
+
+```console
+$ sqlite_wsgi -p 8000 -H '0.0.0.0' /path/to/db1.db /path/to/db2.db
 ```

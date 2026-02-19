@@ -1,4 +1,3 @@
-# Example showing how to run sqlite-web with a different WSGI server.
 from gevent import monkey ; monkey.patch_all()
 from gevent.pool import Pool
 from gevent.pywsgi import WSGIServer
@@ -21,7 +20,21 @@ def main():
     # Get host and port from config.
     bind_address = (kwargs.pop('host'), kwargs.pop('port'))
 
-    server = WSGIServer(bind_address, app, log=None, spawn=pool)
+    server_kwargs = {}
+    if kwargs.get('ssl_context') is not None:
+        from werkzeug.serving import generate_adhoc_ssl_context
+        from werkzeug.serving import load_ssl_context
+
+        pair = kwargs['ssl_context']
+        if pair == 'adhoc':
+            ssl_ctx = generate_adhoc_ssl_context()
+        else:
+            ssl_ctx = load_ssl_context(*pair)
+
+        server_kwargs['ssl_context'] = ssl_ctx
+
+    server = WSGIServer(bind_address, app, log=None, spawn=pool,
+                        **server_kwargs)
     server.serve_forever()
 
 

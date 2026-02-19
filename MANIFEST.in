@@ -2,3 +2,4 @@ include README.md
 include docker/Dockerfile
 include run-docker
 recursive-include sqlite_web *
+recursive-exclude * *.pyc
