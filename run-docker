@@ -11,4 +11,4 @@ port=${2:-$default_port}
 db_dir="$(realpath $(dirname "$1"))"
 db_file="$(basename "$1")"
 echo "Starting on: http://0.0.0.0:$port"
-docker run -it --rm -p "$port:8080" -v $db_dir:/data coleifer/sqlite-web "$db_file" 
+docker run -it --rm -p "$port:8080" -v $db_dir:/data ghcr.io/coleifer/sqlite-web "$db_file" 
