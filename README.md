@@ -127,6 +127,7 @@ The following options are available:
 * `-Q`, `--query-rows-per-page`: set pagination on query page, default 1000 rows.
 * `-T`, `--no-truncate`: disable ellipsis for long text values. If this option
   is used, the full text value is always shown.
+* `-B`, `--base64`: BLOB data as base64 (default is hex).
 * `-e`, `--extension`: path or name of loadable extension(s). To load
   multiple extensions, specify ``-e [path]`` for each extension.
 * `-s`, `--startup-hook`: path to a startup hook used to initialize the

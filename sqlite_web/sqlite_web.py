@@ -18,29 +18,15 @@ import threading
 import time
 import webbrowser
 from collections import namedtuple, OrderedDict
+from functools import reduce
 from functools import wraps
 from getpass import getpass
+from io import StringIO
 from io import TextIOWrapper
 from logging.handlers import WatchedFileHandler
 from werkzeug.routing import BaseConverter
 from werkzeug.utils import secure_filename
 
-# Py2k compat.
-if sys.version_info[0] == 2:
-    PY2 = True
-    binary_types = (buffer, bytes, bytearray)
-    decode_handler = 'replace'
-    numeric = (int, long, float)
-    unicode_type = unicode
-    from StringIO import StringIO
-else:
-    PY2 = False
-    binary_types = (bytes, bytearray)
-    decode_handler = 'backslashreplace'
-    numeric = (int, float)
-    unicode_type = str
-    from functools import reduce
-    from io import StringIO
 
 try:
     from flask import (
@@ -90,6 +76,8 @@ from playhouse.migrate import migrate
 
 CUR_DIR = os.path.realpath(os.path.dirname(__file__))
 DEBUG = False
+
+BLOB_AS_BASE64 = False  # Default is hex.
 ROWS_PER_PAGE = 50
 QUERY_ROWS_PER_PAGE = 1000
 TRUNCATE_VALUES = True
@@ -887,10 +875,16 @@ def minimal_validate_field(field, value):
             return value, 'Value must be 1, 0, true, false, t or f.'
         value = True if value.lower() in ('1', 't', 'true') else False
     elif isinstance(field, BlobField):
-        try:
-            value = base64.b64decode(value)
-        except Exception as exc:
-            return value, 'Value must be base64-encoded binary data.'
+        if app.config['BLOB_AS_BASE64']:
+            try:
+                value = base64.b64decode(value)
+            except Exception as exc:
+                return value, 'Value must be base64-encoded binary data.'
+        else:
+            try:
+                value = bytes.fromhex(value)
+            except Exception as exc:
+                return value, 'Value must be valid hex representation.'
     try:
         field.db_value(value)
     except Exception as exc:
@@ -1014,7 +1008,10 @@ def table_update(table, pk):
         if value is None:
             row[field.name] = None
         elif isinstance(field, BlobField):
-            row[field.name] = base64.b64encode(value).decode('utf8')
+            if app.config['BLOB_AS_BASE64']:
+                row[field.name] = base64.b64encode(value).decode('utf8')
+            else:
+                row[field.name] = value.hex()
         else:
             row[field.name] = value
 
@@ -1128,6 +1125,9 @@ def export(query, export_format, table=None):
     # Avoid any special chars in export filename.
     filename = re.sub(r'[^\w\d\-\.]+', '', filename)
 
+    if peewee_version >= (4, 0, 2):
+        kwargs['base64_bytes'] = app.config['BLOB_AS_BASE64']
+
     dataset.freeze(query, export_format, file_obj=buf, **kwargs)
 
     response_data = buf.getvalue()
@@ -1193,25 +1193,26 @@ def table_import(table):
             # compatible with Python's CSV module. We'd need to reach pretty
             # far into Flask's internals to modify this behavior, so instead
             # we'll just translate the stream into utf8-decoded unicode.
-            if not PY2:
-                try:
-                    stream = TextIOWrapper(file_obj, encoding='utf8')
-                except AttributeError:
-                    # The SpooledTemporaryFile used by werkzeug does not
-                    # implement an API that the TextIOWrapper expects, so we'll
-                    # just consume the whole damn thing and decode it.
-                    # Fixed in werkzeug 0.15.
-                    stream = StringIO(file_obj.read().decode('utf8'))
-            else:
-                stream = file_obj.stream
+            try:
+                stream = TextIOWrapper(file_obj, encoding='utf8')
+            except AttributeError:
+                # The SpooledTemporaryFile used by werkzeug does not
+                # implement an API that the TextIOWrapper expects, so we'll
+                # just consume the whole damn thing and decode it.
+                # Fixed in werkzeug 0.15.
+                stream = StringIO(file_obj.read().decode('utf8'))
 
+            kwargs = {}
+            if peewee_version >= (4, 0, 2):
+                kwargs['base64_bytes'] = app.config['BLOB_AS_BASE64']
             try:
                 with dataset.transaction():
                     count = dataset.thaw(
                         table,
                         format=format,
                         file_obj=stream,
-                        strict=strict)
+                        strict=strict,
+                        **kwargs)
             except Exception as exc:
                 flash('Error importing file: %s' % exc, 'danger')
                 app.logger.exception('Error importing file.')
@@ -1292,17 +1293,18 @@ link_re = re.compile(r'(?:https?|mailto)://[^\s]+')
 
 @app.template_filter('value_filter')
 def value_filter(value, max_length=50):
-    if isinstance(value, numeric):
+    if isinstance(value, (int, float)):
         return value
 
-    if isinstance(value, binary_types):
-        if not isinstance(value, (bytes, bytearray)):
-            value = bytes(value)  # Handle `buffer` type.
+    if isinstance(value, (bytes, bytearray, memoryview)):
         try:
             value = value.decode('utf8')
         except UnicodeDecodeError:
-            value = base64.b64encode(value)[:1024].decode('utf8')
-    if isinstance(value, unicode_type):
+            if app.config['BLOB_AS_BASE64']:
+                value = base64.b64encode(value)[:1024].decode('utf8')
+            else:
+                value = value.hex()[:1024]
+    if isinstance(value, str):
         if link_re.match(value):
             label = value
             if len(value) > max_length and app.config['TRUNCATE_VALUES']:
@@ -1481,6 +1483,12 @@ def get_option_parser():
         help=('Disable truncating long text values. By default text values '
               'are ellipsized after 50 characters and the full text is shown '
               'on click.'))
+    parser.add_option(
+        '-B',
+        '--base64',
+        action='store_true',
+        dest='base64',
+        help='BLOB data as base64 (default is hex)')
     parser.add_option(
         '-u',
         '--url-prefix',
@@ -1667,6 +1675,8 @@ def configure_app():
         app.config['ROWS_PER_PAGE'] = options.rows_per_page
     if options.query_rows_per_page:
         app.config['QUERY_ROWS_PER_PAGE'] = options.query_rows_per_page
+    if options.base64:
+        app.config['BLOB_AS_BASE64'] = options.base64
 
     app.config['TRUNCATE_VALUES'] = options.truncate_values
 
