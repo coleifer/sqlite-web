@@ -121,7 +121,7 @@ App = window.App || {};
         this.bkList = [];
         this.bk = {};
         this.container = $('div#bookmarks');
-        this.sqlTextarea = $('textarea#sql');
+        this.sqlTextarea = $('textarea[name="sql"]');
         this.modal = $('div#bookmark-modal');
         this.inpName = this.modal.find('input#bookmark-name');
         this.btnAdd = $('button#add-bookmark');
@@ -231,7 +231,7 @@ App = window.App || {};
     Recent = function() {};
 
     Recent.prototype.initialize = function(sql) {
-        this.sqlTextarea = $('textarea#sql');
+        this.sqlTextarea = $('textarea[name="sql"]');
         this.form = this.sqlTextarea.parents('form');
         this.queries = JSON.parse(localStorage.getItem('recentQueries') || '[]');
         this.idx = 0;
