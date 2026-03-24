@@ -1604,7 +1604,7 @@ def initialize_dataset(filename):
 
     if dataset_config['extensions']:
         # Load extensions before performing introspection.
-        for ext in extensions:
+        for ext in dataset_config['extensions']:
             db.load_extension(ext)
 
     if dataset_config['startup_hook']:
