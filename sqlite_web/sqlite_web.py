@@ -121,10 +121,6 @@ class SqliteDataSet(DataSet):
         return db_file.endswith('?mode=ro')
 
     @property
-    def base_name(self):
-        return os.path.basename(self.filename)
-
-    @property
     def created(self):
         stat = os.stat(self.filename)
         return datetime.datetime.fromtimestamp(stat.st_ctime)
@@ -666,8 +662,8 @@ def rename_column(table):
             try:
                 migrate(dataset._migrator.rename_column(table, rename, rename_to))
             except Exception as exc:
-                flash('Error attempting to rename column "%s": %s' % (name, exc),
-                      'danger')
+                flash('Error attempting to rename column "%s": %s' %
+                      (rename, exc), 'danger')
                 app.logger.exception('Error attempting to rename column.')
             else:
                 flash('Column "%s" was renamed successfully!' % rename, 'success')
@@ -1309,7 +1305,7 @@ def value_filter(value, max_length=50):
             label = value
             if len(value) > max_length and app.config['TRUNCATE_VALUES']:
                 label = value[:max_length]
-            return '<a href="%s">%s</a>' % (value.replace('"', '&quot;'), escape(label))
+            return '<a href="%s">%s</a>' % (escape(value), escape(label))
         value = escape(value)
         if len(value) > max_length and app.config['TRUNCATE_VALUES']:
             return ('<span class="truncated">%s</span> '
@@ -1585,8 +1581,6 @@ def initialize_dataset(filename):
         dataset_kw['include_views'] = True
 
     if dataset_config['read_only']:
-        if sys.version_info < (3, 4, 0):
-            die('Python 3.4.0 or newer is required for read-only access.')
         if peewee_version < (3, 5, 1):
             die('Peewee 3.5.1 or newer is required for read-only access.')
         db = SqliteDatabase('file:%s?mode=ro' % filename, uri=True)
@@ -1604,11 +1598,11 @@ def initialize_dataset(filename):
 
     if dataset_config['extensions']:
         # Load extensions before performing introspection.
-        for ext in extensions:
+        for ext in dataset_config['extensions']:
             db.load_extension(ext)
 
     if dataset_config['startup_hook']:
-        startup_hook(db)
+        dataset_config['startup_hook'](db)
 
     dataset = SqliteDataSet(db, bare_fields=True, **dataset_kw)
     dataset.close()

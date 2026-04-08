@@ -2,7 +2,7 @@
 
 {% block content_title %}
   {{ super() }}
-  <small>{{ ds_table.all().count() }} rows, showing page {{ page }}</small>
+  <small>{{ total_rows }} rows, showing page {{ page }}</small>
 {% endblock %}
 
 {% block content_tab_class %} active{% endblock %}
