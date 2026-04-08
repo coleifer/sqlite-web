@@ -370,7 +370,8 @@ def unload():
             flash('Database not found.', 'warning')
             return redirect(url_for('unload'))
 
-        datasets.pop(dataset)
+        ds = datasets.pop(dataset)
+        ds.close()
 
         current = session.get('dataset')
         if current == dataset:
@@ -469,9 +470,8 @@ def _query_view(template, table=None):
             page_start = offset + 1
             page_end = min(total, page_start + rpp - 1)
 
-        if page > 1:
-            qsql = ('SELECT * FROM (%s) AS _ LIMIT %d OFFSET %d' %
-                    (qsql.rstrip(' ;'), rpp, offset))
+        qsql = ('SELECT * FROM (%s) AS _ LIMIT %d OFFSET %d' %
+                (qsql.rstrip(' ;'), rpp, offset))
 
         try:
             cursor = dataset.query(qsql)
@@ -1126,7 +1126,7 @@ def export(query, export_format, table=None):
 
     dataset.freeze(query, export_format, file_obj=buf, **kwargs)
 
-    response_data = buf.getvalue()
+    response_data = buf.getvalue().encode('utf8')
     response = make_response(response_data)
     response.headers['Content-Length'] = len(response_data)
     response.headers['Content-Type'] = mimetype
