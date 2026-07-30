@@ -160,11 +160,10 @@ $ docker run -it --rm \
     db_filename.db
 
 #
-# OR build the image yourself:
+# OR build the image yourself (run from the repository root):
 #
 
-$ cd docker/  # Change dirs to the dir containing Dockerfile
-$ docker build -t coleifer/sqlite-web .
+$ docker build -t coleifer/sqlite-web -f docker/Dockerfile .
 $ docker run -it --rm \
     -p 8080:8080 \
     -v /path/to/your-data:/data \

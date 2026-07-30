@@ -23,6 +23,7 @@ jobs:
         run: |
           docker buildx build \
             --platform linux/amd64,linux/arm64 \
+            --file docker/Dockerfile \
             --tag ghcr.io/coleifer/sqlite-web:latest \
             --push \
-            ./docker
+            .
