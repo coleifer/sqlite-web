@@ -4,6 +4,7 @@ __version__ = '0.7.2'
 
 import base64
 import datetime
+import decimal
 import hashlib
 import importlib
 import logging
@@ -866,6 +867,11 @@ def minimal_validate_field(field, value):
             _ = float(value)
         except Exception:
             return value, 'Value is not a numeric/real.'
+    elif isinstance(field, DecimalField):
+        try:
+            value = str(decimal.Decimal(value))
+        except Exception as exc:
+            return value, 'Value is not a Decimal.'
     elif isinstance(field, BooleanField):
         if value.lower() not in ('1', '0', 'true', 'false', 't', 'f'):
             return value, 'Value must be 1, 0, true, false, t or f.'
