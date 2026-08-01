@@ -1604,7 +1604,8 @@ def initialize_dataset(filename):
     if dataset_config['startup_hook']:
         dataset_config['startup_hook'](db)
 
-    dataset = SqliteDataSet(db, bare_fields=True, **dataset_kw)
+    dataset = SqliteDataSet(db, **dataset_kw)
+    dataset.update_cache()
     dataset.close()
     return dataset
 
