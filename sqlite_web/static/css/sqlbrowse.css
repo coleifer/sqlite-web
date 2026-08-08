@@ -7,6 +7,7 @@ nav.primary-nav {
 #sidebar .nav>li>a {padding: 3px 10px;}
 h1>small {font-size: 50%;}
 div.table-wrapper {
+    clear: both;
     margin-bottom: 1rem;
     overflow-x: auto;
 }
