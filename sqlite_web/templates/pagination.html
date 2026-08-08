@@ -4,19 +4,19 @@
     <input name="sql" type="hidden" value="{{ sql|default('') }}" />
     <ul class="pagination">
       <li class="{% if page < 2 %}disabled {% endif %}page-item">
-        <button class="page-link" name="page" type="submit" value="1">&laquo;</a>
+        <button class="page-link" name="page" type="submit" value="1">&laquo;</button>
       </li>
       <li class="{% if page < 2 %}disabled {% endif %}page-item">
-        <button class="page-link" name="page" type="submit" value="{{ page_prev }}">&lsaquo;</a>
+        <button class="page-link" name="page" type="submit" value="{{ page_prev }}">&lsaquo;</button>
       </li>
       <li class="page-item disabled">
         <span class="page-link">Page {{ page }} of {{ total_pages }}</span>
       </li>
       <li class="{% if page >= total_pages %}disabled {% endif %}page-item">
-        <button class="page-link" name="page" type="submit" value="{{ page_next }}">&rsaquo;</a>
+        <button class="page-link" name="page" type="submit" value="{{ page_next }}">&rsaquo;</button>
       </li>
       <li class="{% if page >= total_pages %}disabled {% endif %}page-item">
-        <button class="page-link" name="page" type="submit" value="{{ total_pages }}">&raquo;</a>
+        <button class="page-link" name="page" type="submit" value="{{ total_pages }}">&raquo;</button>
       </li>
     </ul>
   </form>

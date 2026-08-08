@@ -11,9 +11,6 @@
   {# add filters #}
   {% if allow_bulk %}
     <form action="." autocomplete="off" method="post">
-      <div class="float-right">
-        <button class="btn btn-sm btn-danger bulk-action" disabled name="action" type="submit" value="bulk-delete">Bulk Delete</button>
-      </div>
   {% endif %}
   <div class="table-wrapper">
   <table class="table table-striped small cell-content">
@@ -60,7 +57,12 @@
     </tbody>
   </table>
   </div>
-  {% if allow_bulk %}</form>{% endif %}
+  {% if allow_bulk %}
+    <div class="float-right">
+      <button class="btn btn-sm btn-danger bulk-action" disabled name="action" type="submit" value="bulk-delete">Bulk Delete</button>
+    </div>
+  </form>
+  {% endif %}
   <nav>
     <ul class="pagination">
       <li class="{% if not previous_page %}disabled {% endif %}page-item">

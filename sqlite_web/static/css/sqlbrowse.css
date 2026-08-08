@@ -13,6 +13,7 @@ div.table-wrapper {
 }
 div.table-wrapper table {
     margin-bottom: 0;
+    min-width: 100%;
     width: max-content;
 }
 table.cell-content td,
