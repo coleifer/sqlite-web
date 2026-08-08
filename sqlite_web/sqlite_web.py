@@ -1312,13 +1312,15 @@ def value_filter(value, max_length=50):
             if len(value) > max_length and app.config['TRUNCATE_VALUES']:
                 label = value[:max_length]
             return '<a href="%s">%s</a>' % (escape(value), escape(label))
-        value = escape(value)
-        if len(value) > max_length and app.config['TRUNCATE_VALUES']:
-            return ('<span class="truncated">%s</span> '
-                    '<span class="full" style="display:none;">%s</span>'
-                    '<a class="toggle-value" href="#">...</a>') % (
-                        value[:max_length],
-                        value)
+        if len(value) > max_length:
+            if app.config['TRUNCATE_VALUES']:
+                return ('<span class="truncated">%s</span> '
+                        '<span class="full" style="display:none;">%s</span>'
+                        '<a class="toggle-value" href="#">...</a>') % (
+                            escape(value[:max_length]),
+                            escape(value))
+            return '<span class="full">%s</span>' % escape(value)
+        return escape(value)
     return value
 
 column_re = re.compile(r'(.+?)\((.+)\)', re.S)

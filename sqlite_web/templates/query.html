@@ -70,6 +70,7 @@
       <h3>
         Results ({% if total >= 0 %}{% if total_pages > 1 %}{{ page_start }}&ndash;{{ page_end }} of {% endif %}{{ total }}{% else %}unable to determine{% endif %})
       </h3>
+      <div class="table-wrapper">
       <table class="table table-striped small cell-content">
         <thead>
           <tr>
@@ -84,7 +85,7 @@
           {% for row in data %}
             <tr>
               {% for value in row %}
-                <td>
+                <td{% if value is number %} class="num"{% endif %}>
                   {% if value is none %}<code>NULL</code>{% else %}{{ value|value_filter|safe }}{% endif %}
                 </td>
               {% endfor %}
@@ -92,6 +93,7 @@
           {% endfor %}
         </tbody>
       </table>
+      </div>
       {% include "pagination.html" %}
     {% endif %}
   {% endif %}

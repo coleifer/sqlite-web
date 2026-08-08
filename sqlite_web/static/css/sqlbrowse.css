@@ -6,10 +6,32 @@ nav.primary-nav {
 }
 #sidebar .nav>li>a {padding: 3px 10px;}
 h1>small {font-size: 50%;}
+div.table-wrapper {
+    margin-bottom: 1rem;
+    overflow-x: auto;
+}
+div.table-wrapper table {
+    margin-bottom: 0;
+    width: max-content;
+}
 table.cell-content td,
 table.cell-content th {
     padding: 1px 4px 1px 4px;
     border: 1px dotted #cccccc;
+}
+table.cell-content th {
+    white-space: nowrap;
+}
+table.cell-content td {
+    max-width: 60ch;
+    overflow-wrap: anywhere;
+}
+table.cell-content td span.full {
+    white-space: pre-wrap;
+}
+table.cell-content td.num {
+    font-variant-numeric: tabular-nums;
+    text-align: right;
 }
 ul.pagination .page-item .page-link {
     border-color: #aaaaaa !important;
