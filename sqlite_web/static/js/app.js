@@ -79,7 +79,8 @@ App = window.App || {};
             var searchQuery = $(this).val().toUpperCase();
             $('li.table-link').each(function() {
                 var elem = $(this),
-                    tableName = elem.find('a').prop('innerText').toUpperCase();
+                    link = elem.find('a'),
+                    tableName = (link.attr('title') || link.prop('innerText')).toUpperCase();
                 elem.toggle(tableName.indexOf(searchQuery) != -1);
             });
         });
@@ -109,11 +110,16 @@ App = window.App || {};
         });
 
         /* Initialize focus on SQL textarea. */
-        var sqlTextarea = $('textarea#sql');
+        var sqlTextarea = $('textarea#sql, textarea#table-sql');
         if (sqlTextarea.length > 0) {
             sqlTextarea.focus();
         }
     };
+
+    /* Per-database namespace for localStorage keys. */
+    function nsKey(name) {
+        return name + ':' + (window.SQLITE_WEB_DB || '');
+    }
 
     Bookmarks = function() {};
 
@@ -128,7 +134,7 @@ App = window.App || {};
         this.btnSave = this.modal.find('button#save-bookmark');
         this.frmSave = this.modal.find('form');
 
-        var queries = JSON.parse(localStorage.getItem('bookmarks') || '[]');
+        var queries = JSON.parse(localStorage.getItem(nsKey('bookmarks')) || '[]');
         for (var i = 0; i < queries.length; i++) {
             var name = queries[i][0],
                 sql = queries[i][1];
@@ -195,7 +201,7 @@ App = window.App || {};
         for (var i = 0; i < this.bkList.length; i++) {
             accum.push([this.bkList[i], this.bk[this.bkList[i]]]);
         }
-        localStorage.setItem('bookmarks', JSON.stringify(accum));
+        localStorage.setItem(nsKey('bookmarks'), JSON.stringify(accum));
     };
 
     Bookmarks.prototype.populateMenu = function() {
@@ -235,7 +241,7 @@ App = window.App || {};
     Recent.prototype.initialize = function(sql) {
         this.sqlTextarea = $('textarea[name="sql"]');
         this.form = this.sqlTextarea.parents('form');
-        this.queries = JSON.parse(localStorage.getItem('recentQueries') || '[]');
+        this.queries = JSON.parse(localStorage.getItem(nsKey('recentQueries')) || '[]');
         this.idx = 0;
         if (sql) {
             var accum = [sql];
@@ -243,7 +249,7 @@ App = window.App || {};
                 if (this.queries[i] !== sql) { accum.push(this.queries[i]) };
             }
             this.queries = accum.slice(0, 50);
-            localStorage.setItem('recentQueries', JSON.stringify(this.queries));
+            localStorage.setItem(nsKey('recentQueries'), JSON.stringify(this.queries));
         }
 
         this.bindHandlers();

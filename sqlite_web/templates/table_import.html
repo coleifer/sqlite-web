@@ -7,7 +7,7 @@
 <form action="{{ url_for('table_import', table=table) }}" class="form" enctype="multipart/form-data" method="post">
   <div class="form-group">
     <label for="id_file">Input file</label>
-    <input class="form-control" name="file" type="file" />
+    <input class="form-control" id="id_file" name="file" type="file" />
     <span class="help-block">
       Supported file types: <strong>JSON</strong> and <strong>CSV</strong>.
       JSON files must be structured as a list of objects. CSV files must

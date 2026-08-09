@@ -91,9 +91,11 @@ def is_read(dataset, sql):
 
 
 def _enc(value):
-    if isinstance(value, bytes):
-        return {'b64': base64.b64encode(value).decode()}
-    return value
+    if isinstance(value, (bytes, bytearray, memoryview)):
+        return {'b64': base64.b64encode(bytes(value)).decode()}
+    if value is None or isinstance(value, (int, float, str, bool)):
+        return value
+    return str(value)  # date, Decimal, etc. fall back to their text form.
 
 
 def _dec(value):

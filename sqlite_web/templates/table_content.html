@@ -17,7 +17,7 @@
     <thead>
       <tr>
         {% if allow_bulk %}
-          <th style="width:24px;"><input id="toggle-pk-all" type="checkbox" /></th>
+          <th style="width:24px;"><input id="toggle-pk-all" type="checkbox" aria-label="Select all rows" /></th>
         {% endif %}
         {% for column in columns %}
           <th>
@@ -34,7 +34,7 @@
         {% endif %}
         <tr>
           {% if allow_bulk %}
-            <td><input class="toggle-pk" name="pk" type="checkbox" value="{{ pk }}" /></td>
+            <td><input class="toggle-pk" name="pk" type="checkbox" value="{{ pk }}" aria-label="Select row" /></td>
           {% endif %}
           {% for field in field_names %}
             {% set value = row[field] %}

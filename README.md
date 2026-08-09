@@ -137,12 +137,13 @@ The following options are available:
 * `-u`, `--url-prefix`: URL prefix for application, e.g. "/sqlite-web".
 * `-L`, `--enable-load`: Enable loading additional databases at runtime (upload
   only). For adding local databases use `--enable-filesystem`.
-* `-U`, `--upload-dir`: Destination directory for uploaded database (`-L`). If
-  not specified, a system tempdir will be used.
+* `-U`, `--upload-dir`: Destination directory for uploaded database. Only has
+  an effect together with `-L`; if not specified, a system tempdir is used.
 * `-F`, `--enable-filesystem`: Enable loading additional databases by
   specifying on-disk path at runtime. **Be careful with this**.
-* `-c`, `--cert` and ``-k``, ``--key`` - specify SSL cert and private key.
-* `-a`, `--ad-hoc` - run using an ad-hoc SSL context.
+* `-c`, `--ssl-cert` and `-k`, `--ssl-key` - specify SSL cert and private key.
+* `-a`, `--ad-hoc` - run using an ad-hoc SSL context. Requires the
+  `cryptography` package (`pip install sqlite-web[ssl]`).
 
 ### Using docker
 
@@ -167,7 +168,7 @@ $ docker build -t coleifer/sqlite-web -f docker/Dockerfile .
 $ docker run -it --rm \
     -p 8080:8080 \
     -v /path/to/your-data:/data \
-    coleifer/sqlite-web
+    coleifer/sqlite-web \
     db_filename.db
 ```
 

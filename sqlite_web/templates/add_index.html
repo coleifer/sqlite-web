@@ -7,7 +7,7 @@
 <form action="{{ url_for('add_index', table=table) }}" class="form" method="post">
   <div class="form-group">
     <label for="id_indexed_columns">Indexed Columns</label>
-    <select class="form-control" id="id_type" multiple="multiple" name="indexed_columns">
+    <select class="form-control" id="id_indexed_columns" multiple="multiple" name="indexed_columns">
       {% for column in columns %}
         <option {% if column in indexed_columns %}selected="selected" {% endif %}value="{{ column.name }}">{{ column.name }} ({{ column.data_type }})</option>
       {% endfor %}

@@ -1,10 +1,13 @@
 import os
+import shutil
+import sqlite3
 import tempfile
 import unittest
 
 from peewee import SqliteDatabase
 from playhouse.dataset import DataSet
 
+from sqlite_web import sqlite_web as sw
 from sqlite_web.executor import Result
 from sqlite_web.executor import is_read
 from sqlite_web.executor import key_decode
@@ -201,6 +204,99 @@ class TestRowKey(unittest.TestCase):
         token = key_encode([b'\xfb\xff' * 30])
         self.assertNotIn('+', token)
         self.assertNotIn('/', token)
+
+
+class BaseAppTestCase(unittest.TestCase):
+    SCHEMA = """
+        CREATE TABLE users (id INTEGER PRIMARY KEY, username TEXT);
+        INSERT INTO users (username) VALUES ('huey'), ('mickey'), ('zaizee');
+        CREATE TABLE comp (a TEXT, b TEXT, label TEXT, PRIMARY KEY (a, b));
+        INSERT INTO comp VALUES ('US', 'A:::B', 'composite-row');
+        CREATE TABLE blobs (id BLOB PRIMARY KEY, note TEXT);
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.db_path = os.path.join(self.tmp, 'app.db')
+        conn = sqlite3.connect(self.db_path)
+        conn.executescript(self.SCHEMA)
+        conn.execute('INSERT INTO blobs VALUES (?, ?)', (b'\x00\xff', 'blob'))
+        conn.commit()
+        conn.close()
+        sw.datasets.clear()
+        sw.initialize_app([self.db_path])
+        sw.app.config['TESTING'] = True
+        self.client = sw.app.test_client()
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def dbrows(self, sql, *params):
+        conn = sqlite3.connect(self.db_path)
+        rows = conn.execute(sql, params).fetchall()
+        conn.close()
+        return rows
+
+
+class TestExecutionPolicy(BaseAppTestCase):
+    def test_cross_site_post_rejected(self):
+        r = self.client.post('/query/', data={'sql': 'SELECT 1'},
+                             headers={'Sec-Fetch-Site': 'cross-site'})
+        self.assertEqual(r.status_code, 403)
+        r = self.client.post('/query/', data={'sql': 'SELECT 1'},
+                             headers={'Sec-Fetch-Site': 'same-origin'})
+        self.assertEqual(r.status_code, 200)
+        r = self.client.post('/query/', data={'sql': 'SELECT 1'})
+        self.assertEqual(r.status_code, 200)
+
+    def test_get_does_not_execute_writes(self):
+        self.client.get('/query/', query_string={'sql': 'DELETE FROM users'})
+        self.assertEqual(self.dbrows('SELECT COUNT(*) FROM users')[0][0], 3)
+
+    def test_post_runs_write_and_ddl(self):
+        r = self.client.post('/query/',
+                             data={'sql': "INSERT INTO users (username) "
+                                          "VALUES ('x')"})
+        self.assertIn(b'Rows modified', r.data)
+        self.assertEqual(self.dbrows('SELECT COUNT(*) FROM users')[0][0], 4)
+        self.client.post('/query/', data={'sql': 'CREATE TABLE t2 (id INT)'})
+        self.assertEqual(self.client.get('/t2/').status_code, 200)
+
+    def test_export_refuses_non_select(self):
+        r = self.client.post('/query/', data={'sql': 'DROP TABLE users',
+                                              'export_csv': '1'})
+        self.assertIn(b'Only a single query may be exported', r.data)
+        self.assertTrue(self.dbrows('SELECT COUNT(*) FROM users'))
+
+
+class TestRowKeyRoutes(BaseAppTestCase):
+    def test_composite_key_with_delimiter(self):
+        token = key_encode(['US', 'A:::B'])
+        r = self.client.get('/comp/update/%s/' % token)
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(b'composite-row', r.data)
+
+    def test_blob_bulk_delete(self):
+        token = key_encode([b'\x00\xff'])
+        r = self.client.post('/blobs/content/',
+                             data={'action': 'bulk-delete', 'pk': token},
+                             headers={'Sec-Fetch-Site': 'same-origin'})
+        self.assertIn(r.status_code, (302, 303))
+        self.assertEqual(self.dbrows('SELECT COUNT(*) FROM blobs')[0][0], 0)
+
+    def test_text_pk_valued_like_old_sentinel(self):
+        self.client.post('/query/', data={'sql': "INSERT INTO users (id, "
+                                          "username) VALUES (42, '__uneditable__')"})
+        # A row whose value collides with the retired sentinel is still edited
+        # by its own pk, not the username.
+        token = key_encode([42])
+        r = self.client.get('/users/update/%s/' % token)
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(b'__uneditable__', r.data)
+
+    def test_malformed_key_404s(self):
+        self.assertEqual(self.client.get('/users/update/@@bad@@/').status_code,
+                         404)
 
 
 if __name__ == '__main__':

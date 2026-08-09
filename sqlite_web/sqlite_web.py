@@ -76,9 +76,12 @@ from playhouse.migrate import migrate
 
 try:
     from sqlite_web.executor import (
-        is_read, run_one, run_script, split_statements)
+        is_read, key_decode, key_encode, run_one, run_script,
+        split_statements)
 except ImportError:
-    from executor import is_read, run_one, run_script, split_statements
+    from executor import (
+        is_read, key_decode, key_encode, run_one, run_script,
+        split_statements)
 
 
 CUR_DIR = os.path.realpath(os.path.dirname(__file__))
@@ -271,22 +274,18 @@ class SqliteDataSet(DataSet):
         return operations
 
 class Base64Converter(BaseConverter):
+    # The URL segment is a rowkey token (see executor.key_encode). It is
+    # already URL-safe, so it passes through unchanged; a malformed token
+    # fails to decode and 404s.
     def to_python(self, value):
         try:
-            value = base64.urlsafe_b64decode(value)
+            key_decode(value)
         except Exception:
-            raise ValidationError('invalid base64-encoded data')
-        try:
-            return value.decode('utf8')
-        except UnicodeDecodeError:
-            return value
+            raise ValidationError('invalid row key')
+        return value
 
     def to_url(self, value):
-        if not isinstance(value, (bytes, str)):
-            value = str(value).encode('utf8')
-        elif isinstance(value, str):
-            value = value.encode('utf8')
-        return base64.urlsafe_b64encode(value).decode()
+        return value
 
 app.url_map.converters['b64'] = Base64Converter
 
@@ -301,6 +300,16 @@ def get_dataset():
 
 def quote_ident(name):
     return '"%s"' % name.replace('"', '""')
+
+def _bulk_delete_values(tokens):
+    # Bulk delete is single-column-pk only, so each token holds one value.
+    values = []
+    for token in tokens:
+        try:
+            values.append(key_decode(token)[0])
+        except Exception:
+            continue
+    return values
 
 #
 # Flask views.
@@ -467,15 +476,15 @@ def _query_view(template, table=None):
         allow_edit = allow_bulk = False
 
     if request.method == 'POST' and request.form.get('action') == 'bulk-delete':
-        pks = request.form.getlist('pk')
+        values = _bulk_delete_values(request.form.getlist('pk'))
         if not allow_bulk:
             flash('Cannot perform bulk operation on this table.', 'warning')
-        elif not pks:
+        elif not values:
             flash('No rows were selected.', 'warning')
         else:
             try:
                 n = (model_class.delete()
-                     .where(model_class._meta.primary_key.in_(pks))
+                     .where(model_class._meta.primary_key.in_(values))
                      .execute())
             except Exception as exc:
                 flash('Error performing bulk delete: %s' % exc, 'danger')
@@ -512,7 +521,7 @@ def _query_view(template, table=None):
     if (result is not None and result.kind == 'rows' and allow_edit and
             not is_composite_pk and pk.column_name in result.columns):
         pk_index = result.columns.index(pk.column_name)  # First one wins.
-        result.keys = [row[pk_index] for row in result.rows]
+        result.keys = [key_encode([row[pk_index]]) for row in result.rows]
 
     if result is not None and result.kind == 'rows' and \
        'count' in request.values:
@@ -822,20 +831,24 @@ def table_content(table):
     allow_bulk = allow_edit and not is_composite_pk
 
     if request.method == 'POST':
+        action = request.form.get('action')
+        values = _bulk_delete_values(request.form.getlist('pk'))
         if not allow_bulk:
             flash('Cannot perform bulk operation on this table.', 'warning')
+        elif action != 'bulk-delete':
+            flash('Unrecognized action', 'warning')
+        elif not values:
+            flash('No rows were selected.', 'warning')
         else:
-            action = request.form['action']
-            pks = request.form.getlist('pk')
-            if not pks:
-                flash('No rows were selected.', 'warning')
-            elif action == 'bulk-delete':
+            try:
                 n = (model.delete()
-                     .where(model._meta.primary_key.in_(pks))
+                     .where(model._meta.primary_key.in_(values))
                      .execute())
-                flash('Successfully deleted %s row(s)' % n, 'success')
+            except Exception as exc:
+                flash('Error performing bulk delete: %s' % exc, 'danger')
+                app.logger.exception('Error performing bulk delete.')
             else:
-                flash('Unrecognized action', 'warning')
+                flash('Successfully deleted %s row(s)' % n, 'success')
         return redirect(request.full_path)
 
     page_number = request.args.get('page') or ''
@@ -1028,9 +1041,6 @@ def table_update(table, pk):
     if not table_pk:
         flash('Table must have a primary key to perform update.', 'danger')
         return redirect(url_for('table_content', table=table))
-    elif pk == '__uneditable__':
-        flash('Could not encode primary key to perform update.', 'danger')
-        return redirect(url_for('table_content', table=table))
 
     expr = decode_pk(model, pk)
     try:
@@ -1114,9 +1124,6 @@ def table_delete(table, pk):
     table_pk = model._meta.primary_key
     if not table_pk:
         flash('Table must have a primary key to perform delete.', 'danger')
-        return redirect(url_for('table_content', table=table))
-    elif pk == '__uneditable__':
-        flash('Could not encode primary key to perform delete.', 'danger')
         return redirect(url_for('table_content', table=table))
 
     expr = decode_pk(model, pk)
@@ -1310,28 +1317,30 @@ def format_index(index_sql):
 @app.template_filter('encode_pk')
 def encode_pk(row, pk):
     if isinstance(pk, CompositeKey):
-        try:
-            return ':::'.join([str(row[k]) for k in pk.field_names])
-        except Exception as exc:
-            return '__uneditable__'
-    return row[pk.column_name]
+        values = [row[f] for f in pk.field_names]
+    else:
+        values = [row[pk.column_name]]
+    return key_encode(values)
 
-def decode_pk(model, pk_data):
+def decode_pk(model, token):
     pk = model._meta.primary_key
+    values = key_decode(token)
     if isinstance(pk, CompositeKey):
         fields = [pk.model._meta.columns[f] for f in pk.field_names]
-        values = pk_data.split(':::')
         expressions = [(f == v) for f, v in zip(fields, values)]
         return reduce(operator.and_, expressions)
-    return (pk == pk_data)
+    return (pk == values[0])
 
 @app.template_filter('pk_display')
-def pk_display(table_pk, pk):
+def pk_display(table_pk, token):
+    try:
+        values = key_decode(token)
+    except Exception:
+        return token
     if isinstance(table_pk, CompositeKey):
-        return tuple(pk.split(':::'))
-    elif isinstance(pk, bytes):
-        pk = base64.b64encode(pk).decode()
-    return pk
+        return tuple(values)
+    value = values[0]
+    return value.hex() if isinstance(value, bytes) else value
 
 link_re = re.compile(r'(?:https?|mailto)://[^\s]+')
 
@@ -1447,12 +1456,13 @@ class PrefixMiddleware(object):
         self.prefix_len = len(self.prefix)
 
     def __call__(self, environ, start_response):
-        if environ['PATH_INFO'].startswith(self.prefix):
-            environ['PATH_INFO'] = environ['PATH_INFO'][self.prefix_len:]
+        path = environ['PATH_INFO']
+        if path == self.prefix or path.startswith(self.prefix + '/'):
+            environ['PATH_INFO'] = path[self.prefix_len:] or '/'
             environ['SCRIPT_NAME'] = self.prefix
             return self.app(environ, start_response)
         else:
-            start_response('404', [('Content-Type', 'text/plain')])
+            start_response('404 Not Found', [('Content-Type', 'text/plain')])
             return ['URL does not match application prefix.'.encode()]
 
 #
@@ -1611,8 +1621,8 @@ def die(msg, exit_code=1):
     sys.stderr.flush()
     sys.exit(exit_code)
 
-def open_browser_tab(host, port):
-    url = 'http://%s:%s/' % (host, port)
+def open_browser_tab(host, port, scheme='http'):
+    url = '%s://%s:%s/' % (scheme, host, port)
 
     def _open_tab(url):
         time.sleep(1.5)
@@ -1755,8 +1765,12 @@ def configure_app():
     initialize_app(args, options.read_only, password, options.url_prefix,
                    options.extensions, options.foreign_keys, hook)
 
+    if options.upload_dir and not options.enable_load:
+        app.logger.warning('--upload-dir has no effect without --enable-load.')
+
     if options.browser:
-        open_browser_tab(options.host, options.port)
+        scheme = 'https' if (options.ssl_ad_hoc or options.ssl_cert) else 'http'
+        open_browser_tab(options.host, options.port, scheme)
 
     if password:
         key = b'sqlite-web-' + args[0].encode('utf8') + password.encode('utf8')

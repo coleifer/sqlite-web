@@ -38,8 +38,8 @@
     <button class="btn btn-secondary" name="export_csv" type="submit">Export CSV</button>
     <div class="btn-group">
       <div class="dropdown">
-        <button type="button" class="btn btn-info dropdown-toggle" data-toggle="dropdown" id="dropdownMenuButton" aria-haspopup="true" aria-expanded="false">SQL Help</button>
-        <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+        <button type="button" class="btn btn-info dropdown-toggle" data-toggle="dropdown" id="sqlHelpButton" aria-haspopup="true" aria-expanded="false">SQL Help</button>
+        <div class="dropdown-menu" aria-labelledby="sqlHelpButton">
           {% for parts, img_url in query_images %}
             <a class="dropdown-item sql-image" href="{{ url_for('static', filename=img_url) }}">{{ ' : '.join(parts) }}</a>
           {% endfor %}
@@ -49,8 +49,8 @@
     <div class="float-right">
       <div class="btn-group">
         <div class="dropdown">
-          <button type="button" class="btn btn-secondary dropdown-toggle" data-toggle="dropdown" id="dropdownMenuButton" aria-haspopup="true" aria-expanded="false">Bookmarks</button>
-          <div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton" id="bookmarks"></div>
+          <button type="button" class="btn btn-secondary dropdown-toggle" data-toggle="dropdown" id="bookmarksButton" aria-haspopup="true" aria-expanded="false">Bookmarks</button>
+          <div class="dropdown-menu dropdown-menu-right" aria-labelledby="bookmarksButton" id="bookmarks"></div>
         </div>
         <button class="btn btn-secondary" id="add-bookmark" title="Add Bookmark" type="button">+</button>
       </div>

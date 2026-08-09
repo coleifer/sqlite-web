@@ -11,6 +11,10 @@ dependencies = [
     "peewee>=3.0.0",
     "pygments"
 ]
+
+[project.optional-dependencies]
+wsgi = ["gevent"]
+ssl = ["cryptography"]
 readme = "README.md"
 authors = [
     { name = "Charles Leifer", email = "coleifer@gmail.com" }

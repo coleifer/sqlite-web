@@ -1,6 +1,12 @@
-from gevent import monkey ; monkey.patch_all()
-from gevent.pool import Pool
-from gevent.pywsgi import WSGIServer
+try:
+    from gevent import monkey ; monkey.patch_all()
+    from gevent.pool import Pool
+    from gevent.pywsgi import WSGIServer
+except ImportError:
+    raise SystemExit(
+        'sqlite_wsgi requires gevent, which is not installed. Install it '
+        'with "pip install sqlite-web[wsgi]" (or "pip install gevent"), or '
+        'use the "sqlite_web" command for the built-in development server.')
 
 import os
 import sys
