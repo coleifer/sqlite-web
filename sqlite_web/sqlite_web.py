@@ -74,6 +74,12 @@ from peewee import sqlite3
 from playhouse.dataset import DataSet
 from playhouse.migrate import migrate
 
+try:
+    from sqlite_web.executor import (
+        is_read, run_one, run_script, split_statements)
+except ImportError:
+    from executor import is_read, run_one, run_script, split_statements
+
 
 CUR_DIR = os.path.realpath(os.path.dirname(__file__))
 DEBUG = False
@@ -428,35 +434,26 @@ def unload():
 
 def _query_view(template, table=None):
     dataset = get_dataset()
-    data = []
-    data_description = error = row_count = sql = None
-    ordering = None
-    pk_index = None
+    sql = request.values.get('sql') or ''
 
-    sql = qsql = request.values.get('sql') or ''
+    export_format = None
+    if request.method == 'POST':
+        if 'export_json' in request.form:
+            export_format = 'json'
+        elif 'export_csv' in request.form:
+            export_format = 'csv'
 
-    if 'export_json' in request.values:
-        ordering = request.values.get('export_ordering')
-        export_format = 'json'
-    elif 'export_csv' in request.values:
-        ordering = request.values.get('export_ordering')
-        export_format = 'csv'
-    else:
-        ordering = request.values.get('ordering')
-        export_format = None
-
+    ordering_key = 'export_ordering' if export_format else 'ordering'
     try:
-        ordering = int(ordering) if ordering else None
+        ordering = int(request.values.get(ordering_key) or 0) or None
     except ValueError:
         ordering = None
 
-    if ordering:
-        direction = 'DESC' if ordering < 0 else 'ASC'
-        qsql = ('SELECT * FROM (\n%s\n) AS _ ORDER BY %d %s' %
-                (sql.rstrip('; \t\r\n'), abs(ordering), direction))
+    page = request.values.get('page') or ''
+    page = max(int(page), 1) if page.isdigit() else 1
 
     if table:
-        default_sql = 'SELECT * FROM "%s"' % table
+        default_sql = 'SELECT * FROM %s' % quote_ident(table)
         model_class = dataset[table].model_class
         pk = model_class._meta.primary_key
         is_composite_pk = isinstance(pk, CompositeKey)
@@ -467,94 +464,87 @@ def _query_view(template, table=None):
         model_class = dataset._base_model
         pk = None
         is_composite_pk = False
-        allow_edit = False
-        allow_bulk = False
+        allow_edit = allow_bulk = False
 
-    if request.method == 'POST':
-        action = request.form.get('action')
+    if request.method == 'POST' and request.form.get('action') == 'bulk-delete':
         pks = request.form.getlist('pk')
-        if action == 'bulk-delete':
-            if not allow_bulk:
-                flash('Cannot perform bulk operation on this table.', 'warning')
-            elif not pks:
-                flash('No rows were selected.', 'warning')
-            else:
+        if not allow_bulk:
+            flash('Cannot perform bulk operation on this table.', 'warning')
+        elif not pks:
+            flash('No rows were selected.', 'warning')
+        else:
+            try:
                 n = (model_class.delete()
                      .where(model_class._meta.primary_key.in_(pks))
                      .execute())
+            except Exception as exc:
+                flash('Error performing bulk delete: %s' % exc, 'danger')
+                app.logger.exception('Error performing bulk delete.')
+            else:
                 flash('Successfully deleted %s row(s)' % n, 'success')
 
-    page = page_next = page_prev = page_start = page_end = total_pages = 1
-    total = -1  # Number of rows in query result.
-    if qsql:
-        if export_format:
-            query = model_class.raw(qsql).dicts()
-            return export(query, export_format, table)
+    statements = split_statements(sql) if sql.strip() else []
+    single_read = len(statements) == 1 and is_read(dataset, sql)
 
-        try:
-            total, = dataset.query('SELECT COUNT(*) FROM (\n%s\n) as _' %
-                                   qsql.rstrip('; \t\r\n')).fetchone()
-        except Exception as exc:
-            total = -1
-
-        # Apply pagination.
-        rpp = app.config['QUERY_ROWS_PER_PAGE']
-        page = request.values.get('page')
-        if page and page.isdigit():
-            page = max(int(page), 1)
+    if export_format and statements:
+        if not single_read:
+            flash('Only a single query may be exported.', 'warning')
         else:
-            page = 1
-        offset = (page - 1) * rpp
-        page_prev, page_next = max(page - 1, 1), page + 1
+            qsql = sql.rstrip('; \t\r\n')
+            if ordering:
+                qsql = ('SELECT * FROM (\n%s\n) AS _ ORDER BY %d %s' %
+                        (qsql, abs(ordering),
+                         'DESC' if ordering < 0 else 'ASC'))
+            return export(model_class.raw(qsql).dicts(), export_format, table)
 
-        # Figure out highest page.
-        if total > 0:
+    result = results = total = total_pages = None
+    rpp = app.config['QUERY_ROWS_PER_PAGE']
+    if statements and export_format is None:
+        if request.method == 'GET' and not single_read:
+            # Writes and scripts only execute via POST.
+            flash('Press Execute to run this statement.', 'info')
+        elif len(statements) == 1:
+            result = run_one(dataset, sql, page=page, page_size=rpp,
+                             ordering=ordering)
+        else:
+            results = run_script(dataset, statements, page_size=rpp)
+
+    if (result is not None and result.kind == 'rows' and allow_edit and
+            not is_composite_pk and pk.column_name in result.columns):
+        pk_index = result.columns.index(pk.column_name)  # First one wins.
+        result.keys = [row[pk_index] for row in result.rows]
+
+    if result is not None and result.kind == 'rows' and \
+       'count' in request.values:
+        try:
+            total, = dataset.query('SELECT COUNT(*) FROM (\n%s\n) AS _' %
+                                   sql.rstrip('; \t\r\n')).fetchone()
             total_pages = max(1, int(math.ceil(total / float(rpp))))
-            page = max(min(page, total_pages), 1)
-            page_next = min(page + 1, total_pages)
-            page_start = offset + 1
-            page_end = min(total, page_start + rpp - 1)
+        except Exception:
+            total = total_pages = None
 
-        qsql = ('SELECT * FROM (\n%s\n) AS _ LIMIT %d OFFSET %d' %
-                (qsql.rstrip('; \t\r\n'), rpp, offset))
-
-        try:
-            cursor = dataset.query(qsql)
-        except Exception as exc:
-            error = str(exc)
-            app.logger.exception('Error in user-submitted query.')
-        else:
-            data = cursor.fetchmany(rpp)
-            data_description = cursor.description
-            row_count = cursor.rowcount
-
-    if data_description is not None and table:
-        col_names = [r[0] for r in data_description]
-        if pk and not is_composite_pk and pk.column_name in col_names:
-            pk_index = col_names.index(pk.column_name)
+    error = None
+    if result is not None and result.kind == 'error':
+        error = result.error
 
     return render_template(
         template,
         allow_bulk=allow_bulk,
         allow_edit=allow_edit,
-        data=data,
-        data_description=data_description,
         default_sql=default_sql,
         error=error,
         ordering=ordering,
         page=page,
-        page_end=page_end,
-        page_next=page_next,
-        page_prev=page_prev,
-        page_start=page_start,
-        pk_index=pk_index,
+        page_start=(page - 1) * rpp + 1,
         query_images=get_query_images(),
-        row_count=row_count,
+        result=result,
+        results=results,
         sql=sql,
         table=table,
         table_sql=dataset.cached_table_sql(table),
         total=total,
-        total_pages=total_pages)
+        total_pages=total_pages,
+        total_statements=len(statements))
 
 @app.route('/query/', methods=['GET', 'POST'])
 def generic_query():

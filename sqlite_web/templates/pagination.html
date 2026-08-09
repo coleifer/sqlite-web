@@ -2,22 +2,32 @@
   <form action="." method="post">
     <input name="ordering" type="hidden" value="{% if ordering %}{{ ordering }}{% endif %}" />
     <input name="sql" type="hidden" value="{{ sql|default('') }}" />
+    {% if total is not none %}
+      <input name="count" type="hidden" value="1" />
+    {% endif %}
     <ul class="pagination">
       <li class="{% if page < 2 %}disabled {% endif %}page-item">
         <button class="page-link" name="page" type="submit" value="1">&laquo;</button>
       </li>
       <li class="{% if page < 2 %}disabled {% endif %}page-item">
-        <button class="page-link" name="page" type="submit" value="{{ page_prev }}">&lsaquo;</button>
+        <button class="page-link" name="page" type="submit" value="{{ page - 1 }}">&lsaquo;</button>
       </li>
       <li class="page-item disabled">
-        <span class="page-link">Page {{ page }} of {{ total_pages }}</span>
+        <span class="page-link">Page {{ page }}{% if total_pages %} of {{ total_pages }}{% endif %}</span>
       </li>
-      <li class="{% if page >= total_pages %}disabled {% endif %}page-item">
-        <button class="page-link" name="page" type="submit" value="{{ page_next }}">&rsaquo;</button>
+      {% set no_next = (page >= total_pages) if total_pages else (not result.has_next) %}
+      <li class="{% if no_next %}disabled {% endif %}page-item">
+        <button class="page-link" name="page" type="submit" value="{{ page + 1 }}">&rsaquo;</button>
       </li>
-      <li class="{% if page >= total_pages %}disabled {% endif %}page-item">
-        <button class="page-link" name="page" type="submit" value="{{ total_pages }}">&raquo;</button>
-      </li>
+      {% if total_pages %}
+        <li class="{% if page >= total_pages %}disabled {% endif %}page-item">
+          <button class="page-link" name="page" type="submit" value="{{ total_pages }}">&raquo;</button>
+        </li>
+      {% else %}
+        <li class="page-item">
+          <button class="page-link" name="count" title="Count total rows" type="submit" value="1">#</button>
+        </li>
+      {% endif %}
     </ul>
   </form>
 </nav>

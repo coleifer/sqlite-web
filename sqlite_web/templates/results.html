@@ -1,0 +1,56 @@
+{% if result.kind == 'error' %}
+  <div class="alert alert-danger"><code>{{ result.error }}</code></div>
+{% elif result.kind == 'affected' %}
+  {% if result.affected >= 0 %}
+    <p>Rows modified: <code>{{ result.affected }}</code></p>
+  {% else %}
+    <p>Done.</p>
+  {% endif %}
+{% elif not result.rows %}
+  <p>Empty result set.</p>
+{% else %}
+  <div class="table-wrapper">
+  <table class="table table-striped small cell-content">
+    <thead>
+      <tr>
+        {% if show_bulk %}
+          <th style="width:24px;"><input id="toggle-pk-all" type="checkbox" /></th>
+        {% endif %}
+        {% for col in result.columns %}
+          <th>
+            {% if in_script %}
+              {{ col }}
+            {% else %}
+              <a class="sort-header" href="{{ url_for(request.endpoint, table=table, sql=sql) }}&ordering={% if loop.index == ordering %}-{% endif %}{{ loop.index }}">{{ col }}{% if ordering is not none %}{% if loop.index == ordering %}&#9660;{% elif loop.index == -ordering %}&#9650;{% endif %}{% endif %}</a>
+            {% endif %}
+          </th>
+        {% endfor %}
+        {% if show_edit %}<th></th>{% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in result.rows %}
+        <tr>
+          {% if show_bulk %}
+            <td><input class="toggle-pk" name="pk" type="checkbox" value="{{ result.keys[loop.index0] }}" /></td>
+          {% endif %}
+          {% for value in row %}
+            <td{% if value is number %} class="num"{% endif %}>
+              {% if value is none %}<code>NULL</code>{% else %}{{ value|value_filter|safe }}{% endif %}
+            </td>
+          {% endfor %}
+          {% if show_edit %}
+            <td>
+              <a class="small" href="{{ url_for('table_update', table=table, pk=result.keys[loop.index0]) }}">Edit</a>
+              <a class="small" href="{{ url_for('table_delete', table=table, pk=result.keys[loop.index0]) }}">Delete</a>
+            </td>
+          {% endif %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% if in_script and result.has_next %}
+    <p><small>Showing first {{ result.rows|length }} rows.</small></p>
+  {% endif %}
+{% endif %}

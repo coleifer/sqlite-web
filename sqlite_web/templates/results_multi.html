@@ -1,0 +1,13 @@
+{% for result in results %}
+  <div class="script-result">
+    <p><code>{{ result.statement|truncate(120, True) }}</code></p>
+    {% set in_script = True %}
+    {% include "results.html" %}
+  </div>
+{% endfor %}
+{% if total_statements > results|length %}
+  <div class="alert alert-warning">
+    Execution stopped: {{ total_statements - results|length }} remaining
+    statement(s) did not run.
+  </div>
+{% endif %}
