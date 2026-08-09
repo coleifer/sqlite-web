@@ -206,10 +206,12 @@ App = window.App || {};
                 sql = this.bk[name];
 
             var elem = $(
-                '<div class="dropdown-item" data-name="' + name + '" style="min-width: 250px;">' +
+                '<div class="dropdown-item" style="min-width: 250px;">' +
                 '<a class="bk-delete float-right" href="#">X</a>' +
-                '<a class="bk" href="#" style="display: block;">' + name + '</a> ' +
+                '<a class="bk" href="#" style="display: block;"></a> ' +
                 '</div>');
+            elem.data('name', name);
+            elem.find('a.bk').text(name);
             var bookmark = elem.find('a.bk'),
                 del = elem.find('a.bk-delete');
 
@@ -257,12 +259,12 @@ App = window.App || {};
                 if (e.keyCode == 38) { // up.
                     self.idx += 1;
                     if (self.idx >= self.queries.length) { self.idx = 0; }
-                    self.sqlTextarea.html(self.queries[self.idx]);
+                    self.sqlTextarea.val(self.queries[self.idx]);
                     e.preventDefault();
                 } else if (e.keyCode == 40) { // down.
                     self.idx -= 1;
                     if (self.idx < 0) { self.idx = self.queries.length - 1; }
-                    self.sqlTextarea.html(self.queries[self.idx]);
+                    self.sqlTextarea.val(self.queries[self.idx]);
                     e.preventDefault();
                 }
             }

@@ -25,7 +25,7 @@ from getpass import getpass
 from io import StringIO
 from io import TextIOWrapper
 from logging.handlers import WatchedFileHandler
-from werkzeug.routing import BaseConverter
+from werkzeug.routing import BaseConverter, ValidationError
 from werkzeug.utils import secure_filename
 
 
@@ -47,7 +47,7 @@ try:
 except ImportError:
     import warnings
     warnings.warn('pygments library not found.', ImportWarning)
-    syntax_highlight = lambda data: '<pre>%s</pre>' % data
+    syntax_highlight = lambda data: '<pre>%s</pre>' % escape(data)
 else:
     def syntax_highlight(data):
         if not data:
@@ -230,7 +230,10 @@ class SqliteDataSet(DataSet):
 
 class Base64Converter(BaseConverter):
     def to_python(self, value):
-        value = base64.urlsafe_b64decode(value)
+        try:
+            value = base64.urlsafe_b64decode(value)
+        except Exception:
+            raise ValidationError('invalid base64-encoded data')
         try:
             return value.decode('utf8')
         except UnicodeDecodeError:
@@ -253,6 +256,9 @@ def get_dataset():
             session['dataset'] = dataset_key
         g.dataset = datasets[dataset_key]
     return g.dataset
+
+def quote_ident(name):
+    return '"%s"' % name.replace('"', '""')
 
 #
 # Flask views.
@@ -403,13 +409,15 @@ def _query_view(template, table=None):
         ordering = request.values.get('ordering')
         export_format = None
 
-    if ordering:
-        ordering = int(ordering)
-        direction = 'DESC' if ordering < 0 else 'ASC'
-        qsql = ('SELECT * FROM (%s) AS _ ORDER BY %d %s' %
-                (sql.rstrip(' ;'), abs(ordering), direction))
-    else:
+    try:
+        ordering = int(ordering) if ordering else None
+    except ValueError:
         ordering = None
+
+    if ordering:
+        direction = 'DESC' if ordering < 0 else 'ASC'
+        qsql = ('SELECT * FROM (\n%s\n) AS _ ORDER BY %d %s' %
+                (sql.rstrip('; \t\r\n'), abs(ordering), direction))
 
     if table:
         default_sql = 'SELECT * FROM "%s"' % table
@@ -448,8 +456,8 @@ def _query_view(template, table=None):
             return export(query, export_format, table)
 
         try:
-            total, = dataset.query('SELECT COUNT(*) FROM (%s) as _' %
-                                   qsql.rstrip('; ')).fetchone()
+            total, = dataset.query('SELECT COUNT(*) FROM (\n%s\n) as _' %
+                                   qsql.rstrip('; \t\r\n')).fetchone()
         except Exception as exc:
             total = -1
 
@@ -471,8 +479,8 @@ def _query_view(template, table=None):
             page_start = offset + 1
             page_end = min(total, page_start + rpp - 1)
 
-        qsql = ('SELECT * FROM (%s) AS _ LIMIT %d OFFSET %d' %
-                (qsql.rstrip(' ;'), rpp, offset))
+        qsql = ('SELECT * FROM (\n%s\n) AS _ LIMIT %d OFFSET %d' %
+                (qsql.rstrip('; \t\r\n'), rpp, offset))
 
         try:
             cursor = dataset.query(qsql)
@@ -757,7 +765,7 @@ def drop_trigger(table):
     if request.method == 'POST':
         if name in trigger_names:
             try:
-                dataset.query('DROP TRIGGER "%s";' % name)
+                dataset.query('DROP TRIGGER %s;' % quote_ident(name))
             except Exception as exc:
                 flash('Error attempting to drop trigger: %s' % exc, 'danger')
                 app.logger.exception('Error attempting to drop trigger.')
@@ -820,6 +828,8 @@ def table_content(table):
     query = ds_table.all().paginate(page_number, rows_per_page)
 
     ordering = request.args.get('ordering')
+    if ordering and ordering.lstrip('-') not in model._meta.columns:
+        ordering = None
     if ordering:
         field = model._meta.columns[ordering.lstrip('-')]
         if ordering.startswith('-'):
@@ -876,6 +886,10 @@ def minimal_validate_field(field, value):
         if value.lower() not in ('1', '0', 'true', 'false', 't', 'f'):
             return value, 'Value must be 1, 0, true, false, t or f.'
         value = True if value.lower() in ('1', 't', 'true') else False
+    elif isinstance(field, (DateTimeField, DateField, TimeField)):
+        if isinstance(field.adapt(value), str):
+            return value, ('Value does not match any supported format: %s.' %
+                           ', '.join(field.formats))
     elif isinstance(field, BlobField):
         if app.config['BLOB_AS_BASE64']:
             try:
@@ -922,6 +936,8 @@ def table_insert(table):
         for key, value in request.form.items():
             if key not in model._meta.fields: continue
             field = model._meta.fields[key]
+            if isinstance(field, AutoField):
+                continue
             edited.add(field.name)
             row[field.name] = value
 
@@ -1240,7 +1256,7 @@ def drop_table(table):
     if request.method == 'POST':
         try:
             if is_view:
-                dataset.query('DROP VIEW "%s";' % table)
+                dataset.query('DROP VIEW %s;' % quote_ident(table))
             else:
                 model_class = dataset[table].model_class
                 model_class.drop_table()
@@ -1262,7 +1278,7 @@ def format_index(index_sql):
     if not split_regex.search(index_sql):
         return index_sql
 
-    create, definition = split_regex.split(index_sql)
+    create, definition = split_regex.split(index_sql, 1)
     return '\nON '.join((create.strip(), definition.strip()))
 
 @app.template_filter('encode_pk')
@@ -1375,6 +1391,14 @@ def _general():
 @app.context_processor
 def _now():
     return {'now': datetime.datetime.now()}
+
+@app.before_request
+def _reject_cross_site_post():
+    # Any web page can auto-submit a form to this app. Browsers label such
+    # requests with Sec-Fetch-Site; non-browser clients omit the header.
+    if request.method == 'POST' and \
+       request.headers.get('Sec-Fetch-Site') == 'cross-site':
+        abort(403)
 
 @app.before_request
 def _connect_db():
