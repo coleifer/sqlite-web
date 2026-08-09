@@ -466,7 +466,8 @@ def _query_view(template, table=None):
         model_class = dataset[table].model_class
         pk = model_class._meta.primary_key
         is_composite_pk = isinstance(pk, CompositeKey)
-        allow_edit = not dataset.is_readonly and pk is not False
+        allow_edit = (not dataset.is_readonly and pk is not False and
+                      not dataset.cached_is_view(table))
         allow_bulk = allow_edit and not is_composite_pk
     else:
         default_sql = ''
@@ -827,7 +828,11 @@ def table_content(table):
     model = ds_table.model_class
     is_composite_pk = isinstance(model._meta.primary_key, CompositeKey)
 
-    allow_edit = not dataset.is_readonly and model._meta.primary_key is not False
+    # Views get a synthetic all-column pk from introspection, but cannot be
+    # edited in place, so treat them as read-only here.
+    allow_edit = (not dataset.is_readonly and
+                  model._meta.primary_key is not False and
+                  not dataset.cached_is_view(table))
     allow_bulk = allow_edit and not is_composite_pk
 
     if request.method == 'POST':
