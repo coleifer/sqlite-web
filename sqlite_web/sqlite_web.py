@@ -105,6 +105,42 @@ ViewMetadata = namedtuple('ViewMetadata', ('name', 'sql'))
 #
 
 class SqliteDataSet(DataSet):
+    _schema_version = None
+
+    def ensure_cache(self):
+        version = self._database.pragma('schema_version')
+        if version != self._schema_version:
+            self._schema_version = version
+            self._memos = {}
+            self.update_cache()
+
+    def _cached(self, key, fn):
+        self.ensure_cache()
+        if key not in self._memos:
+            self._memos[key] = fn()
+        return self._memos[key]
+
+    def cached_tables(self):
+        return self._cached('tables', lambda: self.tables)
+
+    def cached_virtual_tables(self):
+        return self._cached('virtual_tables', self.get_virtual_tables)
+
+    def cached_corollary_virtual_tables(self):
+        return self._cached('corollary_virtual_tables',
+                            self.get_corollary_virtual_tables)
+
+    def cached_is_view(self, name):
+        return self._cached(('is_view', name), lambda: self.is_view(name))
+
+    def cached_view_operations(self, name):
+        return self._cached(('view_operations', name),
+                            lambda: self.view_operations(name))
+
+    def cached_table_sql(self, table):
+        return self._cached(('table_sql', table),
+                            lambda: self.get_table_sql(table))
+
     @property
     def filename(self):
         db_file = self._database.database
@@ -516,7 +552,7 @@ def _query_view(template, table=None):
         row_count=row_count,
         sql=sql,
         table=table,
-        table_sql=dataset.get_table_sql(table),
+        table_sql=dataset.cached_table_sql(table),
         total=total,
         total_pages=total_pages)
 
@@ -527,7 +563,7 @@ def generic_query():
 def require_table(fn):
     @wraps(fn)
     def inner(table, *args, **kwargs):
-        if table not in get_dataset().tables:
+        if table not in get_dataset().cached_tables():
             abort(404)
         return fn(table, *args, **kwargs)
     return inner
@@ -563,7 +599,7 @@ def table_structure(table):
         indexes=dataset.get_indexes(table),
         model_class=model_class,
         table=table,
-        table_sql=dataset.get_table_sql(table),
+        table_sql=dataset.cached_table_sql(table),
         triggers=dataset.get_triggers(table))
 
 def get_request_data():
@@ -621,7 +657,7 @@ def add_column(table):
         column_mapping=column_mapping,
         name=name,
         table=table,
-        table_sql=dataset.get_table_sql(table))
+        table_sql=dataset.cached_table_sql(table))
 
 @app.route('/<table>/drop-column/', methods=['GET', 'POST'])
 @require_table
@@ -787,7 +823,7 @@ def drop_trigger(table):
 @require_table
 def table_content(table):
     dataset = get_dataset()
-    dataset.update_cache(table)
+    dataset.ensure_cache()
     ds_table = dataset[table]
     model = ds_table.model_class
     is_composite_pk = isinstance(model._meta.primary_key, CompositeKey)
@@ -856,7 +892,7 @@ def table_content(table):
         query=query,
         table=table,
         table_pk=model._meta.primary_key,
-        table_sql=dataset.get_table_sql(table),
+        table_sql=dataset.cached_table_sql(table),
         total_pages=total_pages,
         total_rows=total_rows)
 
@@ -912,7 +948,7 @@ def minimal_validate_field(field, value):
 @require_table
 def table_insert(table):
     dataset = get_dataset()
-    dataset.update_cache(table)
+    dataset.ensure_cache()
     model = dataset[table].model_class
 
     columns = []
@@ -996,7 +1032,7 @@ def redirect_to_previous(table):
 @require_table
 def table_update(table, pk):
     dataset = get_dataset()
-    dataset.update_cache(table)
+    dataset.ensure_cache()
     model = dataset[table].model_class
     table_pk = model._meta.primary_key
     if not table_pk:
@@ -1083,7 +1119,7 @@ def table_update(table, pk):
 @require_table
 def table_delete(table, pk):
     dataset = get_dataset()
-    dataset.update_cache(table)
+    dataset.ensure_cache()
     model = dataset[table].model_class
     table_pk = model._meta.primary_key
     if not table_pk:
@@ -1637,7 +1673,7 @@ def initialize_dataset(filename):
         dataset_config['startup_hook'](db)
 
     dataset = SqliteDataSet(db, **dataset_kw)
-    dataset.update_cache()
+    dataset.ensure_cache()
     dataset.close()
     return dataset
 

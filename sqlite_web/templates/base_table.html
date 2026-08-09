@@ -1,6 +1,6 @@
 {% extends "base_tables.html" %}
-{% set is_view = dataset.is_view(table) %}
-{% set view_ops = dataset.view_operations(table) %}
+{% set is_view = dataset.cached_is_view(table) %}
+{% set view_ops = dataset.cached_view_operations(table) %}
 
 {% block content_title %}
   <span title="{{ table }}">{{ table|truncate(40, True, leeway=2) }}</span>
