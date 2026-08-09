@@ -299,5 +299,28 @@ class TestRowKeyRoutes(BaseAppTestCase):
                          404)
 
 
+class TestContentTab(BaseAppTestCase):
+    def test_renders_with_row_actions(self):
+        r = self.client.get('/users/content/')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(b'/users/update/', r.data)
+        self.assertIn(b'/users/delete/', r.data)
+        self.assertIn(b'toggle-pk-all', r.data)
+
+    def test_ordinal_ordering(self):
+        asc = self.client.get('/users/content/',
+                              query_string={'ordering': '2'}).data
+        desc = self.client.get('/users/content/',
+                               query_string={'ordering': '-2'}).data
+        self.assertLess(asc.index(b'huey'), asc.index(b'zaizee'))
+        self.assertLess(desc.index(b'zaizee'), desc.index(b'huey'))
+
+    def test_bad_ordering_ignored(self):
+        for value in ('99', 'abc', '-abc'):
+            r = self.client.get('/users/content/',
+                                query_string={'ordering': value})
+            self.assertEqual(r.status_code, 200)
+
+
 if __name__ == '__main__':
     unittest.main()
