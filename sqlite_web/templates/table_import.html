@@ -8,7 +8,7 @@
   <div class="form-group">
     <label for="id_file">Input file</label>
     <input class="form-control" id="id_file" name="file" type="file" />
-    <span class="help-block">
+    <span class="form-text text-muted">
       Supported file types: <strong>JSON</strong> and <strong>CSV</strong>.
       JSON files must be structured as a list of objects. CSV files must
       contain a header row.
@@ -20,7 +20,7 @@
       <option value="">Yes</option>
       <option {% if strict %}selected="selected" {% endif %}value="n">No</option>
     </select>
-    <span class="help-block">
+    <span class="form-text text-muted">
       For instance, if your table has one column <em>name</em> and the import
       file contains objects with an additional column <em>age</em>, determine
       whether to store the <em>age</em> values as well.

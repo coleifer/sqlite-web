@@ -8,60 +8,18 @@
 {% block content_tab_class %} active{% endblock %}
 
 {% block inner_content %}
-  {# add filters #}
+  {% set sql = None %}
+  {% set show_bulk = allow_bulk %}
+  {% set show_edit = allow_edit %}
   {% if allow_bulk %}
     <form action="." autocomplete="off" method="post">
   {% endif %}
-  <div class="table-wrapper">
-  <table class="table table-striped small cell-content">
-    <thead>
-      <tr>
-        {% if allow_bulk %}
-          <th style="width:24px;"><input id="toggle-pk-all" type="checkbox" aria-label="Select all rows" /></th>
-        {% endif %}
-        {% for column in columns %}
-          <th>
-            <a href="./?ordering={% if ordering == column %}-{% endif %}{{ column }}">{{ column }}</a>
-          </th>
-        {% endfor %}
-        {% if allow_edit %}<th></th>{% endif %}
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in query %}
-        {% if allow_edit %}
-          {% set pk = row|encode_pk(table_pk) %}
-        {% endif %}
-        <tr>
-          {% if allow_bulk %}
-            <td><input class="toggle-pk" name="pk" type="checkbox" value="{{ pk }}" aria-label="Select row" /></td>
-          {% endif %}
-          {% for field in field_names %}
-            {% set value = row[field] %}
-            <td{% if value is number %} class="num"{% endif %}>
-              {% if value is none %}
-                <code>NULL</code>
-              {% else %}
-                {{ value|value_filter|safe }}
-              {% endif %}
-            </td>
-          {% endfor %}
-          {% if allow_edit %}
-            <td>
-              <a class="small" href="{{ url_for('table_update', table=table, pk=pk) }}">Edit</a>
-              <a class="small" href="{{ url_for('table_delete', table=table, pk=pk) }}">Delete</a>
-            </td>
-          {% endif %}
-        </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  </div>
+  {% include "results.html" %}
   {% if allow_bulk %}
     <div class="float-right">
       <button class="btn btn-sm btn-danger bulk-action" disabled name="action" type="submit" value="bulk-delete">Bulk Delete</button>
     </div>
-  </form>
+    </form>
   {% endif %}
   <nav>
     <ul class="pagination">

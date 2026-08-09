@@ -21,7 +21,8 @@
             {% if in_script %}
               {{ col }}
             {% else %}
-              <a class="sort-header" href="{{ url_for(request.endpoint, table=table, sql=sql) }}&ordering={% if loop.index == ordering %}-{% endif %}{{ loop.index }}">{{ col }}{% if ordering is not none %}{% if loop.index == ordering %}&#9660;{% elif loop.index == -ordering %}&#9650;{% endif %}{% endif %}</a>
+              {% set target = (-loop.index if loop.index == ordering else loop.index) %}
+              <a href="{{ url_for(request.endpoint, table=table, sql=sql, ordering=target) }}">{{ col }}{% if ordering %}{% if loop.index == ordering %}&#9660;{% elif loop.index == -ordering %}&#9650;{% endif %}{% endif %}</a>
             {% endif %}
           </th>
         {% endfor %}

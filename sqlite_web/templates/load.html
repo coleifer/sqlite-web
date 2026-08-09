@@ -16,7 +16,7 @@
         <small class="form-text text-muted">Open a new database.</small>
       </div>
       <button class="btn btn-primary" name="mode" type="submit" value="upload">Load</button>
-      <a class="btn btn-default" href="{{ url_for('index') }}">Cancel</a>
+      <a class="btn btn-secondary" href="{{ url_for('index') }}">Cancel</a>
     </form>
   {% endif %}
 
@@ -29,7 +29,7 @@
         <small class="form-text text-muted">Path to database on the server file-system.</small>
       </div>
       <button class="btn btn-primary" name="mode" type="submit" value="filesystem">Load</button>
-      <a class="btn btn-default" href="{{ url_for('index') }}">Cancel</a>
+      <a class="btn btn-secondary" href="{{ url_for('index') }}">Cancel</a>
     </form>
   {% endif %}
 {% endblock %}

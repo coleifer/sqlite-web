@@ -76,11 +76,11 @@ from playhouse.migrate import migrate
 
 try:
     from sqlite_web.executor import (
-        is_read, key_decode, key_encode, run_one, run_script,
+        Result, is_read, key_decode, key_encode, run_one, run_script,
         split_statements)
 except ImportError:
     from executor import (
-        is_read, key_decode, key_encode, run_one, run_script,
+        Result, is_read, key_decode, key_encode, run_one, run_script,
         split_statements)
 
 
@@ -866,35 +866,39 @@ def table_content(table):
 
     query = ds_table.all().paginate(page_number, rows_per_page)
 
-    ordering = request.args.get('ordering')
-    if ordering and ordering.lstrip('-') not in model._meta.columns:
+    columns = [f.column_name for f in model._meta.sorted_fields]
+    try:
+        ordering = int(request.args.get('ordering') or 0) or None
+    except ValueError:
         ordering = None
     if ordering:
-        field = model._meta.columns[ordering.lstrip('-')]
-        if ordering.startswith('-'):
-            field = field.desc()
-        query = query.order_by(field)
+        idx = abs(ordering) - 1
+        if 0 <= idx < len(columns):
+            field = model._meta.sorted_fields[idx]
+            query = query.order_by(field.desc() if ordering < 0 else field.asc())
+        else:
+            ordering = None
 
     session['%s.last_viewed' % table] = (page_number, ordering)
 
-    field_names = ds_table.columns
-    columns = [f.column_name for f in ds_table.model_class._meta.sorted_fields]
+    table_pk = model._meta.primary_key
+    rows, keys = [], ([] if allow_edit else None)
+    for row in query:
+        rows.append([row[c] for c in columns])
+        if allow_edit:
+            keys.append(encode_pk(row, table_pk))
+    result = Result('rows', columns=columns, rows=rows, keys=keys)
 
     return render_template(
         'table_content.html',
         allow_bulk=allow_bulk,
         allow_edit=allow_edit,
-        columns=columns,
-        ds_table=ds_table,
-        field_names=field_names,
-        is_composite_pk=isinstance(model._meta.primary_key, CompositeKey),
         next_page=next_page,
         ordering=ordering,
         page=page_number,
         previous_page=previous_page,
-        query=query,
+        result=result,
         table=table,
-        table_pk=model._meta.primary_key,
         table_sql=dataset.cached_table_sql(table),
         total_pages=total_pages,
         total_rows=total_rows)
