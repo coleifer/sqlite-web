@@ -1370,7 +1370,7 @@ def value_filter(value, max_length=50):
         if link_re.match(value):
             label = value
             if len(value) > max_length and app.config['TRUNCATE_VALUES']:
-                label = value[:max_length]
+                label = value[:max_length] + '...'
             return '<a href="%s">%s</a>' % (escape(value), escape(label))
         if len(value) > max_length:
             if app.config['TRUNCATE_VALUES']:
