@@ -6,19 +6,7 @@
 </style>
 {% endblock %}
 
-{% block extra_scripts %}
-  <script type="text/javascript">
-    $(function() {
-      /* Recent queries and bookmarks. */
-      var sql = {% if sql and not error %}{{ sql|tojson }}{% else %}''{% endif %};
-      var Recent = new App.Recent();
-      Recent.initialize(sql);
-
-      var bookmarks = new App.Bookmarks();
-      bookmarks.initialize();
-    });
-  </script>
-{% endblock %}
+{% block extra_scripts %}{% include "query_scripts.html" %}{% endblock %}
 
 {% block query_tab_class %} active{% endblock %}
 
@@ -32,46 +20,15 @@
   <div id="tableInfo">
     {{ table_sql|format_create_table|highlight }}
   </div>
-  <form action="." id="query-form" method="post" role="form">
-    <input name="ordering" type="hidden" value="" />
-    <input name="export_ordering" type="hidden" value="{% if ordering %}{{ ordering }}{% endif %}" />
-    <div class="form-group{% if error %} has-error has-feedback{% endif %}">
-      <textarea class="form-control remember-size{% if error %} is-invalid{% endif %}" id="table-sql" name="sql" style="height: 120px;">{% if sql %}{{ sql }}{% else %}{{ default_sql }}{% endif %}</textarea>
-      <small class="form-text text-muted">Use Shift + Up/Down to navigate recently-executed queries</small>
-      {% if error %}
-        <div class="invalid-feedback">{{ error }}</div>
-      {% endif %}
-    </div>
-    <button class="btn btn-primary" type="submit">Execute</button>
-    <button class="btn btn-secondary" name="export_json" type="submit">Export JSON</button>
-    <button class="btn btn-secondary" name="export_csv" type="submit">Export CSV</button>
-    <button class="btn btn-secondary" name="explain" type="submit" value="1" title="Show the query plan without running the statement">Explain</button>
-    <div class="btn-group">
-      <div class="dropdown">
-        <button type="button" class="btn btn-info dropdown-toggle" data-toggle="dropdown" id="sqlHelpButton" aria-haspopup="true" aria-expanded="false">SQL Help</button>
-        <div class="dropdown-menu" aria-labelledby="sqlHelpButton">
-          {% for parts, img_url in query_images %}
-            <a class="dropdown-item sql-image" href="{{ url_for('static', filename=img_url) }}">{{ ' : '.join(parts) }}</a>
-          {% endfor %}
-        </div>
-      </div>
-    </div>
-    <div class="float-right">
-      <div class="btn-group">
-        <div class="dropdown">
-          <button type="button" class="btn btn-secondary dropdown-toggle" data-toggle="dropdown" id="bookmarksButton" aria-haspopup="true" aria-expanded="false">Bookmarks</button>
-          <div class="dropdown-menu dropdown-menu-right" aria-labelledby="bookmarksButton" id="bookmarks"></div>
-        </div>
-        <button class="btn btn-secondary" id="add-bookmark" title="Add Bookmark" type="button">+</button>
-      </div>
-    </div>
-  </form>
+  {% set sql_textarea_id = 'table-sql' %}
+  {% include "query_form.html" %}
   <hr />
 
   {% if results %}
     {% include "results_multi.html" %}
   {% elif result and result.kind != 'error' %}
     {% set show_edit = allow_edit and result.keys %}
+    {% set show_detail = allow_detail and result.keys %}
     {% set show_bulk = allow_bulk and result.keys %}
     {% if result.kind == 'rows' and result.rows %}
       {% if show_bulk %}
@@ -96,43 +53,5 @@
       {% endif %}
     {% endif %}
   {% endif %}
-  <div class="modal fade" id="sql-image-modal" role="dialog">
-    <div class="modal-dialog modal-lg" role="document">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title"></h5>
-          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-            <span aria-hidden="true">&times;</span>
-          </button>
-        </div>
-        <div class="modal-body"></div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="modal fade" id="bookmark-modal" role="dialog">
-    <div class="modal-dialog modal-sm" role="document">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">Create Bookmark</h5>
-          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-            <span aria-hidden="true">&times;</span>
-          </button>
-        </div>
-        <div class="modal-body">
-          <form id="save-form" role="form">
-            <div class="form-group">
-              <input class="form-control" id="bookmark-name" name="name" placeholder="Bookmark name..." value="" />
-            </div>
-          </form>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-primary" id="save-bookmark">Save</button>
-          <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-        </div>
-      </div>
-    </div>
-  </div>
+  {% include "query_modals.html" %}
 {% endblock %}

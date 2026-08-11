@@ -390,7 +390,7 @@ class TestLastViewed(BaseAppTestCase):
         with self.client.session_transaction() as s:
             s['last_viewed'] = [['users', 3, -2]]
         r = self.client.post('/users/delete/%s/' % key_encode([1]))
-        self.assertEqual(r.status_code in (302, 303))
+        self.assertIn(r.status_code, (302, 303))
         self.assertIn('page=3', r.headers['Location'])
         self.assertIn('ordering=-2', r.headers['Location'])
 
@@ -423,6 +423,100 @@ class TestRowKeyRoutes(BaseAppTestCase):
     def test_malformed_key_404s(self):
         self.assertEqual(self.client.get('/users/update/@@bad@@/').status_code,
                          404)
+
+
+class TestDownload(BaseAppTestCase):
+    def test_download_is_a_valid_snapshot(self):
+        r = self.client.get('/download/')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('attachment', r.headers['Content-Disposition'])
+        self.assertIn('app.db', r.headers['Content-Disposition'])
+        self.assertTrue(r.data.startswith(b'SQLite format 3\x00'))
+
+        path = os.path.join(self.tmp, 'snapshot.db')
+        with open(path, 'wb') as f:
+            f.write(r.data)
+        r.close()  # Fires call_on_close, which removes the temp snapshot.
+        conn = sqlite3.connect(path)
+        count, = conn.execute('SELECT COUNT(*) FROM users').fetchone()
+        conn.close()
+        self.assertEqual(count, 3)
+
+
+class TestRowDetail(BaseAppTestCase):
+    def test_detail_page(self):
+        r = self.client.get('/users/row/%s/' % key_encode([1]))
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(b'huey', r.data)
+        self.assertIn(b'/users/update/', r.data)
+
+    def test_missing_row_redirects(self):
+        r = self.client.get('/users/row/%s/' % key_encode([999]))
+        self.assertIn(r.status_code, (302, 303))
+
+    def test_malformed_key_404s(self):
+        self.assertEqual(self.client.get('/users/row/@@bad@@/').status_code,
+                         404)
+
+    def test_composite_pk_detail(self):
+        r = self.client.get('/comp/row/%s/' % key_encode(['US', 'A:::B']))
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(b'composite-row', r.data)
+
+    def test_detail_links_fk_values(self):
+        r = self.client.get('/child/row/%s/' % key_encode([1]))
+        self.assertIn(b'/parent/query/', r.data)
+
+    def test_view_links_on_content_and_query_tabs(self):
+        self.assertIn(b'/users/row/', self.client.get('/users/content/').data)
+        r = self.client.post('/users/query/',
+                             data={'sql': 'SELECT * FROM users'})
+        self.assertIn(b'/users/row/', r.data)
+
+    def test_no_view_links_on_generic_query(self):
+        r = self.client.post('/query/', data={'sql': 'SELECT * FROM users'})
+        self.assertNotIn(b'/users/row/', r.data)
+
+
+class TestReadOnlyRowDetail(BaseAppTestCase):
+    def setUp(self):
+        super().setUp()
+        sw.datasets.clear()
+        sw.initialize_app([self.db_path], read_only=True)
+        self.client = sw.app.test_client()
+
+    def tearDown(self):
+        super().tearDown()
+        sw.dataset_config['read_only'] = False
+
+    def test_read_only_gets_view_but_not_edit(self):
+        r = self.client.get('/users/content/')
+        self.assertIn(b'/users/row/', r.data)
+        self.assertNotIn(b'/users/update/', r.data)
+        self.assertNotIn(b'toggle-pk-all', r.data)
+
+    def test_read_only_detail_page(self):
+        r = self.client.get('/users/row/%s/' % key_encode([2]))
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(b'mickey', r.data)
+        self.assertNotIn(b'/users/update/', r.data)
+
+
+class TestQueryTemplates(BaseAppTestCase):
+    def test_shared_form_renders_on_both_pages(self):
+        for url, textarea_id in (('/query/', b'id="sql"'),
+                                 ('/users/query/', b'id="table-sql"')):
+            r = self.client.get(url)
+            self.assertEqual(r.status_code, 200)
+            self.assertIn(b'name="explain"', r.data)
+            self.assertIn(b'id="bookmark-modal"', r.data)
+            self.assertIn(b'id="sql-image-modal"', r.data)
+            self.assertIn(textarea_id, r.data)
+
+    def test_copy_affordances_present(self):
+        r = self.client.get('/users/content/')
+        self.assertIn(b'copy-row', r.data)
+        self.assertIn(b'data-col="username"', r.data)
 
 
 class TestContentTab(BaseAppTestCase):

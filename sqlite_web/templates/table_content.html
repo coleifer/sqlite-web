@@ -10,6 +10,7 @@
 {% block inner_content %}
   {% set sql = None %}
   {% set show_bulk = allow_bulk %}
+  {% set show_detail = allow_detail %}
   {% set show_edit = allow_edit %}
   {% if allow_bulk %}
     <form action="." autocomplete="off" method="post">

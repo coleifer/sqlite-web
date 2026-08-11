@@ -1,0 +1,34 @@
+<form action="." id="query-form" method="post" role="form">
+  <input name="ordering" type="hidden" value="" />
+  <input name="export_ordering" type="hidden" value="{% if ordering %}{{ ordering }}{% endif %}" />
+  <div class="form-group{% if error %} has-error has-feedback{% endif %}">
+    <textarea class="form-control remember-size{% if error %} is-invalid{% endif %}" id="{{ sql_textarea_id }}" name="sql" style="height: 120px;">{% if sql %}{{ sql }}{% else %}{{ default_sql }}{% endif %}</textarea>
+    <small class="form-text text-muted">Use Shift + Up/Down to navigate recently-executed queries</small>
+    {% if error %}
+      <div class="invalid-feedback">{{ error }}</div>
+    {% endif %}
+  </div>
+  <button class="btn btn-primary" type="submit">Execute</button>
+  <button class="btn btn-secondary" name="export_json" type="submit">Export JSON</button>
+  <button class="btn btn-secondary" name="export_csv" type="submit">Export CSV</button>
+  <button class="btn btn-secondary" name="explain" type="submit" value="1" title="Show the query plan without running the statement">Explain</button>
+  <div class="btn-group">
+    <div class="dropdown">
+      <button type="button" class="btn btn-info dropdown-toggle" data-toggle="dropdown" id="sqlHelpButton" aria-haspopup="true" aria-expanded="false">SQL Help</button>
+      <div class="dropdown-menu" aria-labelledby="sqlHelpButton">
+        {% for parts, img_url in query_images %}
+          <a class="dropdown-item sql-image" href="{{ url_for('static', filename=img_url) }}">{{ ' : '.join(parts) }}</a>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  <div class="float-right">
+    <div class="btn-group">
+      <div class="dropdown">
+        <button type="button" class="btn btn-secondary dropdown-toggle" data-toggle="dropdown" id="bookmarksButton" aria-haspopup="true" aria-expanded="false">Bookmarks</button>
+        <div class="dropdown-menu dropdown-menu-right" aria-labelledby="bookmarksButton" id="bookmarks"></div>
+      </div>
+      <button class="btn btn-secondary" id="add-bookmark" title="Add Bookmark" type="button">+</button>
+    </div>
+  </div>
+</form>

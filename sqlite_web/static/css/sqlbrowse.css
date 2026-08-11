@@ -37,6 +37,43 @@ table.cell-content td.num {
     font-variant-numeric: tabular-nums;
     text-align: right;
 }
+table.cell-content tbody td {
+    position: relative;
+}
+svg.icon {
+    width: 14px;
+    height: 14px;
+    fill: currentColor;
+    vertical-align: -2px;
+}
+td a.rowaction {
+    padding: 0 2px;
+}
+button.copy-cell {
+    position: absolute;
+    top: 1px;
+    right: 1px;
+    padding: 1px 3px 2px;
+    line-height: 1;
+    color: #555555;
+    background: #f8f9fa;
+    border: 1px solid #aaaaaa;
+    border-radius: 3px;
+    cursor: pointer;
+}
+button.copy-cell:hover {
+    background: #e2e6ea;
+}
+button.copy-cell svg.icon {
+    width: 12px;
+    height: 12px;
+    vertical-align: 0;
+}
+/* Numbers are right-aligned, so the button docks left in numeric cells. */
+td.num button.copy-cell {
+    left: 1px;
+    right: auto;
+}
 ul.pagination .page-item .page-link {
     border-color: #aaaaaa !important;
     color: #888;

@@ -1,0 +1,11 @@
+<script type="text/javascript">
+  $(function() {
+    /* Recent queries and bookmarks. */
+    var sql = {% if sql and not error %}{{ sql|tojson }}{% else %}''{% endif %};
+    var Recent = new App.Recent();
+    Recent.initialize(sql);
+
+    var bookmarks = new App.Bookmarks();
+    bookmarks.initialize();
+  });
+</script>

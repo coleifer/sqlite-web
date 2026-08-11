@@ -17,7 +17,7 @@
           <th style="width:24px;"><input id="toggle-pk-all" type="checkbox" aria-label="Select all rows" /></th>
         {% endif %}
         {% for col in result.columns %}
-          <th>
+          <th data-col="{{ col }}">
             {% if in_script %}
               {{ col }}
             {% else %}
@@ -26,7 +26,7 @@
             {% endif %}
           </th>
         {% endfor %}
-        {% if show_edit %}<th></th>{% endif %}
+        <th></th>
       </tr>
     </thead>
     <tbody>
@@ -41,12 +41,16 @@
               {% if value is none %}<code>NULL</code>{% elif fk %}<a href="{{ value|fk_link(fk) }}" title="{{ fk[0] }}.{{ fk[1] }}">{{ value }}</a>{% else %}{{ value|value_filter|safe }}{% endif %}
             </td>
           {% endfor %}
-          {% if show_edit %}
-            <td>
-              <a class="small" href="{{ url_for('table_update', table=table, pk=result.keys[loop.index0]) }}">Edit</a>
-              <a class="small" href="{{ url_for('table_delete', table=table, pk=result.keys[loop.index0]) }}">Delete</a>
-            </td>
-          {% endif %}
+          <td>
+            <a class="rowaction copy-row" href="#" title="Copy row as JSON" aria-label="Copy row as JSON"><svg class="icon"><use href="#i-copy"/></svg></a>
+            {% if show_detail %}
+              <a class="rowaction" href="{{ url_for('table_row_detail', table=table, pk=result.keys[loop.index0]) }}" title="View" aria-label="View"><svg class="icon"><use href="#i-eye"/></svg></a>
+            {% endif %}
+            {% if show_edit %}
+              <a class="rowaction" href="{{ url_for('table_update', table=table, pk=result.keys[loop.index0]) }}" title="Edit" aria-label="Edit"><svg class="icon"><use href="#i-pencil"/></svg></a>
+              <a class="rowaction" href="{{ url_for('table_delete', table=table, pk=result.keys[loop.index0]) }}" title="Delete" aria-label="Delete"><svg class="icon"><use href="#i-trash"/></svg></a>
+            {% endif %}
+          </td>
         </tr>
       {% endfor %}
     </tbody>

@@ -1,4 +1,4 @@
-name: Build latest Container
+name: Build master Container
 on:
   push:
     branches:
@@ -24,6 +24,6 @@ jobs:
           docker buildx build \
             --platform linux/amd64,linux/arm64 \
             --file docker/Dockerfile \
-            --tag ghcr.io/coleifer/sqlite-web:latest \
+            --tag ghcr.io/coleifer/sqlite-web:master \
             --push \
             .

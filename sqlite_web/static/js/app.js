@@ -109,6 +109,91 @@ App = window.App || {};
             $('button.bulk-action').prop('disabled', ($('input.toggle-pk:checked').length == 0));
         });
 
+        /* Copy cell values and rows as JSON to the clipboard. */
+        function copyText(text, done) {
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(done);
+            } else {
+                var ta = $('<textarea style="position:fixed;opacity:0;"></textarea>')
+                    .val(text).appendTo('body');
+                ta[0].select();
+                document.execCommand('copy');
+                ta.remove();
+                done();
+            }
+        }
+
+        /* Returns [value, isNull] for a result cell. The full span holds the
+           untruncated value and external links keep it in the href. */
+        function cellData(td) {
+            var el = td.clone();
+            el.find('button.copy-cell').remove();
+            if (el.children('code').length && el.text().trim() === 'NULL') {
+                return [null, true];
+            }
+            var full = el.find('span.full');
+            if (full.length) {
+                return [full.text(), false];
+            }
+            var href = el.children('a').first().attr('href') || '';
+            if (/^(https?:|mailto:)/.test(href)) {
+                return [href, false];
+            }
+            return [el.text().trim(), false];
+        }
+
+        /* One shared button that rides along inside the hovered cell. */
+        var copyBtn = $('<button class="copy-cell" title="Copy value" type="button">' +
+                        '<svg class="icon"><use href="#i-copy"/></svg></button>');
+        copyBtn.on('click', function(e) {
+            e.preventDefault();
+            var data = cellData(copyBtn.parent()),
+                use = copyBtn.find('use');
+            copyText(data[1] ? 'NULL' : String(data[0]), function() {
+                use.attr('href', '#i-check');
+                setTimeout(function() { use.attr('href', '#i-copy'); }, 800);
+            });
+        });
+        $('table.cell-content').on('mouseenter', 'tbody td', function() {
+            var td = $(this);
+            if (td.find('input.toggle-pk').length || td.find('a.copy-row').length) {
+                copyBtn.detach();
+            } else {
+                copyBtn.appendTo(td);
+            }
+        });
+        $('table.cell-content').on('mouseleave', 'tbody tr', function() {
+            copyBtn.detach();
+        });
+
+        $('a.copy-row').on('click', function(e) {
+            e.preventDefault();
+            var elem = $(this),
+                row = elem.parents('tr'),
+                cols = row.parents('table').find('thead th[data-col]'),
+                tds = row.children('td').filter(function() {
+                    var td = $(this);
+                    return !td.find('input.toggle-pk').length &&
+                           !td.find('a.copy-row').length;
+                }),
+                accum = {};
+            cols.each(function(i) {
+                var td = tds.eq(i);
+                if (!td.length) return;
+                var data = cellData(td),
+                    value = data[0];
+                if (!data[1] && td.hasClass('num') && isFinite(Number(value))) {
+                    value = Number(value);
+                }
+                accum[$(this).data('col')] = value;
+            });
+            copyText(JSON.stringify(accum, null, 2), function() {
+                var use = elem.find('use');
+                use.attr('href', '#i-check');
+                setTimeout(function() { use.attr('href', '#i-copy'); }, 800);
+            });
+        });
+
         /* Initialize focus on SQL textarea. */
         var sqlTextarea = $('textarea#sql, textarea#table-sql');
         if (sqlTextarea.length > 0) {

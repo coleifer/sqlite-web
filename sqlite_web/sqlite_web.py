@@ -13,6 +13,7 @@ import operator
 import optparse
 import os
 import re
+import shutil
 import sys
 import tempfile
 import threading
@@ -32,7 +33,7 @@ from werkzeug.utils import secure_filename
 try:
     from flask import (
         Flask, abort, flash, g, jsonify, make_response, redirect,
-        render_template, request, session, url_for)
+        render_template, request, send_file, session, url_for)
 except ImportError:
     raise RuntimeError('Unable to import flask module. Install by running '
                        'pip install flask')
@@ -482,8 +483,8 @@ def _query_view(template, table=None):
         model_class = dataset[table].model_class
         pk = model_class._meta.primary_key
         is_composite_pk = isinstance(pk, CompositeKey)
-        allow_edit = (not dataset.is_readonly and pk is not False and
-                      not dataset.cached_is_view(table))
+        allow_detail = pk is not False and not dataset.cached_is_view(table)
+        allow_edit = allow_detail and not dataset.is_readonly
         allow_bulk = allow_edit and not is_composite_pk
         fk_lookup = {fk.column: (fk.dest_table, fk.dest_column)
                      for fk in dataset.cached_foreign_keys(table)}
@@ -492,7 +493,7 @@ def _query_view(template, table=None):
         model_class = dataset._base_model
         pk = None
         is_composite_pk = False
-        allow_edit = allow_bulk = False
+        allow_detail = allow_edit = allow_bulk = False
         fk_lookup = {}
 
     if request.method == 'POST' and request.form.get('action') == 'bulk-delete':
@@ -544,7 +545,7 @@ def _query_view(template, table=None):
         else:
             results = run_script(dataset, statements, page_size=rpp)
 
-    if (result is not None and result.kind == 'rows' and allow_edit and
+    if (result is not None and result.kind == 'rows' and allow_detail and
             not explain and not is_composite_pk and
             pk.column_name in result.columns):
         pk_index = result.columns.index(pk.column_name)  # First one wins.
@@ -566,6 +567,7 @@ def _query_view(template, table=None):
     return render_template(
         template,
         allow_bulk=allow_bulk,
+        allow_detail=allow_detail,
         allow_edit=allow_edit,
         default_sql=default_sql,
         error=error,
@@ -856,11 +858,11 @@ def table_content(table):
     model = ds_table.model_class
     is_composite_pk = isinstance(model._meta.primary_key, CompositeKey)
 
-    # Views get a synthetic all-column pk from introspection, but cannot be
-    # edited in place, so treat them as read-only here.
-    allow_edit = (not dataset.is_readonly and
-                  model._meta.primary_key is not False and
-                  not dataset.cached_is_view(table))
+    # Views get a synthetic all-column pk from introspection, which is not
+    # a usable row key. They get no row links and no editing.
+    allow_detail = (model._meta.primary_key is not False and
+                    not dataset.cached_is_view(table))
+    allow_edit = allow_detail and not dataset.is_readonly
     allow_bulk = allow_edit and not is_composite_pk
 
     if request.method == 'POST':
@@ -922,10 +924,10 @@ def table_content(table):
     session['last_viewed'] = last_viewed[:10]
 
     table_pk = model._meta.primary_key
-    rows, keys = [], ([] if allow_edit else None)
+    rows, keys = [], ([] if allow_detail else None)
     for row in query:
         rows.append([row[c] for c in columns])
-        if allow_edit:
+        if allow_detail:
             keys.append(encode_pk(row, table_pk))
     result = Result('rows', columns=columns, rows=rows, keys=keys)
 
@@ -935,6 +937,7 @@ def table_content(table):
     return render_template(
         'table_content.html',
         allow_bulk=allow_bulk,
+        allow_detail=allow_detail,
         allow_edit=allow_edit,
         fk_lookup=fk_lookup,
         next_page=next_page,
@@ -1201,6 +1204,38 @@ def table_delete(table, pk):
         table=table,
         table_pk=table_pk)
 
+@app.route('/<table>/row/<b64:pk>/')
+@require_table
+def table_row_detail(table, pk):
+    dataset = get_dataset()
+    dataset.ensure_cache()
+    model = dataset[table].model_class
+    table_pk = model._meta.primary_key
+    if not table_pk or dataset.cached_is_view(table):
+        flash('Row detail requires a table with a primary key.', 'danger')
+        return redirect(url_for('table_content', table=table))
+
+    expr = decode_pk(model, pk)
+    try:
+        row = model.select().where(expr).dicts().get()
+    except model.DoesNotExist:
+        pk_repr = pk_display(table_pk, pk)
+        flash('Could not fetch row with primary-key %s.' % str(pk_repr),
+              'danger')
+        return redirect(url_for('table_content', table=table))
+
+    fk_lookup = {fk.column: (fk.dest_table, fk.dest_column)
+                 for fk in dataset.cached_foreign_keys(table)}
+    return render_template(
+        'table_row.html',
+        allow_edit=not dataset.is_readonly,
+        fk_lookup=fk_lookup,
+        model=model,
+        pk=pk,
+        row=row,
+        table=table,
+        table_pk=table_pk)
+
 @app.route('/<table>/query/', methods=['GET', 'POST'])
 @require_table
 def table_query(table):
@@ -1265,6 +1300,27 @@ def table_export(table):
         'table_export.html',
         columns=columns,
         table=table)
+
+@app.route('/download/')
+def db_download():
+    dataset = get_dataset()
+    # The same filename sanitizer the row exports use.
+    filename = re.sub(r'[^\w\d\-\.]+', '', dataset.basename) or 'database.db'
+    tmp_dir = tempfile.mkdtemp()
+    dest = os.path.join(tmp_dir, filename)
+    try:
+        # VACUUM INTO produces a consistent snapshot even mid-write.
+        dataset.query('VACUUM INTO ?', (dest,))
+    except Exception as exc:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        flash('Error creating database snapshot: %s' % exc, 'danger')
+        app.logger.exception('Error creating database snapshot.')
+        return redirect(url_for('index'))
+
+    response = send_file(dest, mimetype='application/octet-stream',
+                         as_attachment=True)
+    response.call_on_close(lambda: shutil.rmtree(tmp_dir, ignore_errors=True))
+    return response
 
 @app.route('/<table>/import/', methods=['GET', 'POST'])
 @require_table
