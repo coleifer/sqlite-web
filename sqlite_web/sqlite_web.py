@@ -1429,6 +1429,10 @@ def value_filter(value, max_length=50):
                             escape(value[:max_length]),
                             escape(value))
             return '<span class="full">%s</span>' % escape(value)
+        if '\n' in value:
+            # Line breaks display only when the data has them. The td must
+            # stay whitespace-insensitive or template indentation renders.
+            return '<span class="pre">%s</span>' % escape(value)
         return escape(value)
     return value
 

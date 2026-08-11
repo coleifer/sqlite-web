@@ -297,6 +297,11 @@ class TestValueFilter(unittest.TestCase):
         self.assertIn('href="%s"' % url, out)
         self.assertIn('...', out)
 
+    def test_multiline_value_wrapped(self):
+        self.assertEqual(sw.value_filter('line one\nline two'),
+                         '<span class="pre">line one\nline two</span>')
+        self.assertEqual(sw.value_filter('plain'), 'plain')
+
     def test_blob_respects_truncate_flag(self):
         data = b'\xff' * 600  # Undecodable, 1200 hex chars.
         sw.app.config['TRUNCATE_VALUES'] = True

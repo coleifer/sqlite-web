@@ -26,6 +26,8 @@ table.cell-content th {
 table.cell-content td {
     max-width: 60ch;
     overflow-wrap: anywhere;
+}
+span.pre {
     white-space: pre-line;
 }
 table.cell-content td span.full {
