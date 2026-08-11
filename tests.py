@@ -213,6 +213,11 @@ class BaseAppTestCase(unittest.TestCase):
         CREATE TABLE comp (a TEXT, b TEXT, label TEXT, PRIMARY KEY (a, b));
         INSERT INTO comp VALUES ('US', 'A:::B', 'composite-row');
         CREATE TABLE blobs (id BLOB PRIMARY KEY, note TEXT);
+        CREATE TABLE parent (id INTEGER PRIMARY KEY, name TEXT);
+        INSERT INTO parent (name) VALUES ('p-one');
+        CREATE TABLE child (id INTEGER PRIMARY KEY,
+            parent_id INTEGER REFERENCES parent(id), label TEXT);
+        INSERT INTO child (parent_id, label) VALUES (1, 'c-one');
     """
 
     def setUp(self):
@@ -267,6 +272,122 @@ class TestExecutionPolicy(BaseAppTestCase):
                                               'export_csv': '1'})
         self.assertIn(b'Only a single query may be exported', r.data)
         self.assertTrue(self.dbrows('SELECT COUNT(*) FROM users'))
+
+
+class TestValueFilter(unittest.TestCase):
+    def setUp(self):
+        self._truncate = sw.app.config['TRUNCATE_VALUES']
+
+    def tearDown(self):
+        sw.app.config['TRUNCATE_VALUES'] = self._truncate
+
+    def test_link_requires_full_match(self):
+        url = 'https://example.com/x'
+        self.assertEqual(sw.value_filter(url),
+                         '<a href="%s">%s</a>' % (url, url))
+        self.assertNotIn('<a ', sw.value_filter(url + ' trailing text'))
+
+    def test_mailto(self):
+        self.assertIn('<a href="mailto:huey@example.com"',
+                      sw.value_filter('mailto:huey@example.com'))
+
+    def test_long_link_label_truncated(self):
+        url = 'https://example.com/' + 'x' * 60
+        out = sw.value_filter(url)
+        self.assertIn('href="%s"' % url, out)
+        self.assertIn('...', out)
+
+    def test_blob_respects_truncate_flag(self):
+        data = b'\xff' * 600  # Undecodable, 1200 hex chars.
+        sw.app.config['TRUNCATE_VALUES'] = True
+        self.assertNotIn('ff' * 600, sw.value_filter(data))
+        sw.app.config['TRUNCATE_VALUES'] = False
+        self.assertIn('ff' * 600, sw.value_filter(data))
+
+
+class TestExplain(BaseAppTestCase):
+    def test_explain_select(self):
+        r = self.client.post('/query/', data={'sql': 'SELECT * FROM users',
+                                              'explain': '1'})
+        self.assertIn(b'SCAN', r.data)
+
+    def test_explain_compiles_writes_without_running(self):
+        self.client.post('/query/', data={
+            'sql': "INSERT INTO users (username) VALUES ('x')",
+            'explain': '1'})
+        self.assertEqual(self.dbrows('SELECT COUNT(*) FROM users')[0][0], 3)
+
+    def test_explain_suppresses_row_keys(self):
+        # Plan rows have an "id" column, which must not become edit links.
+        r = self.client.post('/users/query/', data={
+            'sql': 'SELECT * FROM users', 'explain': '1'})
+        self.assertNotIn(b'/users/update/', r.data)
+        self.assertNotIn(b'name="count"', r.data)
+
+
+class TestPaginationGating(BaseAppTestCase):
+    def test_read_paginates(self):
+        r = self.client.post('/users/query/',
+                             data={'sql': 'SELECT * FROM users'})
+        self.assertIn(b'name="count"', r.data)
+        self.assertIn(b'bulk-action', r.data)
+
+    def test_returning_hides_pagination_and_bulk(self):
+        # The count button and bulk form re-submit the sql. For a write
+        # that would execute it again.
+        r = self.client.post('/users/query/', data={
+            'sql': "INSERT INTO users (username) VALUES ('r') RETURNING *"})
+        self.assertNotIn(b'name="count"', r.data)
+        self.assertNotIn(b'bulk-action', r.data)
+        self.assertEqual(self.dbrows('SELECT COUNT(*) FROM users')[0][0], 4)
+
+    def test_query_tab_bulk_delete(self):
+        r = self.client.post('/users/query/', data={
+            'sql': 'SELECT * FROM users', 'action': 'bulk-delete',
+            'pk': key_encode([1])})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(self.dbrows('SELECT COUNT(*) FROM users')[0][0], 2)
+        self.assertIn(b'bulk-action', r.data)  # Fresh results offer bulk.
+
+
+class TestForeignKeyLinks(BaseAppTestCase):
+    def test_content_links_fk_values(self):
+        r = self.client.get('/child/content/')
+        self.assertIn(b'/parent/query/', r.data)
+
+    def test_table_query_links_fk_values(self):
+        r = self.client.post('/child/query/',
+                             data={'sql': 'SELECT * FROM child'})
+        self.assertIn(b'/parent/query/', r.data)
+
+    def test_fk_link_resolves(self):
+        r = self.client.get('/parent/query/', query_string={
+            'sql': 'SELECT * FROM "parent" WHERE "id" = 1'})
+        self.assertIn(b'p-one', r.data)
+
+    def test_no_fk_links_on_generic_query(self):
+        r = self.client.post('/query/', data={'sql': 'SELECT * FROM child'})
+        self.assertNotIn(b'/parent/query/', r.data)
+
+
+class TestLastViewed(BaseAppTestCase):
+    def test_single_capped_session_key(self):
+        with self.client.session_transaction() as s:
+            s['users.last_viewed'] = [5, None]  # Legacy per-table key.
+        self.client.get('/users/content/')
+        self.client.get('/child/content/')
+        with self.client.session_transaction() as s:
+            self.assertNotIn('users.last_viewed', s)
+            self.assertEqual([e[0] for e in s['last_viewed']],
+                             ['child', 'users'])
+
+    def test_redirect_to_previous_uses_saved_position(self):
+        with self.client.session_transaction() as s:
+            s['last_viewed'] = [['users', 3, -2]]
+        r = self.client.post('/users/delete/%s/' % key_encode([1]))
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('page=3', r.headers['Location'])
+        self.assertIn('ordering=-2', r.headers['Location'])
 
 
 class TestRowKeyRoutes(BaseAppTestCase):

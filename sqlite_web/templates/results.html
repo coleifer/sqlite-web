@@ -36,8 +36,9 @@
             <td><input class="toggle-pk" name="pk" type="checkbox" value="{{ result.keys[loop.index0] }}" aria-label="Select row" /></td>
           {% endif %}
           {% for value in row %}
+            {% set fk = fk_lookup and fk_lookup.get(result.columns[loop.index0]) %}
             <td{% if value is number %} class="num"{% endif %}>
-              {% if value is none %}<code>NULL</code>{% else %}{{ value|value_filter|safe }}{% endif %}
+              {% if value is none %}<code>NULL</code>{% elif fk %}<a href="{{ value|fk_link(fk) }}" title="{{ fk[0] }}.{{ fk[1] }}">{{ value }}</a>{% else %}{{ value|value_filter|safe }}{% endif %}
             </td>
           {% endfor %}
           {% if show_edit %}

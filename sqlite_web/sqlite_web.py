@@ -150,6 +150,10 @@ class SqliteDataSet(DataSet):
         return self._cached(('table_sql', table),
                             lambda: self.get_table_sql(table))
 
+    def cached_foreign_keys(self, table):
+        return self._cached(('foreign_keys', table),
+                            lambda: self.get_foreign_keys(table))
+
     @property
     def filename(self):
         db_file = self._database.database
@@ -301,6 +305,15 @@ def get_dataset():
 def quote_ident(name):
     return '"%s"' % name.replace('"', '""')
 
+def quote_value(value):
+    if isinstance(value, bool):
+        return '1' if value else '0'
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, (bytes, bytearray, memoryview)):
+        return "X'%s'" % bytes(value).hex()
+    return "'%s'" % str(value).replace("'", "''")
+
 def _bulk_delete_values(tokens):
     # Bulk delete is single-column-pk only, so each token holds one value.
     values = []
@@ -446,11 +459,14 @@ def _query_view(template, table=None):
     sql = request.values.get('sql') or ''
 
     export_format = None
+    explain = False
     if request.method == 'POST':
         if 'export_json' in request.form:
             export_format = 'json'
         elif 'export_csv' in request.form:
             export_format = 'csv'
+        elif 'explain' in request.form:
+            explain = True
 
     ordering_key = 'export_ordering' if export_format else 'ordering'
     try:
@@ -469,12 +485,15 @@ def _query_view(template, table=None):
         allow_edit = (not dataset.is_readonly and pk is not False and
                       not dataset.cached_is_view(table))
         allow_bulk = allow_edit and not is_composite_pk
+        fk_lookup = {fk.column: (fk.dest_table, fk.dest_column)
+                     for fk in dataset.cached_foreign_keys(table)}
     else:
         default_sql = ''
         model_class = dataset._base_model
         pk = None
         is_composite_pk = False
         allow_edit = allow_bulk = False
+        fk_lookup = {}
 
     if request.method == 'POST' and request.form.get('action') == 'bulk-delete':
         values = _bulk_delete_values(request.form.getlist('pk'))
@@ -495,6 +514,8 @@ def _query_view(template, table=None):
 
     statements = split_statements(sql) if sql.strip() else []
     single_read = len(statements) == 1 and is_read(dataset, sql)
+    # The bulk form re-submits the sql, so only offer it for reads.
+    allow_bulk = allow_bulk and single_read
 
     if export_format and statements:
         if not single_read:
@@ -513,14 +534,19 @@ def _query_view(template, table=None):
         if request.method == 'GET' and not single_read:
             # Writes and scripts only execute via POST.
             flash('Press Execute to run this statement.', 'info')
+        elif explain and len(statements) > 1:
+            flash('Only a single statement may be explained.', 'warning')
         elif len(statements) == 1:
-            result = run_one(dataset, sql, page=page, page_size=rpp,
+            # EXPLAIN QUERY PLAN compiles the statement without running it.
+            run_sql = 'EXPLAIN QUERY PLAN %s' % sql if explain else sql
+            result = run_one(dataset, run_sql, page=page, page_size=rpp,
                              ordering=ordering)
         else:
             results = run_script(dataset, statements, page_size=rpp)
 
     if (result is not None and result.kind == 'rows' and allow_edit and
-            not is_composite_pk and pk.column_name in result.columns):
+            not explain and not is_composite_pk and
+            pk.column_name in result.columns):
         pk_index = result.columns.index(pk.column_name)  # First one wins.
         result.keys = [key_encode([row[pk_index]]) for row in result.rows]
 
@@ -543,9 +569,11 @@ def _query_view(template, table=None):
         allow_edit=allow_edit,
         default_sql=default_sql,
         error=error,
+        fk_lookup=fk_lookup,
         ordering=ordering,
         page=page,
         page_start=(page - 1) * rpp + 1,
+        paginate=single_read and not explain,
         query_images=get_query_images(),
         result=result,
         results=results,
@@ -884,7 +912,14 @@ def table_content(table):
         else:
             ordering = None
 
-    session['%s.last_viewed' % table] = (page_number, ordering)
+    # One capped most-recent-first list, so browsing many tables cannot
+    # bloat the cookie. A dict loses order because flask sorts session keys.
+    for key in [k for k in session if k.endswith('.last_viewed')]:
+        del session[key]  # Per-table keys written by older versions.
+    last_viewed = [e for e in session.get('last_viewed') or []
+                   if e[0] != table]
+    last_viewed.insert(0, (table, page_number, ordering))
+    session['last_viewed'] = last_viewed[:10]
 
     table_pk = model._meta.primary_key
     rows, keys = [], ([] if allow_edit else None)
@@ -894,10 +929,14 @@ def table_content(table):
             keys.append(encode_pk(row, table_pk))
     result = Result('rows', columns=columns, rows=rows, keys=keys)
 
+    fk_lookup = {fk.column: (fk.dest_table, fk.dest_column)
+                 for fk in dataset.cached_foreign_keys(table)}
+
     return render_template(
         'table_content.html',
         allow_bulk=allow_bulk,
         allow_edit=allow_edit,
+        fk_lookup=fk_lookup,
         next_page=next_page,
         ordering=ordering,
         page=page_number,
@@ -1029,10 +1068,10 @@ def table_insert(table):
         table=table)
 
 def redirect_to_previous(table):
-    page_ordering = session.get('%s.last_viewed' % table)
-    if not page_ordering:
+    entries = [e for e in session.get('last_viewed') or [] if e[0] == table]
+    if not entries:
         return redirect(url_for('table_content', table=table))
-    page, ordering = page_ordering
+    _, page, ordering = entries[0]
     kw = {}
     if page and page != 1:
         kw['page'] = page
@@ -1351,7 +1390,15 @@ def pk_display(table_pk, token):
     value = values[0]
     return value.hex() if isinstance(value, bytes) else value
 
-link_re = re.compile(r'(?:https?|mailto)://[^\s]+')
+@app.template_filter('fk_link')
+def fk_link(value, fk):
+    # Link a foreign-key value to the referenced row via the query tab.
+    dest_table, dest_column = fk
+    sql = 'SELECT * FROM %s WHERE %s = %s' % (
+        quote_ident(dest_table), quote_ident(dest_column), quote_value(value))
+    return url_for('table_query', table=dest_table, sql=sql)
+
+link_re = re.compile(r'(?:https?://|mailto:)[^\s]+')
 
 @app.template_filter('value_filter')
 def value_filter(value, max_length=50):
@@ -1363,11 +1410,13 @@ def value_filter(value, max_length=50):
             value = value.decode('utf8')
         except UnicodeDecodeError:
             if app.config['BLOB_AS_BASE64']:
-                value = base64.b64encode(value)[:1024].decode('utf8')
+                value = base64.b64encode(value).decode('utf8')
             else:
-                value = value.hex()[:1024]
+                value = value.hex()
+            if app.config['TRUNCATE_VALUES']:
+                value = value[:1024]
     if isinstance(value, str):
-        if link_re.match(value):
+        if link_re.fullmatch(value):
             label = value
             if len(value) > max_length and app.config['TRUNCATE_VALUES']:
                 label = value[:max_length] + '...'

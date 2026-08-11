@@ -36,6 +36,7 @@
     <button class="btn btn-primary" type="submit">Execute</button>
     <button class="btn btn-secondary" name="export_json" type="submit">Export JSON</button>
     <button class="btn btn-secondary" name="export_csv" type="submit">Export CSV</button>
+    <button class="btn btn-secondary" name="explain" type="submit" value="1" title="Show the query plan without running the statement">Explain</button>
     <div class="btn-group">
       <div class="dropdown">
         <button type="button" class="btn btn-info dropdown-toggle" data-toggle="dropdown" id="sqlHelpButton" aria-haspopup="true" aria-expanded="false">SQL Help</button>
@@ -66,7 +67,7 @@
       <h3>Results ({{ page_start }}&ndash;{{ page_start + result.rows|length - 1 }}{% if total is not none %} of {{ total }}{% endif %})</h3>
     {% endif %}
     {% include "results.html" %}
-    {% if result.kind == 'rows' and result.rows %}
+    {% if result.kind == 'rows' and result.rows and paginate %}
       {% include "pagination.html" %}
     {% endif %}
   {% endif %}
