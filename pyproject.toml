@@ -11,10 +11,6 @@ dependencies = [
     "peewee>=3.0.0",
     "pygments"
 ]
-
-[project.optional-dependencies]
-wsgi = ["gevent"]
-ssl = ["cryptography"]
 readme = "README.md"
 authors = [
     { name = "Charles Leifer", email = "coleifer@gmail.com" }
@@ -26,6 +22,10 @@ classifiers = [
     "Topic :: Database :: Front-Ends",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
+
+[project.optional-dependencies]
+wsgi = ["gevent"]
+ssl = ["cryptography"]
 
 [project.scripts]
 sqlite_web = "sqlite_web.sqlite_web:main"
