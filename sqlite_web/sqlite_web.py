@@ -279,8 +279,8 @@ class SqliteDataSet(DataSet):
 
 class Base64Converter(BaseConverter):
     # The URL segment is a rowkey token (see executor.key_encode). It is
-    # already URL-safe, so it passes through unchanged; a malformed token
-    # fails to decode and 404s.
+    # already URL-safe, so it passes through unchanged. Malformed tokens
+    # fail to decode and 404.
     def to_python(self, value):
         try:
             key_decode(value)
@@ -1492,7 +1492,7 @@ def _now():
 @app.before_request
 def _reject_cross_site_post():
     # Any web page can auto-submit a form to this app. Browsers label such
-    # requests with Sec-Fetch-Site; non-browser clients omit the header.
+    # requests with Sec-Fetch-Site. Non-browser clients omit the header.
     if request.method == 'POST' and \
        request.headers.get('Sec-Fetch-Site') == 'cross-site':
         abort(403)

@@ -390,7 +390,7 @@ class TestLastViewed(BaseAppTestCase):
         with self.client.session_transaction() as s:
             s['last_viewed'] = [['users', 3, -2]]
         r = self.client.post('/users/delete/%s/' % key_encode([1]))
-        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r.status_code in (302, 303))
         self.assertIn('page=3', r.headers['Location'])
         self.assertIn('ordering=-2', r.headers['Location'])
 

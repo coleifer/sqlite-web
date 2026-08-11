@@ -3,7 +3,7 @@ import json
 from dataclasses import dataclass, field
 
 from peewee import DatabaseError
-from peewee import sqlite3  # The driver peewee uses.
+from peewee import sqlite3
 
 
 @dataclass
@@ -23,14 +23,18 @@ def wrap(sql, ordering, limit, offset):
     if ordering:
         order = ' ORDER BY %d %s' % (abs(ordering),
                                      'DESC' if ordering < 0 else 'ASC')
-    # The \n before the closing paren terminates a trailing -- comment.
+    # The \n before the closing paren terminates any trailing "--..." comment.
+    # Also do a fetch (limit + 1) so we can detect if there's a "next" page of
+    # results.
     return 'SELECT * FROM (\n%s\n) AS _%s LIMIT %d OFFSET %d' % (
         sql.rstrip('; \t\r\n'), order, limit + 1, offset)
 
 
 def run_one(dataset, sql, page=1, page_size=50, ordering=None):
-    # Paginate only SELECT queries. Allow other query types to fail wrapping
-    # and fall-back to unwrapped.
+    # The query box allows whatever kinds of query/ies. We wrap the user query
+    # to provide ordering + pagination, but cannot wrap DDL or DML statements.
+    # Rather than try to parse the user SQL, attempt to wrap + execute (this
+    # only works for SELECTs), and on failure fall-back to unwrapped.
     page = max(page, 1)
     try:
         cursor = dataset.query(wrap(sql, ordering, page_size,
@@ -70,8 +74,7 @@ def split_statements(script):
 
 
 def run_script(dataset, statements, page_size=50):
-    # Statements execute independently and autocommit, stopping at the first
-    # error. Atomicity is opt-in: the script may use its own BEGIN / COMMIT.
+    # Allow running multiple statements from the query box.
     results = []
     for stmt in statements:
         result = run_one(dataset, stmt, page_size=page_size)
@@ -97,7 +100,6 @@ def _enc(value):
         return value
     return str(value)  # date, Decimal, etc. fall back to their text form.
 
-
 def _dec(value):
     if isinstance(value, dict) and 'b64' in value:
         return base64.b64decode(value['b64'])
@@ -105,10 +107,9 @@ def _dec(value):
 
 
 def key_encode(values):
-    return base64.urlsafe_b64encode(
-        json.dumps([_enc(v) for v in values]).encode()).decode()
-
+    val_json = json.dumps([_enc(v) for v in values])
+    return base64.urlsafe_b64encode(val_json.encode()).decode()
 
 def key_decode(token):
-    return [_dec(v) for v in json.loads(base64.urlsafe_b64decode(
-        token.encode()))]
+    decoded = base64.urlsafe_b64decode(token.encode())
+    return [_dec(v) for v in json.loads(decoded)]
