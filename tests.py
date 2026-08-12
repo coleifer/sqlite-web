@@ -218,6 +218,13 @@ class BaseAppTestCase(unittest.TestCase):
         CREATE TABLE child (id INTEGER PRIMARY KEY,
             parent_id INTEGER REFERENCES parent(id), label TEXT);
         INSERT INTO child (parent_id, label) VALUES (1, 'c-one');
+        CREATE TABLE nopk (a TEXT);
+        INSERT INTO nopk VALUES ('no-pk-row');
+        CREATE TABLE tag (name TEXT PRIMARY KEY);
+        INSERT INTO tag VALUES (''), ('red');
+        CREATE TABLE post (id INTEGER PRIMARY KEY,
+            tag TEXT REFERENCES tag(name), body TEXT);
+        CREATE VIEW v_users AS SELECT * FROM users;
     """
 
     def setUp(self):
@@ -327,6 +334,7 @@ class TestExplain(BaseAppTestCase):
         r = self.client.post('/users/query/', data={
             'sql': 'SELECT * FROM users', 'explain': '1'})
         self.assertNotIn(b'/users/update/', r.data)
+        self.assertNotIn(b'/users/row/', r.data)
         self.assertNotIn(b'name="count"', r.data)
 
 
@@ -442,6 +450,135 @@ class TestDownload(BaseAppTestCase):
         conn.close()
         self.assertEqual(count, 3)
 
+    def test_temp_dir_removed_after_streaming(self):
+        marker = os.path.join(self.tmp, 'dl-tmp')
+        os.mkdir(marker)
+        orig = sw.tempfile.mkdtemp
+        sw.tempfile.mkdtemp = lambda: marker
+        try:
+            r = self.client.get('/download/')
+            self.assertTrue(os.path.exists(marker))  # Held while streaming.
+            self.assertTrue(r.data.startswith(b'SQLite format 3\x00'))
+            self.assertFalse(os.path.exists(marker))  # Gone once consumed.
+            r.close()
+        finally:
+            sw.tempfile.mkdtemp = orig
+
+    def test_head_request_does_not_leak(self):
+        # HEAD never starts the body generator, so cleanup must not depend
+        # on the generator running.
+        marker = os.path.join(self.tmp, 'dl-head')
+        os.mkdir(marker)
+        orig = sw.tempfile.mkdtemp
+        sw.tempfile.mkdtemp = lambda: marker
+        try:
+            r = self.client.head('/download/')
+            self.assertEqual(r.status_code, 200)
+            self.assertIn('attachment', r.headers['Content-Disposition'])
+            r.close()
+            self.assertFalse(os.path.exists(marker))
+        finally:
+            sw.tempfile.mkdtemp = orig
+
+    def test_temp_dir_removed_on_abandoned_download(self):
+        # A client that disconnects mid-stream must not leak the snapshot.
+        marker = os.path.join(self.tmp, 'dl-abandon')
+        os.mkdir(marker)
+        orig = sw.tempfile.mkdtemp
+        sw.tempfile.mkdtemp = lambda: marker
+        try:
+            r = self.client.get('/download/')
+            self.assertTrue(os.path.exists(marker))
+            r.close()  # Closed without ever reading the body.
+            self.assertFalse(os.path.exists(marker))
+        finally:
+            sw.tempfile.mkdtemp = orig
+
+    def test_error_flashes_and_cleans_up(self):
+        marker = os.path.join(self.tmp, 'dl-err')
+        os.mkdir(marker)
+        os.chmod(marker, 0o500)  # VACUUM INTO cannot create its file.
+        orig = sw.tempfile.mkdtemp
+        sw.tempfile.mkdtemp = lambda: marker
+        try:
+            r = self.client.get('/download/', follow_redirects=True)
+            self.assertEqual(r.status_code, 200)
+            self.assertIn(b'Error creating database snapshot', r.data)
+            self.assertFalse(os.path.exists(marker))
+        finally:
+            sw.tempfile.mkdtemp = orig
+            if os.path.exists(marker):
+                os.chmod(marker, 0o700)
+
+
+class TestMultiDb(BaseAppTestCase):
+    def setUp(self):
+        super().setUp()
+        self.db2 = os.path.join(self.tmp, 'two.db')
+        conn = sqlite3.connect(self.db2)
+        conn.execute('CREATE TABLE t2 (id INTEGER PRIMARY KEY)')
+        conn.commit()
+        conn.close()
+        sw.datasets.clear()
+        sw.initialize_app([self.db_path, self.db2])
+        self.client = sw.app.test_client()
+
+    def test_download_follows_selected_dataset(self):
+        self.client.get('/select-dataset/', query_string={'name': 'two.db'})
+        r = self.client.get('/download/')
+        self.assertIn('two.db', r.headers['Content-Disposition'])
+        path = os.path.join(self.tmp, 'snap2.db')
+        with open(path, 'wb') as f:
+            f.write(r.data)
+        r.close()
+        conn = sqlite3.connect(path)
+        tables = [t for t, in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'")]
+        conn.close()
+        self.assertEqual(tables, ['t2'])
+
+        self.client.get('/select-dataset/', query_string={'name': 'app.db'})
+        r = self.client.get('/download/')
+        self.assertIn('app.db', r.headers['Content-Disposition'])
+        r.close()
+
+
+class TestRowDetailEdges(BaseAppTestCase):
+    def test_blob_pk_detail(self):
+        r = self.client.get('/blobs/row/%s/' % key_encode([b'\x00\xff']))
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(b'blob', r.data)
+
+    def test_extra_key_values_ignored(self):
+        # Same behavior as update/delete, the first value drives the lookup.
+        r = self.client.get('/users/row/%s/' % key_encode([1, 2]))
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(b'huey', r.data)
+
+    def test_empty_key_404s(self):
+        # A token holding no values, [] or a crafted {}, must 404 instead
+        # of raising IndexError in decode_pk.
+        for token in (key_encode([]), 'e30='):
+            for route in ('row', 'update', 'delete'):
+                url = '/users/%s/%s/' % (route, token)
+                self.assertEqual(self.client.get(url).status_code, 404, url)
+
+    def test_no_pk_table(self):
+        r = self.client.get('/nopk/content/')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(b'no-pk-row', r.data)
+        self.assertNotIn(b'/nopk/row/', r.data)
+        r = self.client.get('/nopk/row/%s/' % key_encode(['no-pk-row']))
+        self.assertIn(r.status_code, (302, 303))
+
+    def test_sql_view(self):
+        r = self.client.get('/v_users/content/')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(b'huey', r.data)
+        self.assertNotIn(b'/v_users/row/', r.data)
+        r = self.client.get('/v_users/row/%s/' % key_encode([1]))
+        self.assertIn(r.status_code, (302, 303))
+
 
 class TestRowDetail(BaseAppTestCase):
     def test_detail_page(self):
@@ -501,6 +638,22 @@ class TestReadOnlyRowDetail(BaseAppTestCase):
         self.assertIn(b'mickey', r.data)
         self.assertNotIn(b'/users/update/', r.data)
 
+    def test_read_only_download(self):
+        # VACUUM INTO runs against the mode=ro connection.
+        r = self.client.get('/download/')
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.data.startswith(b'SQLite format 3\x00'))
+        r.close()
+
+    def test_read_only_smoke(self):
+        for url in ('/', '/users/', '/users/content/', '/users/query/'):
+            self.assertEqual(self.client.get(url).status_code, 200, url)
+        r = self.client.get('/users/content/')
+        self.assertNotIn(b'/users/insert/', r.data)
+        r = self.client.post('/users/query/',
+                             data={'sql': 'SELECT * FROM users'})
+        self.assertIn(b'huey', r.data)
+
 
 class TestQueryTemplates(BaseAppTestCase):
     def test_shared_form_renders_on_both_pages(self):
@@ -517,6 +670,43 @@ class TestQueryTemplates(BaseAppTestCase):
         r = self.client.get('/users/content/')
         self.assertIn(b'copy-row', r.data)
         self.assertIn(b'data-col="username"', r.data)
+
+    def test_script_results_offer_copy(self):
+        r = self.client.post('/users/query/',
+                             data={'sql': 'SELECT 1; SELECT 2;'})
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(b'copy-row', r.data)
+        self.assertNotIn(b'/users/row/', r.data)
+
+
+class TestInsertForm(BaseAppTestCase):
+    def test_blank_numeric_inserts_null(self):
+        # The form pre-enables every column, so a blank numeric input must
+        # mean NULL instead of failing validation.
+        r = self.client.post('/child/insert/', data={
+            'chk_parent_id': 'on', 'parent_id': '',
+            'chk_label': 'on', 'label': 'blank-num'})
+        self.assertIn(r.status_code, (302, 303))
+        rows = self.dbrows(
+            'SELECT parent_id, label FROM child WHERE label = ?', 'blank-num')
+        self.assertEqual(rows, [(None, 'blank-num')])
+
+    def test_blank_text_inserts_empty_string(self):
+        r = self.client.post('/child/insert/', data={
+            'chk_label': 'on', 'label': ''})
+        self.assertIn(r.status_code, (302, 303))
+        rows = self.dbrows("SELECT COUNT(*) FROM child WHERE label = ''")
+        self.assertEqual(rows, [(1,)])
+
+    def test_blank_text_fk_keeps_empty_string(self):
+        # A TEXT primary key can legitimately be '', so a blank input on
+        # a text-keyed fk must not become NULL.
+        r = self.client.post('/post/insert/', data={
+            'chk_tag': 'on', 'tag': '',
+            'chk_body': 'on', 'body': 'text-fk'})
+        self.assertIn(r.status_code, (302, 303))
+        rows = self.dbrows("SELECT tag FROM post WHERE body = 'text-fk'")
+        self.assertEqual(rows, [('',)])
 
 
 class TestContentTab(BaseAppTestCase):

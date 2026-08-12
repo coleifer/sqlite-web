@@ -28,12 +28,13 @@ from io import TextIOWrapper
 from logging.handlers import WatchedFileHandler
 from werkzeug.routing import BaseConverter, ValidationError
 from werkzeug.utils import secure_filename
+from werkzeug.wsgi import ClosingIterator
 
 
 try:
     from flask import (
         Flask, abort, flash, g, jsonify, make_response, redirect,
-        render_template, request, send_file, session, url_for)
+        render_template, request, Response, session, url_for)
 except ImportError:
     raise RuntimeError('Unable to import flask module. Install by running '
                        'pip install flask')
@@ -284,9 +285,13 @@ class Base64Converter(BaseConverter):
     # fail to decode and 404.
     def to_python(self, value):
         try:
-            key_decode(value)
+            values = key_decode(value)
         except Exception:
             raise ValidationError('invalid row key')
+        if not values:
+            # A token holding no values (e.g. crafted "[]") would otherwise
+            # blow up in decode_pk.
+            raise ValidationError('empty row key')
         return value
 
     def to_url(self, value):
@@ -950,8 +955,22 @@ def table_content(table):
         total_pages=total_pages,
         total_rows=total_rows)
 
+def _blank_means_null(field):
+    # Whitelist of types that cannot hold an empty string. Anything
+    # text-like keeps '', which is a real value there, including a
+    # foreign key that references a TEXT primary key.
+    if isinstance(field, ForeignKeyField):
+        field = field.rel_field
+    return isinstance(field, (IntegerField, FloatField, DecimalField,
+                              BooleanField, DateTimeField, DateField,
+                              TimeField))
+
 def minimal_validate_field(field, value):
     if value.lower().strip() == 'null':
+        value = None
+    elif value == '' and _blank_means_null(field):
+        # A form cannot submit the absence of a value for an enabled
+        # input, so blank means NULL where '' is unrepresentable.
         value = None
     if value is None and not field.null:
         return 'NULL', 'Column does not allow NULL values.'
@@ -1317,9 +1336,31 @@ def db_download():
         app.logger.exception('Error creating database snapshot.')
         return redirect(url_for('index'))
 
-    response = send_file(dest, mimetype='application/octet-stream',
-                         as_attachment=True)
-    response.call_on_close(lambda: shutil.rmtree(tmp_dir, ignore_errors=True))
+    def remove_snapshot():
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+    def stream_then_remove():
+        # The finally block cleans up when the body is consumed or the
+        # client disconnects mid-stream.
+        try:
+            with open(dest, 'rb') as f:
+                while True:
+                    chunk = f.read(65536)
+                    if not chunk:
+                        break
+                    yield chunk
+        finally:
+            remove_snapshot()
+
+    # The ClosingIterator also cleans up when the response is closed before
+    # the generator ever starts, which is what a HEAD request does. Closing
+    # an unstarted generator skips its finally block. send_file was no good
+    # here at all, its direct-passthrough response never runs call_on_close.
+    response = Response(ClosingIterator(stream_then_remove(), remove_snapshot),
+                        mimetype='application/octet-stream')
+    response.headers['Content-Length'] = os.path.getsize(dest)
+    response.headers['Content-Disposition'] = 'attachment; filename="%s"' % (
+        filename)
     return response
 
 @app.route('/<table>/import/', methods=['GET', 'POST'])
