@@ -8,7 +8,7 @@ dynamic = ["version"]
 description = "web-based sqlite database browser"
 dependencies = [
     "flask",
-    "peewee>=3.0.0",
+    "peewee>=4.0.0",
     "pygments"
 ]
 readme = "README.md"
