@@ -59,46 +59,56 @@ Then navigate to http://localhost:8080/ to view your database.
 
 ### Screenshots
 
-The index page shows some basic information about the database, including the number of tables and indexes, as well as its size on disk:
+The index page shows some basic information about the database, including the
+number of tables and indexes, as well as its size on disk:
 
-![](https://media.charlesleifer.com/blog/photos/im-1769707703-035.png')
+![](https://media.charlesleifer.com/blog/photos/sqlite-web-index.png)
 
-The `structure` tab displays information about the structure of the table, including columns, indexes, triggers, and foreign keys (if any exist). From this page you can also create, rename or drop columns and indexes.
+The `structure` tab displays information about the structure of the table,
+including columns, indexes, triggers, and foreign keys (if any exist). From
+this page you can also create, rename or drop columns and indexes.
 
-![](https://media.charlesleifer.com/blog/photos/im-1769707732-655.png)
+![](https://media.charlesleifer.com/blog/photos/sqlite-web-structure.png)
 
 Columns are easy to add, drop or rename:
 
-![](https://media.charlesleifer.com/blog/photos/im-1769707758-757.png)
+![](https://media.charlesleifer.com/blog/photos/sqlite-web-add-column.png)
 
-The `content` tab displays all the table data. Links in the table header can be used to sort the data:
+The `content` tab displays all the table data. Links in the table header can be
+used to sort the data, foreign-keys are shown as clickable links, and row-data
+can be copied easily:
 
-![](https://media.charlesleifer.com/blog/photos/im-1769707793-097.png)
+![](https://media.charlesleifer.com/blog/photos/sqlite-web-content-1.png)
 
-The `query` tab allows you to execute arbitrary SQL queries on a table. The query results are displayed in a table and can be exported to either JSON or CSV:
+The `query` tab allows you to execute queries on a table. The query results are
+displayed in a table and can be exported to either JSON or CSV. Multiple
+queries can be executed, and results for each will be displayed. Data-modifying
+queries report the number of rows changed.
 
-![](https://media.charlesleifer.com/blog/photos/im-1769707835-748.png)
+![](https://media.charlesleifer.com/blog/photos/sqlite-web-query-1.png)
 
-The `import` tab supports importing CSV and JSON files into a table. There is an option to automatically create columns for any unrecognized keys in the import file:
+The `import` tab supports importing CSV and JSON files into a table. There is
+an option to automatically create columns for any unrecognized keys in the
+import file:
 
-![](https://media.charlesleifer.com/blog/photos/im-1769707873-413.png)
+![](https://media.charlesleifer.com/blog/photos/sqlite-web-import.png)
 
 The `export` tab supports exporting all, or a subset, of columns:
 
-![](https://media.charlesleifer.com/blog/photos/im-1769707900-844.png)
+![](https://media.charlesleifer.com/blog/photos/sqlite-web-export.png)
 
 Basic INSERT, UPDATE and DELETE queries are supported:
 
-![](https://media.charlesleifer.com/blog/photos/im-1769707924-932.png)
+![](https://media.charlesleifer.com/blog/photos/sqlite-web-insert.png)
 
-![](https://media.charlesleifer.com/blog/photos/im-1769707958-136.png)
+![](https://media.charlesleifer.com/blog/photos/sqlite-web-update.png)
 
-![](https://media.charlesleifer.com/blog/photos/im-1769707985-292.png)
+![](https://media.charlesleifer.com/blog/photos/sqlite-web-delete.png)
 
 When configured with `--enable-load` or `--enable-filesystem` additional
 databases can be loaded or unloaded at run-time:
 
-![](https://media.charlesleifer.com/blog/photos/im-1769708009-636.png)
+![](https://media.charlesleifer.com/blog/photos/sqlite-web-attach-db.png)
 
 ### Command-line options
 
@@ -138,7 +148,7 @@ The following options are available:
 * `-L`, `--enable-load`: Enable loading additional databases at runtime (upload
   only). For adding local databases use `--enable-filesystem`.
 * `-U`, `--upload-dir`: Destination directory for uploaded database. Only has
-  an effect together with `-L`; if not specified, a system tempdir is used.
+  an effect together with `-L`. If not specified, a system tempdir is used.
 * `-F`, `--enable-filesystem`: Enable loading additional databases by
   specifying on-disk path at runtime. **Be careful with this**.
 * `-c`, `--ssl-cert` and `-k`, `--ssl-key` - specify SSL cert and private key.
@@ -186,7 +196,7 @@ $ docker run -it --rm \
 
 ### High-performance WSGI Server
 
-To run sqlite-web with a high-performance gevent WSGI server, you can run
+To run sqlite-web with the high-performance gevent WSGI server, you can run
 `sqlite_wsgi` instead of `sqlite_web`:
 
 ```console
