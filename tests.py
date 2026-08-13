@@ -220,6 +220,9 @@ class BaseAppTestCase(unittest.TestCase):
         INSERT INTO child (parent_id, label) VALUES (1, 'c-one');
         CREATE TABLE nopk (a TEXT);
         INSERT INTO nopk VALUES ('no-pk-row');
+        CREATE TABLE oddpk ("user id" INTEGER NOT NULL, grp TEXT NOT NULL,
+            val TEXT, PRIMARY KEY ("user id", grp));
+        INSERT INTO oddpk VALUES (7, 'a', 'odd-row');
         CREATE TABLE tag (name TEXT PRIMARY KEY);
         INSERT INTO tag VALUES (''), ('red');
         CREATE TABLE post (id INTEGER PRIMARY KEY,
@@ -432,6 +435,32 @@ class TestRowKeyRoutes(BaseAppTestCase):
         self.assertEqual(self.client.get('/users/update/@@bad@@/').status_code,
                          404)
 
+    def test_short_composite_token_cannot_multi_delete(self):
+        # A one-value token against the two-column pk must be refused, a
+        # zip would otherwise under-constrain the WHERE.
+        token = key_encode(['US'])
+        r = self.client.post('/comp/delete/%s/' % token)
+        self.assertIn(r.status_code, (302, 303))
+        self.assertEqual(self.dbrows('SELECT COUNT(*) FROM comp')[0][0], 1)
+        r = self.client.get('/comp/row/%s/' % token)
+        self.assertIn(r.status_code, (302, 303))
+
+    def test_sanitized_pk_column_gets_no_row_links(self):
+        # Reflection drops "user id" from the composite key, leaving a
+        # grp-only pk that would target every row sharing grp. Such
+        # tables must render but offer no row links.
+        r = self.client.get('/oddpk/content/')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(b'odd-row', r.data)
+        self.assertNotIn(b'/oddpk/row/', r.data)
+        self.assertNotIn(b'/oddpk/delete/', r.data)
+
+        # A grp-only token matches the reflected pk arity, the guard
+        # must still refuse the delete outright.
+        r = self.client.post('/oddpk/delete/%s/' % key_encode(['a']))
+        self.assertIn(r.status_code, (302, 303))
+        self.assertEqual(self.dbrows('SELECT COUNT(*) FROM oddpk')[0][0], 1)
+
 
 class TestDownload(BaseAppTestCase):
     def test_download_is_a_valid_snapshot(self):
@@ -576,8 +605,9 @@ class TestRowDetailEdges(BaseAppTestCase):
         self.assertEqual(r.status_code, 200)
         self.assertIn(b'huey', r.data)
         self.assertNotIn(b'/v_users/row/', r.data)
-        r = self.client.get('/v_users/row/%s/' % key_encode([1]))
-        self.assertIn(r.status_code, (302, 303))
+        for route in ('row', 'update', 'delete'):
+            r = self.client.get('/v_users/%s/%s/' % (route, key_encode([1])))
+            self.assertIn(r.status_code, (302, 303), route)
 
 
 class TestRowDetail(BaseAppTestCase):
@@ -653,6 +683,57 @@ class TestReadOnlyRowDetail(BaseAppTestCase):
         r = self.client.post('/users/query/',
                              data={'sql': 'SELECT * FROM users'})
         self.assertIn(b'huey', r.data)
+
+    def test_read_only_writes_fail_at_the_database(self):
+        # Enforcement is the mode=ro connection. Writes must fail safely
+        # with data unchanged and no 500s.
+        r = self.client.post('/users/insert/', data={
+            'chk_username': 'on', 'username': 'nope'},
+            follow_redirects=True)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(self.dbrows('SELECT COUNT(*) FROM users')[0][0], 3)
+
+        r = self.client.post('/users/drop/', follow_redirects=True)
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(self.dbrows('SELECT COUNT(*) FROM users'))
+
+        r = self.client.post('/users/update/%s/' % key_encode([1]),
+                             data={'chk_username': 'on', 'username': 'x'},
+                             follow_redirects=True)
+        self.assertEqual(r.status_code, 200)
+        rows = self.dbrows('SELECT username FROM users WHERE id = 1')
+        self.assertEqual(rows, [('huey',)])
+
+        r = self.client.post('/create-table/', data={
+            'table_name': 'zz', 'redirect': '/'}, follow_redirects=True)
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(b'Error', r.data)
+
+
+class TestPasswordlessLogin(BaseAppTestCase):
+    def test_login_redirects_when_no_password(self):
+        r = self.client.get('/login/')
+        self.assertIn(r.status_code, (302, 303))
+        r = self.client.post('/login/', data={})
+        self.assertIn(r.status_code, (302, 303))
+        with self.client.session_transaction() as s:
+            self.assertNotIn('authorized', s)
+
+
+class TestCreateTable(BaseAppTestCase):
+    def test_create_failure_keeps_flash_destination(self):
+        # The sqlite_ prefix is reserved, so creation fails. The redirect
+        # must go back to the caller, not to a 404ing import page.
+        r = self.client.post('/create-table/', data={
+            'table_name': 'sqlite_nope', 'redirect': '/'},
+            follow_redirects=True)
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(b'Error', r.data)
+
+    def test_create_success_lands_on_import(self):
+        r = self.client.post('/create-table/', data={
+            'table_name': 'fresh', 'redirect': '/'})
+        self.assertIn('/fresh/import/', r.headers['Location'])
 
 
 class TestQueryTemplates(BaseAppTestCase):
@@ -730,6 +811,18 @@ class TestContentTab(BaseAppTestCase):
             r = self.client.get('/users/content/',
                                 query_string={'ordering': value})
             self.assertEqual(r.status_code, 200)
+
+    def test_disabled_pager_arrows_are_not_links(self):
+        # Single page of data, so all four arrows must render as spans.
+        r = self.client.get('/users/content/')
+        for arrow in (b'&laquo;', b'&lsaquo;', b'&rsaquo;', b'&raquo;'):
+            self.assertIn(b'<span class="page-link">' + arrow, r.data)
+
+    def test_flash_alerts_are_dismissible(self):
+        r = self.client.get('/users/row/%s/' % key_encode([999]),
+                            follow_redirects=True)
+        self.assertIn(b'alert-dismissible', r.data)
+        self.assertNotIn(b'alert-dismissable', r.data)
 
 
 if __name__ == '__main__':

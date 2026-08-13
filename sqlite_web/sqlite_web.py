@@ -101,6 +101,7 @@ app = Flask(
     template_folder=os.path.join(CUR_DIR, 'templates'))
 app.config.from_object(__name__)
 datasets = {}
+datasets_lock = threading.Lock()
 dataset_config = {}
 
 #
@@ -155,6 +156,25 @@ class SqliteDataSet(DataSet):
     def cached_foreign_keys(self, table):
         return self._cached(('foreign_keys', table),
                             lambda: self.get_foreign_keys(table))
+
+    def cached_has_usable_pk(self, table):
+        """
+        True when the table is row-addressable. Views get a synthetic
+        all-column pk from introspection, and reflection drops pk columns
+        whose names it cannot map onto field names, leaving a key that
+        under-specifies the row. Neither can address a single row.
+        """
+        def check():
+            if self.cached_is_view(table):
+                return False
+            model = self._models.get(table)
+            pk = model._meta.primary_key if model else False
+            if pk is False:
+                return False
+            n = len(pk.field_names) if isinstance(pk, CompositeKey) else 1
+            return n == sum(1 for c in self.get_columns(table)
+                            if c.primary_key)
+        return self._cached(('usable_pk', table), check)
 
     @property
     def filename(self):
@@ -303,7 +323,10 @@ def get_dataset():
     if not hasattr(g, 'dataset'):
         dataset_key = session.get('dataset')
         if dataset_key is None or dataset_key not in datasets:
-            dataset_key = list(datasets)[0]
+            names = list(datasets)
+            if not names:
+                abort(500, 'No databases are loaded.')
+            dataset_key = names[0]
             session['dataset'] = dataset_key
         g.dataset = datasets[dataset_key]
     return g.dataset
@@ -340,6 +363,8 @@ def index():
 
 @app.route('/login/', methods=['GET', 'POST'])
 def login():
+    if not app.config.get('PASSWORD'):
+        return redirect(url_for('index'))
     if request.method == 'POST':
         if request.form.get('password') == app.config['PASSWORD']:
             session['authorized'] = True
@@ -425,7 +450,8 @@ def _add_dataset(enable_load, enable_filesystem):
         return None, 'Unable to load database: %s' % exc
     else:
         basename = os.path.basename(path)
-        datasets[basename] = dataset
+        with datasets_lock:
+            datasets[basename] = dataset
         session['dataset'] = basename
 
     return dataset, None
@@ -443,16 +469,21 @@ def unload():
 
     if request.method == 'POST':
         dataset = request.form.get('dataset')
-        if not dataset or dataset not in datasets:
-            flash('Database not found.', 'warning')
-            return redirect(url_for('unload'))
-
-        ds = datasets.pop(dataset)
+        with datasets_lock:
+            if not dataset or dataset not in datasets:
+                flash('Database not found.', 'warning')
+                return redirect(url_for('unload'))
+            if len(datasets) == 1:
+                # Concurrent unloads may both pass the pre-check above.
+                flash('Cannot unload the only database.', 'danger')
+                return redirect(url_for('index'))
+            ds = datasets.pop(dataset)
+            remaining = list(datasets)[0]
         ds.close()
 
         current = session.get('dataset')
         if current == dataset:
-            session['dataset'] = list(datasets)[0]
+            session['dataset'] = remaining
         flash('Database "%s" unloaded successfully.' % dataset, 'success')
         return redirect(url_for('index'))
     else:
@@ -488,7 +519,7 @@ def _query_view(template, table=None):
         model_class = dataset[table].model_class
         pk = model_class._meta.primary_key
         is_composite_pk = isinstance(pk, CompositeKey)
-        allow_detail = pk is not False and not dataset.cached_is_view(table)
+        allow_detail = dataset.cached_has_usable_pk(table)
         allow_edit = allow_detail and not dataset.is_readonly
         allow_bulk = allow_edit and not is_composite_pk
         fk_lookup = {fk.column: (fk.dest_table, fk.dest_column)
@@ -605,11 +636,11 @@ def require_table(fn):
 
 @app.route('/create-table/', methods=['POST'])
 def table_create():
+    dest = request.form.get('redirect') or url_for('index')
+    dest = '/' + dest.lstrip('/')  # idiot vulnerability "researchers".
     table = (request.form.get('table_name') or '').strip()
     if not table:
         flash('Table name is required.', 'danger')
-        dest = request.form.get('redirect') or url_for('index')
-        dest = '/' + dest.lstrip('/')  # idiot vulnerability "researchers".
         return redirect(dest)
 
     try:
@@ -617,6 +648,7 @@ def table_create():
     except Exception as exc:
         flash('Error: %s' % str(exc), 'danger')
         app.logger.exception('Error attempting to create table.')
+        return redirect(dest)
     return redirect(url_for('table_import', table=table))
 
 @app.route('/<table>/')
@@ -863,10 +895,7 @@ def table_content(table):
     model = ds_table.model_class
     is_composite_pk = isinstance(model._meta.primary_key, CompositeKey)
 
-    # Views get a synthetic all-column pk from introspection, which is not
-    # a usable row key. They get no row links and no editing.
-    allow_detail = (model._meta.primary_key is not False and
-                    not dataset.cached_is_view(table))
+    allow_detail = dataset.cached_has_usable_pk(table)
     allow_edit = allow_detail and not dataset.is_readonly
     allow_bulk = allow_edit and not is_composite_pk
 
@@ -931,7 +960,8 @@ def table_content(table):
     table_pk = model._meta.primary_key
     rows, keys = [], ([] if allow_detail else None)
     for row in query:
-        rows.append([row[c] for c in columns])
+        # Dict rows are keyed by field name, not column name.
+        rows.append([row[f.name] for f in model._meta.sorted_fields])
         if allow_detail:
             keys.append(encode_pk(row, table_pk))
     result = Result('rows', columns=columns, rows=rows, keys=keys)
@@ -1108,14 +1138,15 @@ def table_update(table, pk):
     dataset.ensure_cache()
     model = dataset[table].model_class
     table_pk = model._meta.primary_key
-    if not table_pk:
-        flash('Table must have a primary key to perform update.', 'danger')
+    if not dataset.cached_has_usable_pk(table):
+        flash('Table must have a usable primary key to perform update.',
+              'danger')
         return redirect(url_for('table_content', table=table))
 
-    expr = decode_pk(model, pk)
     try:
+        expr = decode_pk(model, pk)
         obj = model.get(expr)
-    except model.DoesNotExist:
+    except (model.DoesNotExist, ValueError):
         pk_repr = pk_display(table_pk, pk)
         flash('Could not fetch row with primary-key %s.' % str(pk_repr), 'danger')
         return redirect(url_for('table_content', table=table))
@@ -1192,14 +1223,15 @@ def table_delete(table, pk):
     dataset.ensure_cache()
     model = dataset[table].model_class
     table_pk = model._meta.primary_key
-    if not table_pk:
-        flash('Table must have a primary key to perform delete.', 'danger')
+    if not dataset.cached_has_usable_pk(table):
+        flash('Table must have a usable primary key to perform delete.',
+              'danger')
         return redirect(url_for('table_content', table=table))
 
-    expr = decode_pk(model, pk)
     try:
+        expr = decode_pk(model, pk)
         row = model.select().where(expr).dicts().get()
-    except model.DoesNotExist:
+    except (model.DoesNotExist, ValueError):
         pk_repr = pk_display(table_pk, pk)
         flash('Could not fetch row with primary-key %s.' % str(pk_repr), 'danger')
         return redirect(url_for('table_content', table=table))
@@ -1230,14 +1262,15 @@ def table_row_detail(table, pk):
     dataset.ensure_cache()
     model = dataset[table].model_class
     table_pk = model._meta.primary_key
-    if not table_pk or dataset.cached_is_view(table):
-        flash('Row detail requires a table with a primary key.', 'danger')
+    if not dataset.cached_has_usable_pk(table):
+        flash('Row detail requires a table with a usable primary key.',
+              'danger')
         return redirect(url_for('table_content', table=table))
 
-    expr = decode_pk(model, pk)
     try:
+        expr = decode_pk(model, pk)
         row = model.select().where(expr).dicts().get()
-    except model.DoesNotExist:
+    except (model.DoesNotExist, ValueError):
         pk_repr = pk_display(table_pk, pk)
         flash('Could not fetch row with primary-key %s.' % str(pk_repr),
               'danger')
@@ -1461,17 +1494,23 @@ def format_index(index_sql):
 
 @app.template_filter('encode_pk')
 def encode_pk(row, pk):
+    # Rows from model queries are dicts keyed by field name, which
+    # reflection sanitizes from the column name ("user id" becomes the
+    # field user_id). Key by field name in both branches.
     if isinstance(pk, CompositeKey):
         values = [row[f] for f in pk.field_names]
     else:
-        values = [row[pk.column_name]]
+        values = [row[pk.name]]
     return key_encode(values)
 
 def decode_pk(model, token):
     pk = model._meta.primary_key
     values = key_decode(token)
     if isinstance(pk, CompositeKey):
-        fields = [pk.model._meta.columns[f] for f in pk.field_names]
+        fields = [pk.model._meta.fields[f] for f in pk.field_names]
+        if len(values) != len(fields):
+            # A short token would zip into an under-constrained WHERE.
+            raise ValueError('row key does not match the primary key')
         expressions = [(f == v) for f, v in zip(fields, values)]
         return reduce(operator.and_, expressions)
     return (pk == values[0])
@@ -1893,12 +1932,10 @@ def configure_app():
                 else:
                     break
 
-    if options.rows_per_page:
-        app.config['ROWS_PER_PAGE'] = options.rows_per_page
-    if options.query_rows_per_page:
-        app.config['QUERY_ROWS_PER_PAGE'] = options.query_rows_per_page
-    if options.base64:
-        app.config['BLOB_AS_BASE64'] = options.base64
+    # Zero would divide pagination by zero, so clamp to one.
+    app.config['ROWS_PER_PAGE'] = max(1, options.rows_per_page)
+    app.config['QUERY_ROWS_PER_PAGE'] = max(1, options.query_rows_per_page)
+    app.config['BLOB_AS_BASE64'] = bool(options.base64)
 
     app.config['TRUNCATE_VALUES'] = options.truncate_values
 
