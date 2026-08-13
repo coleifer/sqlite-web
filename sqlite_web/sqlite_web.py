@@ -1119,17 +1119,23 @@ def table_insert(table):
         row=row,
         table=table)
 
-def redirect_to_previous(table):
+@app.template_global()
+def back_url(table):
+    """
+    The content-tab url the user came from, page and ordering included.
+    """
     entries = [e for e in session.get('last_viewed') or [] if e[0] == table]
-    if not entries:
-        return redirect(url_for('table_content', table=table))
-    _, page, ordering = entries[0]
     kw = {}
-    if page and page != 1:
-        kw['page'] = page
-    if ordering:
-        kw['ordering'] = ordering
-    return redirect(url_for('table_content', table=table, **kw))
+    if entries:
+        _, page, ordering = entries[0]
+        if page and page != 1:
+            kw['page'] = page
+        if ordering:
+            kw['ordering'] = ordering
+    return url_for('table_content', table=table, **kw)
+
+def redirect_to_previous(table):
+    return redirect(back_url(table))
 
 @app.route('/<table>/update/<b64:pk>/', methods=['GET', 'POST'])
 @require_table

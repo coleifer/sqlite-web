@@ -20,5 +20,5 @@
     <a class="btn btn-sm btn-secondary" href="{{ url_for('table_update', table=table, pk=pk) }}">Edit</a>
     <a class="btn btn-sm btn-danger" href="{{ url_for('table_delete', table=table, pk=pk) }}">Delete</a>
   {% endif %}
-  <a class="btn btn-sm btn-link" href="{{ url_for('table_content', table=table) }}">Back</a>
+  <a class="btn btn-sm btn-link" href="{{ back_url(table) }}">Back</a>
 {% endblock %}

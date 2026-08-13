@@ -397,6 +397,19 @@ class TestLastViewed(BaseAppTestCase):
             self.assertEqual([e[0] for e in s['last_viewed']],
                              ['child', 'users'])
 
+    def test_back_links_carry_saved_position(self):
+        # Real destination urls rendered into the hrefs, no bounce route.
+        with self.client.session_transaction() as s:
+            s['last_viewed'] = [['users', 3, -2]]
+        for url in ('/users/row/%s/' % key_encode([1]),
+                    '/users/update/%s/' % key_encode([1])):
+            r = self.client.get(url)
+            self.assertIn(b'page=3', r.data, url)
+            self.assertIn(b'ordering=-2', r.data, url)
+        # No saved entry falls back to plain content.
+        r = self.client.get('/child/row/%s/' % key_encode([1]))
+        self.assertIn(b'href="/child/content/"', r.data)
+
     def test_redirect_to_previous_uses_saved_position(self):
         with self.client.session_transaction() as s:
             s['last_viewed'] = [['users', 3, -2]]
