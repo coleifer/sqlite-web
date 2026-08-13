@@ -6,13 +6,13 @@
   <h3 id="sql">SQL</h3>
   {{ table_sql|format_create_table|highlight }}
 
-  <h3 id="columns">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h3 class="mb-0" id="columns">Columns</h3>
     {% if not dataset.is_readonly and not is_view %}
-      <p class="float-right"><a class="btn btn-primary btn-sm" href="{{ url_for('add_column', table=table) }}">+ Add column</a></p>
+      <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('add_column', table=table) }}">+ Add column</a>
     {% endif %}
-    Columns
-  </h3>
-  <table class="table table-striped">
+  </div>
+  <table class="table table-striped table-sm">
     <thead>
       <tr>
         <th>Column</th>
@@ -38,7 +38,7 @@
             {% else %}
               <a href="{{ url_for('rename_column', table=table, rename=column.name) }}">Rename</a>
               <span class="separator">|</span>
-              <a href="{{ url_for('drop_column', table=table, name=column.name) }}">Drop</a>
+              <a class="text-danger" href="{{ url_for('drop_column', table=table, name=column.name) }}">Drop</a>
             {% endif %}
           </td>
         {% endif %}
@@ -50,7 +50,7 @@
 
   {% if foreign_keys %}
     <h3 id="foreign-keys">Foreign Keys</h3>
-    <table class="table table-striped">
+    <table class="table table-striped table-sm">
       <thead>
         <tr>
           <th>Column</th>
@@ -70,13 +70,13 @@
   {% endif %}
 
   {% if not is_view %}
-  <h3 id="indexes">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h3 class="mb-0" id="indexes">Indexes</h3>
     {% if not dataset.is_readonly %}
-      <p class="float-right"><a class="btn btn-primary btn-sm" href="{{ url_for('add_index', table=table) }}">+ Add index</a></p>
+      <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('add_index', table=table) }}">+ Add index</a>
     {% endif %}
-    Indexes
-  </h3>
-  <table class="table table-striped">
+  </div>
+  <table class="table table-striped table-sm">
     <thead>
       <tr>
         <th>Name</th>
@@ -89,7 +89,7 @@
     <tbody>
       {% for index in indexes %}
         <tr>
-          <td>{{ index.name }}</td>
+          <td><code>{{ index.name }}</code></td>
           <td>
             {% if index.columns|length == 1 %}
               <code>{{ index.columns[0] }}</code>
@@ -110,7 +110,7 @@
             {% if dataset.is_readonly %}
               <strong>read-only</strong>
             {% else %}
-              <a href="{{ url_for('drop_index', table=table, name=index.name) }}">Drop</a>
+              <a class="text-danger" href="{{ url_for('drop_index', table=table, name=index.name) }}">Drop</a>
             {% endif %}
           </td>
         </tr>
@@ -121,11 +121,8 @@
   {% endif %}
 
   {% if triggers %}
-    <h3 id="triggers">
-      {#<p class="float-right"><a class="btn btn-primary btn-sm" href="{{ url_for('add_trigger', table=table) }}">Add trigger</a></p>#}
-      Triggers
-    </h3>
-    <table class="table table-striped">
+    <h3 id="triggers">Triggers</h3>
+    <table class="table table-striped table-sm">
       <thead>
         <tr>
           <th>Name</th>
@@ -145,7 +142,7 @@
               {% if dataset.is_readonly %}
                 <strong>read-only</strong>
               {% else %}
-                <a href="{{ url_for('drop_trigger', table=table, name=trigger.name) }}">Drop</a>
+                <a class="text-danger" href="{{ url_for('drop_trigger', table=table, name=trigger.name) }}">Drop</a>
               {% endif %}
             </td>
           </tr>

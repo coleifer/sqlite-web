@@ -1,10 +1,58 @@
+/*
+ * sqlite-web styles, layered over the Bootswatch theme.
+ *
+ * The design language, in brief. Two type voices, the body sans for
+ * chrome and mono for data and SQL. Primary color appears once per page
+ * on the page's verb, danger only on destructive actions. Icons only in
+ * data rows, labels everywhere else.
+ */
+
+/* Typography. Minimal overrides to the theme. Its body stack begins
+   with a bare "sans" token that fontconfig resolves unpredictably, and
+   it puts a display face on headings and buttons. */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, sans-serif;
+}
+h1, h2, h3, h4, h5, h6,
+.btn,
+.navbar-brand {
+    font-family: inherit;
+}
+textarea.form-control,
+pre {
+    /* SQL and cell data, one mono size matching the result tables. */
+    font-family: var(--font-family-monospace);
+    font-size: 12px;
+}
+
+/* Chrome: navbar, sidebar, dropdowns, buttons. */
 nav.primary-nav {
     margin-bottom: 20px;
 }
 .navbar, .dropdown-item {
     font-size: 0.9rem;
 }
-#sidebar .nav>li>a {padding: 3px 10px;}
+#sidebar .nav > li > a {
+    padding: 3px 10px;
+}
+.create-table-menu {
+    min-width: 16rem;
+}
+.btn-outline-secondary {
+    /* The theme's secondary is too pale for outline buttons on white. */
+    color: #555555;
+    border-color: #aaaaaa;
+}
+.btn-outline-secondary:hover,
+.btn-outline-secondary:not(:disabled):active {
+    color: #ffffff;
+    background-color: #888888;
+    border-color: #888888;
+}
+
+/* Result tables. Fully mono, headers included, since column names are
+   SQL identifiers. */
 div.table-wrapper {
     clear: both;
     margin-bottom: 1rem;
@@ -15,10 +63,12 @@ div.table-wrapper table {
     min-width: 100%;
     width: max-content;
 }
-table.cell-content td,
-table.cell-content th {
+table.cell-content th,
+table.cell-content td {
     padding: 3px 8px;
     border: 1px dotted #cccccc;
+    font-family: var(--font-family-monospace);
+    font-size: 12px;
 }
 table.cell-content th {
     white-space: nowrap;
@@ -27,58 +77,57 @@ table.cell-content td {
     max-width: 60ch;
     overflow-wrap: anywhere;
 }
+table.cell-content td code {
+    font-size: inherit;  /* Bootstrap sizes code at 87.5%. */
+}
+table.cell-content td.num {
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
 span.pre {
     white-space: pre-line;
 }
 table.cell-content td span.full {
     white-space: pre-wrap;
 }
-table.cell-content td.num {
-    font-variant-numeric: tabular-nums;
-    text-align: right;
-}
-table.cell-content tbody td {
-    position: relative;
-}
+
+/* Row action icons. */
 svg.icon {
     width: 14px;
     height: 14px;
     fill: currentColor;
     vertical-align: -2px;
 }
-td a.rowaction {
-    padding: 0 2px;
+
+/* Cell copy feedback. Double-clicking a cell copies its value and the
+   cell flashes, no overlay chrome. */
+td.cell-copied {
+    animation: cell-copied .8s ease-out;
 }
-button.copy-cell {
-    position: absolute;
-    top: 1px;
-    right: 1px;
-    padding: 1px 3px 2px;
-    line-height: 1;
-    color: #555555;
-    background: #f8f9fa;
-    border: 1px solid #aaaaaa;
-    border-radius: 3px;
-    cursor: pointer;
+@keyframes cell-copied {
+    from { background-color: #c3e6cb; }
+    to { background-color: transparent; }
 }
-button.copy-cell:hover {
-    background: #e2e6ea;
-}
-button.copy-cell svg.icon {
-    width: 12px;
-    height: 12px;
-    vertical-align: 0;
-}
-/* Numbers are right-aligned, so the button docks left in numeric cells. */
-td.num button.copy-cell {
-    left: 1px;
-    right: auto;
-}
+
+/* Pagination. */
 ul.pagination .page-item .page-link {
     border-color: #aaaaaa !important;
-    color: #888;
+    color: #888888;
 }
 ul.pagination .page-item.disabled .page-link {
     border-color: #dee2e6 !important;
-    color: #aaa;
+    color: #aaaaaa;
+}
+
+
+/* Small screens. */
+@media (max-width: 1200px) {
+    h3 { font-size: 1.2rem; }
+    ul.nav li { font-size: .9rem; }
+}
+@media (max-width: 767px) {
+    #sidebar ul.nav {
+        max-height: 30vh;
+        overflow-y: auto;
+    }
 }

@@ -37,18 +37,18 @@
           {% endif %}
           {% for value in row %}
             {% set fk = fk_lookup and fk_lookup.get(result.columns[loop.index0]) %}
-            <td{% if value is number %} class="num"{% endif %}>
+            <td{% if value is number or value is none %} class="num"{% endif %}>
               {% if value is none %}<code>NULL</code>{% elif fk %}<a href="{{ value|fk_link(fk) }}" title="{{ fk[0] }}.{{ fk[1] }}">{{ value }}</a>{% else %}{{ value|value_filter|safe }}{% endif %}
             </td>
           {% endfor %}
           <td>
-            <a class="rowaction copy-row" href="#" title="Copy row as JSON" aria-label="Copy row as JSON"><svg class="icon"><use href="#i-copy"/></svg></a>
+            <a class="px-1 copy-row" href="#" title="Copy row as JSON" aria-label="Copy row as JSON"><svg class="icon"><use href="#i-copy"/></svg></a>
             {% if show_detail %}
-              <a class="rowaction" href="{{ url_for('table_row_detail', table=table, pk=result.keys[loop.index0]) }}" title="View" aria-label="View"><svg class="icon"><use href="#i-eye"/></svg></a>
+              <a class="px-1" href="{{ url_for('table_row_detail', table=table, pk=result.keys[loop.index0]) }}" title="View" aria-label="View"><svg class="icon"><use href="#i-eye"/></svg></a>
             {% endif %}
             {% if show_edit %}
-              <a class="rowaction" href="{{ url_for('table_update', table=table, pk=result.keys[loop.index0]) }}" title="Edit" aria-label="Edit"><svg class="icon"><use href="#i-pencil"/></svg></a>
-              <a class="rowaction" href="{{ url_for('table_delete', table=table, pk=result.keys[loop.index0]) }}" title="Delete" aria-label="Delete"><svg class="icon"><use href="#i-trash"/></svg></a>
+              <a class="px-1" href="{{ url_for('table_update', table=table, pk=result.keys[loop.index0]) }}" title="Edit" aria-label="Edit"><svg class="icon"><use href="#i-pencil"/></svg></a>
+              <a class="px-1" href="{{ url_for('table_delete', table=table, pk=result.keys[loop.index0]) }}" title="Delete" aria-label="Delete"><svg class="icon"><use href="#i-trash"/></svg></a>
             {% endif %}
           </td>
         </tr>

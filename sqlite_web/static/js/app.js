@@ -22,6 +22,13 @@ App = window.App || {};
             }
         });
 
+        /* Success and info flashes fade out, warnings and errors stay. */
+        setTimeout(function() {
+            $('div.alert-success, div.alert-info').fadeTo(300, 0, function() {
+                $(this).remove();
+            });
+        }, 4000);
+
         /* Toggle long values on/off. */
         $('a.toggle-value').on('click', function(e) {
             e.preventDefault();
@@ -126,44 +133,33 @@ App = window.App || {};
         /* Returns [value, isNull] for a result cell. The full span holds the
            untruncated value and external links keep it in the href. */
         function cellData(td) {
-            var el = td.clone();
-            el.find('button.copy-cell').remove();
-            if (el.children('code').length && el.text().trim() === 'NULL') {
+            if (td.children('code').length && td.text().trim() === 'NULL') {
                 return [null, true];
             }
-            var full = el.find('span.full');
+            var full = td.find('span.full');
             if (full.length) {
                 return [full.text(), false];
             }
-            var href = el.children('a').first().attr('href') || '';
+            var href = td.children('a').first().attr('href') || '';
             if (/^(https?:|mailto:)/.test(href)) {
                 return [href, false];
             }
-            return [el.text().trim(), false];
+            return [td.text().trim(), false];
         }
 
-        /* One shared button that rides along inside the hovered cell. */
-        var copyBtn = $('<button class="copy-cell" title="Copy value" type="button">' +
-                        '<svg class="icon"><use href="#i-copy"/></svg></button>');
-        copyBtn.on('click', function(e) {
-            e.preventDefault();
-            var data = cellData(copyBtn.parent()),
-                use = copyBtn.find('use');
-            copyText(data[1] ? 'NULL' : String(data[0]), function() {
-                use.attr('href', '#i-check');
-                setTimeout(function() { use.attr('href', '#i-copy'); }, 800);
-            });
-        });
-        $('table.cell-content').on('mouseenter', 'tbody td', function() {
+        /* Double-click a cell to copy its value. No overlay chrome to
+           collide with the data, the cell flashes as feedback. */
+        $('table.cell-content').on('dblclick', 'tbody td', function() {
             var td = $(this);
             if (td.find('input.toggle-pk').length || td.find('a.copy-row').length) {
-                copyBtn.detach();
-            } else {
-                copyBtn.appendTo(td);
+                return;
             }
-        });
-        $('table.cell-content').on('mouseleave', 'tbody tr', function() {
-            copyBtn.detach();
+            var data = cellData(td);
+            copyText(data[1] ? 'NULL' : String(data[0]), function() {
+                window.getSelection().removeAllRanges();
+                td.addClass('cell-copied');
+                setTimeout(function() { td.removeClass('cell-copied'); }, 800);
+            });
         });
 
         $('a.copy-row').on('click', function(e) {
@@ -292,6 +288,12 @@ App = window.App || {};
     Bookmarks.prototype.populateMenu = function() {
         var self = this;
         this.container.empty();
+        if (!this.bkList.length) {
+            this.container.append(
+                $('<span class="dropdown-item-text text-muted small"></span>')
+                    .text('No bookmarks yet'));
+            return;
+        }
         for (var i = 0; i < this.bkList.length; i++) {
             var name = this.bkList[i],
                 sql = this.bk[name];

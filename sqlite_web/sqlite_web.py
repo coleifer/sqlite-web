@@ -1561,7 +1561,8 @@ def value_filter(value, max_length=50):
             if app.config['TRUNCATE_VALUES']:
                 return ('<span class="truncated">%s</span> '
                         '<span class="full" style="display:none;">%s</span>'
-                        '<a class="toggle-value" href="#">...</a>') % (
+                        '<a class="toggle-value" href="#" '
+                        'title="Show full value">...</a>') % (
                             escape(value[:max_length]),
                             escape(value))
             return '<span class="full">%s</span>' % escape(value)

@@ -1,54 +1,45 @@
 {% extends "base_tables.html" %}
 
 {% block content %}
-  <table class="table table-striped">
+  <table class="table table-sm table-borderless w-auto mb-2">
     <tbody>
       <tr>
-        <th>Sqlite</th>
-        <td>{{ sqlite.sqlite_version }}</td>
-      </tr>
-      <tr>
-        <th>Filename</th>
+        <th class="text-muted font-weight-normal pr-4">Filename</th>
         <td>{{ dataset.filename }}
-          {% if dataset.is_readonly %}<strong>read-only</strong>{% endif %}
+          {% if dataset.is_readonly %}<span class="badge badge-secondary">read-only</span>{% endif %}
         </td>
       </tr>
       <tr>
-        <th>Size</th>
+        <th class="text-muted font-weight-normal pr-4">Size</th>
         <td>{{ dataset.size_on_disk|filesizeformat }}</td>
       </tr>
       <tr>
-        <th>Created</th>
-        <td>{{ dataset.created.strftime('%A %B %d, %Y at %I:%M:%p') }}</td>
+        <th class="text-muted font-weight-normal pr-4">SQLite</th>
+        <td>{{ sqlite.sqlite_version }}</td>
       </tr>
       <tr>
-        <th>Modified</th>
-        <td>{{ dataset.modified.strftime('%A %B %d, %Y at %I:%M:%p') }}</td>
+        <th class="text-muted font-weight-normal pr-4">Created</th>
+        <td>{{ dataset.created.strftime('%Y-%m-%d %H:%M') }}</td>
       </tr>
       <tr>
-        <th>Tables</th>
-        <td>{{ dataset.cached_tables()|length }}</td>
+        <th class="text-muted font-weight-normal pr-4">Modified</th>
+        <td>{{ dataset.modified.strftime('%Y-%m-%d %H:%M') }}</td>
       </tr>
       <tr>
-        <th>Indexes</th>
-        <td>{{ dataset.get_all_indexes()|length }}</td>
-      </tr>
-      <tr>
-        <th>Triggers</th>
-        <td>{{ dataset.get_all_triggers()|length }}</td>
-      </tr>
-      <tr>
-        <th>Views</th>
-        <td>{{ dataset.get_all_views()|length }}</td>
+        <th class="text-muted font-weight-normal pr-4">Objects</th>
+        <td>{{ dataset.cached_tables()|length }} tables &middot;
+            {{ dataset.get_all_indexes()|length }} indexes &middot;
+            {{ dataset.get_all_views()|length }} views &middot;
+            {{ dataset.get_all_triggers()|length }} triggers</td>
       </tr>
     </tbody>
   </table>
-  <a class="btn btn-secondary" href="{{ url_for('db_download') }}">Download</a>
+  <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('db_download') }}">Download</a>
   <hr />
   <h3>Query</h3>
   <form action="{{ url_for('generic_query') }}" method="post" role="form">
     <div class="form-group">
-      <textarea class="form-control" name="sql" placeholder="Execute SQL query..." style="height: 120px;"></textarea>
+      <textarea class="form-control" name="sql" aria-label="SQL query" placeholder="Execute SQL query..." style="height: 120px;"></textarea>
     </div>
     <button class="btn btn-primary" type="submit">Execute</button>
   </form>

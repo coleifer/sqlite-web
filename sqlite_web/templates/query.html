@@ -19,7 +19,7 @@
     {% include "results_multi.html" %}
   {% elif result and result.kind != 'error' %}
     {% if result.kind == 'rows' and result.rows %}
-      <a class="float-right" href="{{ url_for('generic_query', sql=sql) }}{% if ordering %}&ordering={{ ordering }}{% endif %}{% if page > 1 %}&page={{ page }}{% endif %}">Permalink</a>
+      <a class="small float-right" href="{{ url_for('generic_query', sql=sql) }}{% if ordering %}&ordering={{ ordering }}{% endif %}{% if page > 1 %}&page={{ page }}{% endif %}">Permalink</a>
       <h3>Results ({{ page_start }}&ndash;{{ page_start + result.rows|length - 1 }}{% if total is not none %} of {{ total }}{% endif %})</h3>
     {% endif %}
     {% include "results.html" %}

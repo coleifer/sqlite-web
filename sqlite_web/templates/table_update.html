@@ -3,9 +3,13 @@
 {% block content_tab_class %} active{% endblock %}
 
 {% block inner_content %}
-  <h3>Update row {{ table_pk|pk_display(pk) }} in {{ table }}
-    <input id="toggle-checkboxes" type="checkbox" />
-  </h3>
+  <div class="d-flex justify-content-between align-items-center">
+    <h3 class="mb-0">Update row {{ table_pk|pk_display(pk) }} in {{ table }}</h3>
+    <label class="small text-muted font-weight-normal mb-0" for="toggle-checkboxes">
+      <input id="toggle-checkboxes" type="checkbox" /> include all columns
+    </label>
+  </div>
+  <p class="small text-muted">Type NULL for SQL NULL. Uncheck a column to omit it.</p>
   <form action="{{ url_for('table_update', table=table, pk=pk) }}" method="post" role="form">
     {% for column, field in columns_fields %}
       <div class="form-group row">

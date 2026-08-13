@@ -3,7 +3,7 @@
 {% set view_ops = dataset.cached_view_operations(table) %}
 
 {% block content_title %}
-  <span title="{{ table }}">{{ table|truncate(40, True, leeway=2) }}</span>
+  <a class="text-light" href="{{ url_for('table_structure', table=table) }}" title="{{ table }}">{{ table|truncate(40, True, leeway=2) }}</a>
 {% endblock %}
 
 {% block content %}
@@ -22,22 +22,23 @@
       <a class="nav-link{% block insert_tab_class %}{% endblock %}" href="{{ url_for('table_insert', table=table) }}">Insert</a>
     </li>
     {% endif %}
-    {% if not dataset.is_readonly %}
+    {% if not dataset.is_readonly and (not is_view or 'insert' in view_ops) %}
     <li class="nav-item ml-auto">
-      <a class="nav-link{% block drop_tab_class %}{% endblock %}" href="{{ url_for('drop_table', table=table) }}">Drop</a>
-    </li>
-      {% if not is_view or 'insert' in view_ops %}
-    <li class="nav-item">
       <a class="nav-link{% block import_tab_class %}{% endblock %}" href="{{ url_for('table_import', table=table) }}">Import</a>
     </li>
-      {% endif %}
     {% endif %}
-    <li class="nav-item">
+    <li class="nav-item{% if dataset.is_readonly or (is_view and 'insert' not in view_ops) %} ml-auto{% endif %}">
       <a class="nav-link{% block export_tab_class %}{% endblock %}" href="{{ url_for('table_export', table=table) }}">Export</a>
     </li>
+    {% if not dataset.is_readonly %}
+    {# Destruction sits apart from navigation and reads as danger. #}
+    <li class="nav-item ml-3">
+      <a class="nav-link text-danger{% block drop_tab_class %}{% endblock %}" href="{{ url_for('drop_table', table=table) }}">Drop</a>
+    </li>
+    {% endif %}
     {% block inner_nav %}{% endblock %}
   </ul>
-  <div style="margin-top: 20px;">
+  <div class="mt-4">
     {% block inner_content %}
     {% endblock %}
   </div>
