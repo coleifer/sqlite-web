@@ -18,16 +18,17 @@ class Result:
     error: str = ''
 
 
-def wrap(sql, ordering, limit, offset):
-    order = ''
+def wrap(sql, ordering=None, limit=None, offset=0, select='*'):
+    # The one place user sql gets wrapped in a subselect. The \n before
+    # the closing paren terminates any trailing "--..." comment.
+    wrapped = 'SELECT %s FROM (\n%s\n) AS _' % (
+        select, sql.rstrip('; \t\r\n'))
     if ordering:
-        order = ' ORDER BY %d %s' % (abs(ordering),
-                                     'DESC' if ordering < 0 else 'ASC')
-    # The \n before the closing paren terminates any trailing "--..." comment.
-    # Also do a fetch (limit + 1) so we can detect if there's a "next" page of
-    # results.
-    return 'SELECT * FROM (\n%s\n) AS _%s LIMIT %d OFFSET %d' % (
-        sql.rstrip('; \t\r\n'), order, limit + 1, offset)
+        wrapped += ' ORDER BY %d %s' % (abs(ordering),
+                                        'DESC' if ordering < 0 else 'ASC')
+    if limit is not None:
+        wrapped += ' LIMIT %d OFFSET %d' % (limit, offset)
+    return wrapped
 
 
 def run_one(dataset, sql, page=1, page_size=50, ordering=None):
@@ -37,7 +38,8 @@ def run_one(dataset, sql, page=1, page_size=50, ordering=None):
     # only works for SELECTs), and on failure fall-back to unwrapped.
     page = max(page, 1)
     try:
-        cursor = dataset.query(wrap(sql, ordering, page_size,
+        # Fetch page_size + 1 rows so a "next" page can be detected.
+        cursor = dataset.query(wrap(sql, ordering, page_size + 1,
                                     (page - 1) * page_size))
         paged = True
     except DatabaseError:
@@ -86,8 +88,7 @@ def run_script(dataset, statements, page_size=50):
 
 def is_read(dataset, sql):
     try:
-        dataset.query('SELECT * FROM (\n%s\n) AS _ LIMIT 0' %
-                      sql.rstrip('; \t\r\n'))
+        dataset.query(wrap(sql, limit=0))
         return True
     except DatabaseError:
         return False

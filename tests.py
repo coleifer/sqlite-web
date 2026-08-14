@@ -15,6 +15,7 @@ from sqlite_web.executor import key_encode
 from sqlite_web.executor import run_one
 from sqlite_web.executor import run_script
 from sqlite_web.executor import split_statements
+from sqlite_web.executor import wrap
 
 
 class BaseExecutorTestCase(unittest.TestCase):
@@ -192,6 +193,21 @@ class TestIsRead(BaseExecutorTestCase):
                                  "UPDATE users SET username = 'x'"))
         self.assertFalse(is_read(self.dataset, 'SELECT 1; SELECT 2'))
         self.assertEqual(self.user_count(), 3)
+
+
+class TestWrap(unittest.TestCase):
+    def test_shapes(self):
+        self.assertEqual(wrap('SELECT 1;'),
+                         'SELECT * FROM (\nSELECT 1\n) AS _')
+        self.assertEqual(wrap('SELECT 1', ordering=-2),
+                         'SELECT * FROM (\nSELECT 1\n) AS _ ORDER BY 2 DESC')
+        self.assertEqual(wrap('SELECT 1', ordering=2, limit=51, offset=50),
+                         'SELECT * FROM (\nSELECT 1\n) AS _ '
+                         'ORDER BY 2 ASC LIMIT 51 OFFSET 50')
+        self.assertEqual(wrap('SELECT 1', limit=0),
+                         'SELECT * FROM (\nSELECT 1\n) AS _ LIMIT 0 OFFSET 0')
+        self.assertEqual(wrap('SELECT 1', select='COUNT(*)'),
+                         'SELECT COUNT(*) FROM (\nSELECT 1\n) AS _')
 
 
 class TestRowKey(unittest.TestCase):
@@ -425,6 +441,11 @@ class TestRowKeyRoutes(BaseAppTestCase):
         r = self.client.get('/comp/update/%s/' % token)
         self.assertEqual(r.status_code, 200)
         self.assertIn(b'composite-row', r.data)
+
+    def test_blob_update_form_renders_hex(self):
+        r = self.client.get('/blobs/update/%s/' % key_encode([b'\x00\xff']))
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(b'00ff', r.data)
 
     def test_blob_bulk_delete(self):
         token = key_encode([b'\x00\xff'])
@@ -747,6 +768,27 @@ class TestCreateTable(BaseAppTestCase):
         r = self.client.post('/create-table/', data={
             'table_name': 'fresh', 'redirect': '/'})
         self.assertIn('/fresh/import/', r.headers['Location'])
+
+
+class TestErrorPages(BaseAppTestCase):
+    def test_404_renders_in_chrome(self):
+        r = self.client.get('/nope-not-a-table/')
+        self.assertEqual(r.status_code, 404)
+        self.assertIn(b'Not Found', r.data)
+        self.assertIn(b'powered by', r.data)
+
+    def test_403_renders_in_chrome(self):
+        r = self.client.post('/query/', data={'sql': 'SELECT 1'},
+                             headers={'Sec-Fetch-Site': 'cross-site'})
+        self.assertEqual(r.status_code, 403)
+        self.assertIn(b'powered by', r.data)
+
+    def test_empty_registry_500_renders(self):
+        # The error page renders even when no dataset can be resolved.
+        sw.datasets.clear()
+        r = self.client.get('/')
+        self.assertEqual(r.status_code, 500)
+        self.assertIn(b'powered by', r.data)
 
 
 class TestQueryTemplates(BaseAppTestCase):

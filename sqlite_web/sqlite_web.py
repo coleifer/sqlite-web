@@ -79,11 +79,11 @@ from playhouse.migrate import migrate
 try:
     from sqlite_web.executor import (
         Result, is_read, key_decode, key_encode, run_one, run_script,
-        split_statements)
+        split_statements, wrap)
 except ImportError:
     from executor import (
         Result, is_read, key_decode, key_encode, run_one, run_script,
-        split_statements)
+        split_statements, wrap)
 
 
 CUR_DIR = os.path.realpath(os.path.dirname(__file__))
@@ -156,6 +156,12 @@ class SqliteDataSet(DataSet):
     def cached_foreign_keys(self, table):
         return self._cached(('foreign_keys', table),
                             lambda: self.get_foreign_keys(table))
+
+    def cached_fk_lookup(self, table):
+        def build():
+            return {fk.column: (fk.dest_table, fk.dest_column)
+                    for fk in self.cached_foreign_keys(table)}
+        return self._cached(('fk_lookup', table), build)
 
     def cached_has_usable_pk(self, table):
         """
@@ -522,8 +528,7 @@ def _query_view(template, table=None):
         allow_detail = dataset.cached_has_usable_pk(table)
         allow_edit = allow_detail and not dataset.is_readonly
         allow_bulk = allow_edit and not is_composite_pk
-        fk_lookup = {fk.column: (fk.dest_table, fk.dest_column)
-                     for fk in dataset.cached_foreign_keys(table)}
+        fk_lookup = dataset.cached_fk_lookup(table)
     else:
         default_sql = ''
         model_class = dataset._base_model
@@ -558,11 +563,7 @@ def _query_view(template, table=None):
         if not single_read:
             flash('Only a single query may be exported.', 'warning')
         else:
-            qsql = sql.rstrip('; \t\r\n')
-            if ordering:
-                qsql = ('SELECT * FROM (\n%s\n) AS _ ORDER BY %d %s' %
-                        (qsql, abs(ordering),
-                         'DESC' if ordering < 0 else 'ASC'))
+            qsql = wrap(sql, ordering) if ordering else sql.rstrip('; \t\r\n')
             return export(model_class.raw(qsql).dicts(), export_format, table)
 
     result = results = total = total_pages = None
@@ -590,8 +591,7 @@ def _query_view(template, table=None):
     if result is not None and result.kind == 'rows' and \
        'count' in request.values:
         try:
-            total, = dataset.query('SELECT COUNT(*) FROM (\n%s\n) AS _' %
-                                   sql.rstrip('; \t\r\n')).fetchone()
+            total, = dataset.query(wrap(sql, select='COUNT(*)')).fetchone()
             total_pages = max(1, int(math.ceil(total / float(rpp))))
         except Exception:
             total = total_pages = None
@@ -966,8 +966,7 @@ def table_content(table):
             keys.append(encode_pk(row, table_pk))
     result = Result('rows', columns=columns, rows=rows, keys=keys)
 
-    fk_lookup = {fk.column: (fk.dest_table, fk.dest_column)
-                 for fk in dataset.cached_foreign_keys(table)}
+    fk_lookup = dataset.cached_fk_lookup(table)
 
     return render_template(
         'table_content.html',
@@ -1137,6 +1136,13 @@ def back_url(table):
 def redirect_to_previous(table):
     return redirect(back_url(table))
 
+def fetch_row(model, token):
+    """
+    Decode a row key and fetch the row, one idiom for every row route.
+    """
+    expr = decode_pk(model, token)
+    return expr, model.select().where(expr).dicts().get()
+
 @app.route('/<table>/update/<b64:pk>/', methods=['GET', 'POST'])
 @require_table
 def table_update(table, pk):
@@ -1150,8 +1156,7 @@ def table_update(table, pk):
         return redirect(url_for('table_content', table=table))
 
     try:
-        expr = decode_pk(model, pk)
-        obj = model.get(expr)
+        expr, data = fetch_row(model, pk)
     except (model.DoesNotExist, ValueError):
         pk_repr = pk_display(table_pk, pk)
         flash('Could not fetch row with primary-key %s.' % str(pk_repr), 'danger')
@@ -1165,7 +1170,7 @@ def table_update(table, pk):
 
     row = {}
     for field in fields:
-        value = getattr(obj, field.name)
+        value = data[field.name]
         if value is None:
             row[field.name] = None
         elif isinstance(field, BlobField):
@@ -1235,8 +1240,7 @@ def table_delete(table, pk):
         return redirect(url_for('table_content', table=table))
 
     try:
-        expr = decode_pk(model, pk)
-        row = model.select().where(expr).dicts().get()
+        expr, row = fetch_row(model, pk)
     except (model.DoesNotExist, ValueError):
         pk_repr = pk_display(table_pk, pk)
         flash('Could not fetch row with primary-key %s.' % str(pk_repr), 'danger')
@@ -1274,16 +1278,14 @@ def table_row_detail(table, pk):
         return redirect(url_for('table_content', table=table))
 
     try:
-        expr = decode_pk(model, pk)
-        row = model.select().where(expr).dicts().get()
+        expr, row = fetch_row(model, pk)
     except (model.DoesNotExist, ValueError):
         pk_repr = pk_display(table_pk, pk)
         flash('Could not fetch row with primary-key %s.' % str(pk_repr),
               'danger')
         return redirect(url_for('table_content', table=table))
 
-    fk_lookup = {fk.column: (fk.dest_table, fk.dest_column)
-                 for fk in dataset.cached_foreign_keys(table)}
+    fk_lookup = dataset.cached_fk_lookup(table)
     return render_template(
         'table_row.html',
         allow_edit=not dataset.is_readonly,
@@ -1619,8 +1621,13 @@ def get_query_images():
 
 @app.context_processor
 def _general():
+    try:
+        dataset = get_dataset()
+    except Exception:
+        # The error page must render even without a usable dataset.
+        dataset = None
     return {
-        'dataset': get_dataset(),
+        'dataset': dataset,
         'datasets': datasets,
         'enable_load': app.config.get('ENABLE_LOAD'),
         'enable_filesystem': app.config.get('ENABLE_FILESYSTEM'),
@@ -1631,6 +1638,12 @@ def _general():
 @app.context_processor
 def _now():
     return {'now': datetime.datetime.now()}
+
+@app.errorhandler(403)
+@app.errorhandler(404)
+@app.errorhandler(500)
+def _error_page(exc):
+    return render_template('error.html', error=exc), exc.code
 
 @app.before_request
 def _reject_cross_site_post():
@@ -1649,8 +1662,10 @@ def _connect_db():
 
 @app.teardown_request
 def _close_db(exc):
-    dataset = get_dataset()
-    if not dataset._database.is_closed():
+    # Close via g rather than re-resolving. get_dataset can write the
+    # session, which is sealed by teardown time.
+    dataset = g.get('dataset')
+    if dataset is not None and not dataset._database.is_closed():
         dataset.close()
 
 

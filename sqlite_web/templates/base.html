@@ -15,7 +15,7 @@
     <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}" type="text/javascript"></script>
     <script type="text/javascript">
-      window.SQLITE_WEB_DB = {{ dataset.basename|tojson }};
+      window.SQLITE_WEB_DB = {{ (dataset.basename if dataset else '')|tojson }};
       $(function() {
         App.initialize();
       });
@@ -54,7 +54,7 @@
           {% endif %}
         </ul>
         <span class="navbar-text mr-auto">{% block content_title %}{% endblock %}</span>
-        {% if not dataset.is_readonly %}
+        {% if dataset and not dataset.is_readonly %}
           <div class="dropdown">
             <button class="btn btn-sm btn-outline-light dropdown-toggle" data-toggle="dropdown" id="createTableButton" aria-haspopup="true" aria-expanded="false" type="button">+ Table</button>
             <div class="dropdown-menu dropdown-menu-right p-2 create-table-menu" aria-labelledby="createTableButton">
