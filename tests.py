@@ -587,7 +587,8 @@ class TestMultiDb(BaseAppTestCase):
         self.client = sw.app.test_client()
 
     def test_download_follows_selected_dataset(self):
-        self.client.get('/select-dataset/', query_string={'name': 'two.db'})
+        self.client.get('/select-dataset/',
+                        query_string={'name': os.path.realpath(self.db2)})
         r = self.client.get('/download/')
         self.assertIn('two.db', r.headers['Content-Disposition'])
         path = os.path.join(self.tmp, 'snap2.db')
@@ -600,10 +601,82 @@ class TestMultiDb(BaseAppTestCase):
         conn.close()
         self.assertEqual(tables, ['t2'])
 
-        self.client.get('/select-dataset/', query_string={'name': 'app.db'})
+        self.client.get('/select-dataset/',
+                        query_string={'name': os.path.realpath(self.db_path)})
         r = self.client.get('/download/')
         self.assertIn('app.db', r.headers['Content-Disposition'])
         r.close()
+
+
+class TestDuplicateBasenames(BaseAppTestCase):
+    def setUp(self):
+        super().setUp()
+        self.db2 = os.path.join(self.tmp, 'alt', 'app.db')
+        os.makedirs(os.path.dirname(self.db2))
+        conn = sqlite3.connect(self.db2)
+        conn.execute('CREATE TABLE t2 (id INTEGER PRIMARY KEY)')
+        conn.commit()
+        conn.close()
+        sw.datasets.clear()
+        sw.initialize_app([self.db_path, self.db2])
+        sw.app.config['ENABLE_FILESYSTEM'] = True
+        self.client = sw.app.test_client()
+
+    def tearDown(self):
+        super().tearDown()
+        sw.app.config['ENABLE_FILESYSTEM'] = False
+
+    def select(self, path):
+        return self.client.get('/select-dataset/',
+                               query_string={'name': os.path.realpath(path)})
+
+    def test_both_databases_are_loaded(self):
+        self.assertEqual(sorted(sw.datasets), sorted([
+            os.path.realpath(self.db_path), os.path.realpath(self.db2)]))
+
+    def test_each_database_is_selectable(self):
+        self.select(self.db2)
+        self.assertIn(b'href="/t2/"', self.client.get('/').data)
+
+        self.select(self.db_path)
+        self.assertIn(b'href="/users/"', self.client.get('/').data)
+
+    def test_menu_shows_the_parent_directory(self):
+        # Long paths stay in the link target, out of the menu text.
+        r = self.client.get('/')
+        self.assertIn(b'>alt/app.db<', r.data)
+        self.assertIn(b'>%s/app.db<'
+                      % os.path.basename(os.path.realpath(self.tmp)).encode(),
+                      r.data)
+        self.assertNotIn(b'>%s<' % os.path.realpath(self.db2).encode(), r.data)
+
+    def test_download_uses_basename(self):
+        self.select(self.db2)
+        r = self.client.get('/download/')
+        self.assertIn('app.db', r.headers['Content-Disposition'])
+        r.close()
+
+    def test_runtime_load_leaves_loaded_databases_alone(self):
+        before = list(sw.datasets)
+        third = os.path.join(self.tmp, 'other', 'app.db')
+        os.makedirs(os.path.dirname(third))
+        conn = sqlite3.connect(third)
+        conn.execute('CREATE TABLE t3 (id INTEGER PRIMARY KEY)')
+        conn.commit()
+        conn.close()
+        r = self.client.post('/load/', data={'mode': 'filesystem',
+                                             'filename': third})
+        self.assertIn(r.status_code, (302, 303))
+        self.assertEqual(list(sw.datasets),
+                         before + [os.path.realpath(third)])
+        # The newly-loaded database becomes the selected one.
+        self.assertIn(b'href="/t3/"', self.client.get('/').data)
+
+    def test_unload_removes_only_the_named_database(self):
+        r = self.client.post('/unload/',
+                             data={'dataset': os.path.realpath(self.db2)})
+        self.assertIn(r.status_code, (302, 303))
+        self.assertEqual(list(sw.datasets), [os.path.realpath(self.db_path)])
 
 
 class TestRowDetailEdges(BaseAppTestCase):

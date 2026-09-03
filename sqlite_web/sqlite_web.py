@@ -194,6 +194,13 @@ class SqliteDataSet(DataSet):
         return os.path.basename(self.filename)
 
     @property
+    def short_path(self):
+        # Menu label. The parent directory is enough to tell apart the
+        # usual case of several databases sharing a basename.
+        head, tail = os.path.split(self.filename)
+        return os.path.join(os.path.basename(head), tail)
+
+    @property
     def is_readonly(self):
         db_file = self._database.database
         return db_file.endswith('?mode=ro')
@@ -455,10 +462,9 @@ def _add_dataset(enable_load, enable_filesystem):
     except Exception as exc:
         return None, 'Unable to load database: %s' % exc
     else:
-        basename = os.path.basename(path)
         with datasets_lock:
-            datasets[basename] = dataset
-        session['dataset'] = basename
+            datasets[dataset.filename] = dataset
+        session['dataset'] = dataset.filename
 
     return dataset, None
 
@@ -1914,8 +1920,11 @@ def initialize_app(filenames, read_only=False, password=None, url_prefix=None,
     if url_prefix:
         app.wsgi_app = PrefixMiddleware(app.wsgi_app, prefix=url_prefix)
 
+    # Databases are keyed on their path, which is stable and unique. Two
+    # databases may share a basename, which is only a display name.
     for filename in filenames:
-        datasets[os.path.basename(filename)] = initialize_dataset(filename)
+        dataset = initialize_dataset(filename)
+        datasets[dataset.filename] = dataset
 
 def configure_app():
     # This function exists to act as a console script entry-point.
