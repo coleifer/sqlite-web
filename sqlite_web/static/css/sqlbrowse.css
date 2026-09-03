@@ -91,6 +91,21 @@ table.cell-content td span.full {
     white-space: pre-wrap;
 }
 
+/* Row tracking. A wide table scrolls sideways, so the row under the
+   pointer and any selected rows are tinted across their full width to
+   keep them tied to their action icons. The theme's hover tint sits too
+   close to the stripe to follow, and its contextual row classes are no
+   use for selection, being either solid primary or that same grey. */
+table.cell-content tbody tr:hover > td {
+    background-color: rgba(0, 0, 0, .1);
+}
+table.cell-content tbody tr.row-selected > td {
+    background-color: #d9edf7;
+}
+table.cell-content tbody tr.row-selected:hover > td {
+    background-color: #c4e3f3;
+}
+
 /* Row action icons. */
 svg.icon {
     width: 14px;

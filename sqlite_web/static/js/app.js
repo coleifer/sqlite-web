@@ -108,13 +108,17 @@ App = window.App || {};
             });
         });
 
+        function syncSelection() {
+            $('input.toggle-pk').each(function (_) {
+                $(this).closest('tr').toggleClass('row-selected', this.checked);
+            });
+            $('button.bulk-action').prop('disabled', ($('input.toggle-pk:checked').length == 0));
+        }
         $('input#toggle-pk-all').on('click', function (evt) {
             $('input.toggle-pk').prop('checked', $(this).is(':checked'));
-            $('button.bulk-action').prop('disabled', ($('input.toggle-pk:checked').length == 0));
+            syncSelection();
         });
-        $('input.toggle-pk').on('click', function (evt) {
-            $('button.bulk-action').prop('disabled', ($('input.toggle-pk:checked').length == 0));
-        });
+        $('input.toggle-pk').on('click', syncSelection);
 
         /* Copy cell values and rows as JSON to the clipboard. */
         function copyText(text, done) {
