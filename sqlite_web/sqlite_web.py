@@ -1560,7 +1560,9 @@ def value_filter(value, max_length=50):
     if isinstance(value, (int, float)):
         return value
 
-    if isinstance(value, (bytes, bytearray, memoryview)):
+    if isinstance(value, memoryview):
+        value = bytes(value)
+    if isinstance(value, (bytes, bytearray)):
         try:
             value = value.decode('utf8')
         except UnicodeDecodeError:
@@ -1608,7 +1610,7 @@ def _format_create_table(sql):
 def format_create_table(sql):
     try:
         return _format_create_table(sql)
-    except:
+    except Exception:
         return sql
 
 @app.template_filter('highlight')
