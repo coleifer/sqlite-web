@@ -1663,6 +1663,13 @@ def _reject_cross_site_post():
     if request.method == 'POST' and \
        request.headers.get('Sec-Fetch-Site') == 'cross-site':
         abort(403)
+    # Defense-in-depth: also reject cross-origin POSTs where the Origin
+    # header is present and does not match the application's own host.
+    if request.method == 'POST' and request.headers.get('Origin'):
+        origin = request.headers['Origin']
+        host = request.headers.get('Host', '')
+        if not origin.endswith('//' + host):
+            abort(403)
 
 @app.before_request
 def _connect_db():

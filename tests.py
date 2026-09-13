@@ -280,6 +280,19 @@ class TestExecutionPolicy(BaseAppTestCase):
         r = self.client.post('/query/', data={'sql': 'SELECT 1'})
         self.assertEqual(r.status_code, 200)
 
+    def test_cross_origin_post_rejected(self):
+        # POST with an Origin header that doesn't match the Host should be
+        # rejected as a defense-in-depth CSRF measure.
+        r = self.client.post('/query/', data={'sql': 'SELECT 1'},
+                             headers={'Origin': 'http://evil.example.com'})
+        self.assertEqual(r.status_code, 403)
+
+    def test_same_origin_post_accepted(self):
+        # POST with a matching Origin header should be accepted.
+        r = self.client.post('/query/', data={'sql': 'SELECT 1'},
+                             headers={'Origin': 'http://localhost'})
+        self.assertEqual(r.status_code, 200)
+
     def test_get_does_not_execute_writes(self):
         self.client.get('/query/', query_string={'sql': 'DELETE FROM users'})
         self.assertEqual(self.dbrows('SELECT COUNT(*) FROM users')[0][0], 3)
