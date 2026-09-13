@@ -1608,7 +1608,7 @@ def _format_create_table(sql):
 def format_create_table(sql):
     try:
         return _format_create_table(sql)
-    except:
+    except AttributeError:
         return sql
 
 @app.template_filter('highlight')
