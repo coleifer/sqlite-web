@@ -100,6 +100,7 @@ app = Flask(
     static_folder=os.path.join(CUR_DIR, 'static'),
     template_folder=os.path.join(CUR_DIR, 'templates'))
 app.config.from_object(__name__)
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 datasets = {}
 datasets_lock = threading.Lock()
 dataset_config = {}

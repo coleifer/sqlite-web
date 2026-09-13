@@ -844,6 +844,11 @@ class TestCreateTable(BaseAppTestCase):
 
 
 class TestErrorPages(BaseAppTestCase):
+    def test_session_cookie_samesite(self):
+        # The session cookie should have SameSite=Lax to provide
+        # baseline CSRF protection.
+        self.assertEqual(sw.app.config.get('SESSION_COOKIE_SAMESITE'), 'Lax')
+
     def test_404_renders_in_chrome(self):
         r = self.client.get('/nope-not-a-table/')
         self.assertEqual(r.status_code, 404)
