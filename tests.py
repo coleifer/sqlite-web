@@ -935,6 +935,18 @@ class TestInsertForm(BaseAppTestCase):
 
 
 class TestContentTab(BaseAppTestCase):
+    def test_format_create_table_with_valid_sql(self):
+        sql = 'CREATE TABLE t1 (id INTEGER PRIMARY KEY, name TEXT)'
+        result = sw.format_create_table(sql)
+        self.assertIn('CREATE TABLE t1', result)
+        self.assertIn('id INTEGER PRIMARY KEY', result)
+
+    def test_format_create_table_with_invalid_sql(self):
+        # When SQL doesn't match the expected pattern, the filter
+        # should return the original SQL rather than raising an error.
+        self.assertEqual(sw.format_create_table('INVALID SQL'), 'INVALID SQL')
+        self.assertEqual(sw.format_create_table(''), '')
+
     def test_renders_with_row_actions(self):
         r = self.client.get('/users/content/')
         self.assertEqual(r.status_code, 200)
