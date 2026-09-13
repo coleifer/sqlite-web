@@ -1388,6 +1388,11 @@ def db_download():
         app.logger.exception('Error creating database snapshot.')
         return redirect(url_for('index'))
 
+    if not os.path.exists(dest):
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        flash('Database snapshot was not created.', 'danger')
+        return redirect(url_for('index'))
+
     def remove_snapshot():
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
