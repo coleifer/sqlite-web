@@ -6,6 +6,7 @@ import base64
 import datetime
 import decimal
 import hashlib
+import hmac
 import importlib
 import logging
 import math
@@ -379,7 +380,8 @@ def login():
     if not app.config.get('PASSWORD'):
         return redirect(url_for('index'))
     if request.method == 'POST':
-        if request.form.get('password') == app.config['PASSWORD']:
+        if hmac.compare_digest(request.form.get('password', ''),
+                               app.config['PASSWORD']):
             session['authorized'] = True
             return redirect(session.get('next_url') or url_for('index'))
         flash('The password you entered is incorrect.', 'danger')

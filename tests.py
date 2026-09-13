@@ -827,6 +827,35 @@ class TestPasswordlessLogin(BaseAppTestCase):
             self.assertNotIn('authorized', s)
 
 
+class TestPasswordLogin(BaseAppTestCase):
+    def setUp(self):
+        super().setUp()
+        sw.app.config['PASSWORD'] = 'test-pass'
+        self.client = sw.app.test_client()
+
+    def tearDown(self):
+        super().tearDown()
+        sw.app.config.pop('PASSWORD', None)
+
+    def test_login_page_renders(self):
+        r = self.client.get('/login/')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(b'password', r.data)
+
+    def test_correct_password_authenticates(self):
+        r = self.client.post('/login/', data={'password': 'test-pass'})
+        self.assertIn(r.status_code, (302, 303))
+        with self.client.session_transaction() as s:
+            self.assertTrue(s.get('authorized'))
+
+    def test_wrong_password_rejected(self):
+        r = self.client.post('/login/', data={'password': 'wrong'})
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(b'incorrect', r.data)
+        with self.client.session_transaction() as s:
+            self.assertNotIn('authorized', s)
+
+
 class TestCreateTable(BaseAppTestCase):
     def test_create_failure_keeps_flash_destination(self):
         # The sqlite_ prefix is reserved, so creation fails. The redirect
