@@ -843,6 +843,42 @@ class TestCreateTable(BaseAppTestCase):
         self.assertIn('/fresh/import/', r.headers['Location'])
 
 
+class TestPrefixMiddleware(BaseAppTestCase):
+    def test_prefix_strips_correctly(self):
+        # Use a minimal WSGI app to avoid Flask's full environ needs.
+        def dummy_app(environ, start_response):
+            start_response('200 OK', [('Content-Type', 'text/plain')])
+            return [environ['PATH_INFO'].encode()]
+        mw = sw.PrefixMiddleware(dummy_app, prefix='/myprefix')
+        environ = {'PATH_INFO': '/myprefix/', 'SCRIPT_NAME': '', 'SERVER_NAME': 'localhost'}
+        result = []
+        def capture(s, h, r=result): r.append(s)
+        body = mw(environ, capture)
+        self.assertEqual(environ['PATH_INFO'], '/')
+        self.assertEqual(environ['SCRIPT_NAME'], '/myprefix')
+        self.assertEqual(body, [b'/'])
+
+    def test_prefix_strips_subpath(self):
+        def dummy_app(environ, start_response):
+            start_response('200 OK', [('Content-Type', 'text/plain')])
+            return [environ['PATH_INFO'].encode()]
+        mw = sw.PrefixMiddleware(dummy_app, prefix='/myprefix')
+        environ = {'PATH_INFO': '/myprefix/users/', 'SCRIPT_NAME': '', 'SERVER_NAME': 'localhost'}
+        body = mw(environ, lambda s, h: None)
+        self.assertEqual(environ['PATH_INFO'], '/users/')
+        self.assertEqual(body, [b'/users/'])
+
+    def test_non_matching_prefix_returns_404(self):
+        def dummy_app(environ, start_response):
+            start_response('200 OK', [])
+            return []
+        mw = sw.PrefixMiddleware(dummy_app, prefix='/myprefix')
+        environ = {'PATH_INFO': '/other/', 'SCRIPT_NAME': ''}
+        status = []
+        mw(environ, lambda s, h: status.append(s))
+        self.assertEqual(status[0], '404 Not Found')
+
+
 class TestErrorPages(BaseAppTestCase):
     def test_404_renders_in_chrome(self):
         r = self.client.get('/nope-not-a-table/')

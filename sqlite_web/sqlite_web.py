@@ -1689,7 +1689,7 @@ class PrefixMiddleware(object):
     def __call__(self, environ, start_response):
         path = environ['PATH_INFO']
         if path == self.prefix or path.startswith(self.prefix + '/'):
-            environ['PATH_INFO'] = path[self.prefix_len:] or '/'
+            environ['PATH_INFO'] = path[self.prefix_len:]
             environ['SCRIPT_NAME'] = self.prefix
             return self.app(environ, start_response)
         else:
