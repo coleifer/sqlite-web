@@ -335,6 +335,16 @@ class TestValueFilter(unittest.TestCase):
         sw.app.config['TRUNCATE_VALUES'] = False
         self.assertIn('ff' * 600, sw.value_filter(data))
 
+    def test_memoryview_displayed_as_hex(self):
+        data = memoryview(b'\x00\xff\xab')
+        result = sw.value_filter(data)
+        self.assertEqual(result, '00ffab')
+
+    def test_memoryview_utf8_decodable(self):
+        data = memoryview(b'hello')
+        result = sw.value_filter(data)
+        self.assertEqual(result, 'hello')
+
 
 class TestExplain(BaseAppTestCase):
     def test_explain_select(self):
