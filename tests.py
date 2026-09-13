@@ -935,6 +935,17 @@ class TestInsertForm(BaseAppTestCase):
 
 
 class TestContentTab(BaseAppTestCase):
+    def test_bulk_delete_redirect_url_is_clean(self):
+        r = self.client.post('/users/content/',
+                             data={'action': 'bulk-delete',
+                                   'pk': key_encode([1])},
+                             headers={'Sec-Fetch-Site': 'same-origin'})
+        self.assertIn(r.status_code, (302, 303))
+        location = r.headers['Location']
+        self.assertNotIn('action=', location)
+        self.assertNotIn('pk=', location)
+        self.assertIn('/users/content/', location)
+
     def test_renders_with_row_actions(self):
         r = self.client.get('/users/content/')
         self.assertEqual(r.status_code, 200)

@@ -924,7 +924,7 @@ def table_content(table):
                 app.logger.exception('Error performing bulk delete.')
             else:
                 flash('Successfully deleted %s row(s)' % n, 'success')
-        return redirect(request.full_path)
+        return redirect(url_for('table_content', table=table))
 
     page_number = request.args.get('page') or ''
     if page_number == 'last': page_number = '1000000'
