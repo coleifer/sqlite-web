@@ -1562,12 +1562,12 @@ def value_filter(value, max_length=50):
 
     if isinstance(value, (bytes, bytearray, memoryview)):
         try:
-            value = value.decode('utf8')
+            value = bytes(value).decode('utf8')
         except UnicodeDecodeError:
             if app.config['BLOB_AS_BASE64']:
-                value = base64.b64encode(value).decode('utf8')
+                value = base64.b64encode(bytes(value)).decode('utf8')
             else:
-                value = value.hex()
+                value = bytes(value).hex()
             if app.config['TRUNCATE_VALUES']:
                 value = value[:1024]
     if isinstance(value, str):
