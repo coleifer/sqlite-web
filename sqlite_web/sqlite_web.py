@@ -1325,7 +1325,8 @@ def export(query, export_format, table=None):
         mimetype = 'text/csv'
 
     if table:
-        filename = '%s-%s' % (table, filename)
+        safe_table = secure_filename(table) or 'table'
+        filename = '%s-%s' % (safe_table, filename)
 
     # Avoid any special chars in export filename.
     filename = re.sub(r'[^\w\d\-\.]+', '', filename)

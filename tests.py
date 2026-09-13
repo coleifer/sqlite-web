@@ -865,6 +865,24 @@ class TestErrorPages(BaseAppTestCase):
 
 
 class TestQueryTemplates(BaseAppTestCase):
+    def test_export_filename_for_normal_table(self):
+        r = self.client.post('/users/export/',
+                             data={'export_format': 'csv',
+                                   'columns': ['id', 'username']})
+        self.assertIn('attachment', r.headers.get('Content-Disposition', ''))
+        self.assertIn('users-export.csv', r.headers['Content-Disposition'])
+
+    def test_export_filename_for_table_with_special_chars(self):
+        # Table names with special characters should produce safe filenames.
+        with sw.app.test_request_context('/'):
+            result = sw.export(
+                sw.get_dataset()['users'].all(),
+                'csv', table='my table!')
+            disposition = result.headers['Content-Disposition']
+            # secure_filename converts 'my table!' to 'my_table'
+            self.assertIn('my_table', disposition)
+            self.assertNotIn('my table', disposition)
+
     def test_shared_form_renders_on_both_pages(self):
         for url, textarea_id in (('/query/', b'id="sql"'),
                                  ('/users/query/', b'id="table-sql"')):
