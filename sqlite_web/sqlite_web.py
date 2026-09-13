@@ -93,13 +93,13 @@ BLOB_AS_BASE64 = False  # Default is hex.
 ROWS_PER_PAGE = 50
 QUERY_ROWS_PER_PAGE = 1000
 TRUNCATE_VALUES = True
-SECRET_KEY = 'sqlite-database-browser-0.1.0'
 
 app = Flask(
     __name__,
     static_folder=os.path.join(CUR_DIR, 'static'),
     template_folder=os.path.join(CUR_DIR, 'templates'))
 app.config.from_object(__name__)
+app.secret_key = os.urandom(32)
 datasets = {}
 datasets_lock = threading.Lock()
 dataset_config = {}
