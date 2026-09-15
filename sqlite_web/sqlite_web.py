@@ -1594,17 +1594,18 @@ def value_filter(value, max_length=50):
         return escape(value)
     return value
 
-column_re = re.compile(r'(.+?)\((.+)\)', re.S)
+column_re = re.compile(r'(.+?)\((.+)\)(.*)', re.S)
 column_split_re = re.compile(r'(?:[^,(]|\([^)]*\))+')
 
 def _format_create_table(sql):
-    create_table, column_list = column_re.search(sql).groups()
+    create_table, column_list, extra = column_re.search(sql).groups()
     columns = ['  %s' % column.strip()
                for column in column_split_re.findall(column_list)
                if column.strip()]
-    return '%s (\n%s\n)' % (
+    return ('%s (\n%s\n)\n%s' % (
         create_table,
-        ',\n'.join(columns))
+        ',\n'.join(columns),
+        extra.strip())).strip()
 
 @app.template_filter()
 def format_create_table(sql):
