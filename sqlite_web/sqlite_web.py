@@ -1926,7 +1926,13 @@ def initialize_app(filenames, read_only=False, password=None, url_prefix=None,
         install_auth_handler(password)
 
     if url_prefix:
-        app.wsgi_app = PrefixMiddleware(app.wsgi_app, prefix=url_prefix)
+        middleware = PrefixMiddleware(app.wsgi_app, prefix=url_prefix)
+        app.wsgi_app = middleware
+        # Flask takes the session cookie path from APPLICATION_ROOT, not from
+        # the SCRIPT_NAME the middleware sets, so the cookie would otherwise go
+        # out on "/" -- where it collides with any other app on the same host
+        # that also names its cookie "session".
+        app.config['SESSION_COOKIE_PATH'] = middleware.prefix
 
     # Databases are keyed on their path, which is stable and unique. Two
     # databases may share a basename, which is only a display name.

@@ -968,6 +968,35 @@ class TestContentTab(BaseAppTestCase):
         self.assertIn(b'alert-dismissible', r.data)
         self.assertNotIn(b'alert-dismissable', r.data)
 
+class TestUrlPrefix(BaseAppTestCase):
+    def setUp(self):
+        super(TestUrlPrefix, self).setUp()
+        self._wsgi_app = sw.app.wsgi_app
+        self._cookie_path = sw.app.config['SESSION_COOKIE_PATH']
+        sw.datasets.clear()
+        sw.initialize_app([self.db_path], url_prefix='sqlite')
+        self.client = sw.app.test_client()
+
+    def tearDown(self):
+        sw.app.wsgi_app = self._wsgi_app
+        sw.app.config['SESSION_COOKIE_PATH'] = self._cookie_path
+        super(TestUrlPrefix, self).tearDown()
+
+    def test_session_cookie_scoped_to_prefix(self):
+        r = self.client.get('/sqlite/users/content/')
+        self.assertEqual(r.status_code, 200)
+        cookies = r.headers.getlist('Set-Cookie')
+        self.assertTrue(cookies)
+        for cookie in cookies:
+            self.assertIn('Path=/sqlite', cookie)
+
+    def test_session_round_trips_under_the_prefix(self):
+        # The saved position is only read back on the second request if the
+        # client was able to return the cookie to the prefixed url.
+        self.client.get('/sqlite/users/content/?ordering=-2')
+        r = self.client.get('/sqlite/users/row/%s/' % key_encode([1]))
+        self.assertIn(b'href="/sqlite/users/content/?ordering=-2"', r.data)
+
 
 if __name__ == '__main__':
     unittest.main()
