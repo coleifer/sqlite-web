@@ -969,5 +969,21 @@ class TestContentTab(BaseAppTestCase):
         self.assertNotIn(b'alert-dismissable', r.data)
 
 
+class TestUrlPrefix(BaseAppTestCase):
+    def setUp(self):
+        super(TestUrlPrefix, self).setUp()
+        self.wsgi_app = sw.app.wsgi_app
+        sw.initialize_app([], url_prefix='/sqlite/')
+
+    def tearDown(self):
+        sw.app.wsgi_app = self.wsgi_app
+        sw.app.config['SESSION_COOKIE_PATH'] = None
+        super(TestUrlPrefix, self).tearDown()
+
+    def test_session_cookie_scoped_to_prefix(self):
+        r = self.client.get('/sqlite/users/content/')
+        self.assertIn('Path=/sqlite', r.headers['Set-Cookie'])
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -94,6 +94,7 @@ ROWS_PER_PAGE = 50
 QUERY_ROWS_PER_PAGE = 1000
 TRUNCATE_VALUES = True
 SECRET_KEY = 'sqlite-database-browser-0.1.0'
+SESSION_COOKIE_NAME = 'sqlite_web_session'
 
 app = Flask(
     __name__,
@@ -1927,6 +1928,7 @@ def initialize_app(filenames, read_only=False, password=None, url_prefix=None,
 
     if url_prefix:
         app.wsgi_app = PrefixMiddleware(app.wsgi_app, prefix=url_prefix)
+        app.config['SESSION_COOKIE_PATH'] = app.wsgi_app.prefix
 
     # Databases are keyed on their path, which is stable and unique. Two
     # databases may share a basename, which is only a display name.
