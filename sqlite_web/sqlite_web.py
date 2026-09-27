@@ -165,12 +165,6 @@ class SqliteDataSet(DataSet):
         return self._cached(('fk_lookup', table), build)
 
     def cached_has_usable_pk(self, table):
-        """
-        True when the table is row-addressable. Views get a synthetic
-        all-column pk from introspection, and reflection drops pk columns
-        whose names it cannot map onto field names, leaving a key that
-        under-specifies the row. Neither can address a single row.
-        """
         def check():
             if self.cached_is_view(table):
                 return False

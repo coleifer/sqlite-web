@@ -232,13 +232,13 @@ class BaseAppTestCase(unittest.TestCase):
         CREATE TABLE parent (id INTEGER PRIMARY KEY, name TEXT);
         INSERT INTO parent (name) VALUES ('p-one');
         CREATE TABLE child (id INTEGER PRIMARY KEY,
-            parent_id INTEGER REFERENCES parent(id), label TEXT);
+            parent_id INTEGER REFERENCES parent, label TEXT);
         INSERT INTO child (parent_id, label) VALUES (1, 'c-one');
         CREATE TABLE nopk (a TEXT);
         INSERT INTO nopk VALUES ('no-pk-row');
         CREATE TABLE oddpk ("user id" INTEGER NOT NULL, grp TEXT NOT NULL,
             val TEXT, PRIMARY KEY ("user id", grp));
-        INSERT INTO oddpk VALUES (7, 'a', 'odd-row');
+        INSERT INTO oddpk VALUES (7, 'a', 'odd-row'), (8, 'a', 'same-grp');
         CREATE TABLE tag (name TEXT PRIMARY KEY);
         INSERT INTO tag VALUES (''), ('red');
         CREATE TABLE post (id INTEGER PRIMARY KEY,
@@ -392,6 +392,10 @@ class TestForeignKeyLinks(BaseAppTestCase):
                              data={'sql': 'SELECT * FROM child'})
         self.assertIn(b'/parent/query/', r.data)
 
+    def test_structure_shows_fk_target(self):
+        r = self.client.get('/child/')
+        self.assertIn(b'<code>parent.id</code>', r.data)
+
     def test_fk_link_resolves(self):
         r = self.client.get('/parent/query/', query_string={
             'sql': 'SELECT * FROM "parent" WHERE "id" = 1'})
@@ -479,21 +483,15 @@ class TestRowKeyRoutes(BaseAppTestCase):
         r = self.client.get('/comp/row/%s/' % token)
         self.assertIn(r.status_code, (302, 303))
 
-    def test_sanitized_pk_column_gets_no_row_links(self):
-        # Reflection drops "user id" from the composite key, leaving a
-        # grp-only pk that would target every row sharing grp. Such
-        # tables must render but offer no row links.
+    def test_sanitized_pk_column_stays_in_key(self):
+        # "user id" reflects as user_id and still keys the row. A grp-only
+        # pk would target every row sharing grp.
+        token = key_encode([7, 'a'])
         r = self.client.get('/oddpk/content/')
-        self.assertEqual(r.status_code, 200)
-        self.assertIn(b'odd-row', r.data)
-        self.assertNotIn(b'/oddpk/row/', r.data)
-        self.assertNotIn(b'/oddpk/delete/', r.data)
-
-        # A grp-only token matches the reflected pk arity, the guard
-        # must still refuse the delete outright.
-        r = self.client.post('/oddpk/delete/%s/' % key_encode(['a']))
+        self.assertIn(('/oddpk/row/%s/' % token).encode(), r.data)
+        r = self.client.post('/oddpk/delete/%s/' % token)
         self.assertIn(r.status_code, (302, 303))
-        self.assertEqual(self.dbrows('SELECT COUNT(*) FROM oddpk')[0][0], 1)
+        self.assertEqual(self.dbrows('SELECT val FROM oddpk'), [('same-grp',)])
 
 
 class TestDownload(BaseAppTestCase):
