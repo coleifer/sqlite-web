@@ -402,6 +402,95 @@ class TestForeignKeyLinks(BaseAppTestCase):
         self.assertNotIn(b'/parent/query/', r.data)
 
 
+class TestImplicitForeignKeyLinks(BaseAppTestCase):
+    SCHEMA = BaseAppTestCase.SCHEMA + """
+        PRAGMA foreign_keys = ON;
+        CREATE TABLE implicit_child (id INTEGER PRIMARY KEY,
+            parent_id INTEGER REFERENCES parent, label TEXT);
+        INSERT INTO implicit_child VALUES (1, 1, 'implicit-child'),
+            (2, NULL, 'null-child');
+        INSERT INTO tag VALUES ('quo''te');
+        CREATE TABLE implicit_post (id INTEGER PRIMARY KEY,
+            tag TEXT REFERENCES tag);
+        INSERT INTO implicit_post VALUES (1, 'quo''te'), (2, '');
+        CREATE TABLE implicit_comp (id INTEGER PRIMARY KEY, x TEXT, y TEXT,
+            FOREIGN KEY (x, y) REFERENCES comp);
+        INSERT INTO implicit_comp VALUES (1, 'US', 'A:::B');
+        CREATE TABLE implicit_nopk (id INTEGER PRIMARY KEY,
+            a TEXT REFERENCES nopk);
+    """
+
+    def test_single_column_links(self):
+        for table, row_id, parent, column, value in (
+                ('implicit_child', 1, 'parent', 'id', 1),
+                ('implicit_post', 1, 'tag', 'name', "quo'te"),
+                ('implicit_post', 2, 'tag', 'name', '')):
+            with sw.app.test_request_context():
+                link = sw.fk_link(value, (parent, column))
+            for path, query in (
+                    ('/%s/content/' % table, None),
+                    ('/%s/query/' % table,
+                     {'sql': 'SELECT * FROM "%s"' % table}),
+                    ('/%s/row/%s/' % (table, key_encode([row_id])), None)):
+                with self.subTest(path=path, value=value):
+                    r = self.client.get(path, query_string=query)
+                    self.assertEqual(r.status_code, 200)
+                    self.assertIn(('href="%s"' % sw.escape(link)).encode(),
+                                  r.data)
+                    self.assertIn(('title="%s.%s"' %
+                                   (parent, column)).encode(), r.data)
+            r = self.client.get(link)
+            self.assertEqual(r.status_code, 200)
+            self.assertNotIn(b'Empty result set.', r.data)
+            r = self.client.post(link, data={'export_json': '1'})
+            self.assertEqual(r.status_code, 200)
+            self.assertEqual([row[column] for row in r.get_json()], [value])
+
+    def test_null_value_has_no_link(self):
+        r = self.client.get('/implicit_child/row/%s/' % key_encode([2]))
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(b'<code>NULL</code>', r.data)
+        self.assertNotIn(b'title="parent.id"', r.data)
+
+    def test_composite_reference_has_no_links(self):
+        for path, query in (
+                ('/implicit_comp/content/', None),
+                ('/implicit_comp/query/',
+                 {'sql': 'SELECT * FROM implicit_comp'}),
+                ('/implicit_comp/row/%s/' % key_encode([1]), None)):
+            with self.subTest(path=path):
+                r = self.client.get(path, query_string=query)
+                self.assertEqual(r.status_code, 200)
+                self.assertIn(b'A:::B', r.data)
+                self.assertNotIn(b'/comp/query/', r.data)
+
+    def test_parent_without_primary_key_has_no_link(self):
+        dataset = next(iter(sw.datasets.values()))
+        with dataset._database.connection_context():
+            self.assertEqual(dataset.cached_fk_lookup('implicit_nopk'), {})
+
+    def test_primary_key_rename_invalidates_lookup(self):
+        r = self.client.get('/implicit_child/content/')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(b'title="parent.id"', r.data)
+        self.dbrows('ALTER TABLE parent RENAME COLUMN id TO parent_key')
+        r = self.client.get('/implicit_child/content/')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(b'title="parent.parent_key"', r.data)
+        self.assertNotIn(b'title="parent.id"', r.data)
+
+
+class TestReadOnlyImplicitForeignKeyLinks(TestImplicitForeignKeyLinks):
+    def setUp(self):
+        super().setUp()
+        sw.datasets.clear()
+        sw.initialize_app([self.db_path], read_only=True)
+
+    def tearDown(self):
+        super().tearDown()
+        sw.dataset_config['read_only'] = False
+
+
 class TestLastViewed(BaseAppTestCase):
     def test_single_capped_session_key(self):
         with self.client.session_transaction() as s:

@@ -158,10 +158,24 @@ class SqliteDataSet(DataSet):
         return self._cached(('foreign_keys', table),
                             lambda: self.get_foreign_keys(table))
 
+    def cached_primary_keys(self, table):
+        return self._cached(('primary_keys', table),
+                            lambda: self._database.get_primary_keys(table))
+
     def cached_fk_lookup(self, table):
         def build():
-            return {fk.column: (fk.dest_table, fk.dest_column)
-                    for fk in self.cached_foreign_keys(table)}
+            lookup = {}
+            for fk in self.cached_foreign_keys(table):
+                dest_column = fk.dest_column
+                if dest_column is None:
+                    # REFERENCES parent omits the destination column, which
+                    # SQLite resolves to the parent's primary key.
+                    primary_keys = self.cached_primary_keys(fk.dest_table)
+                    if len(primary_keys) != 1:
+                        continue
+                    dest_column = primary_keys[0]
+                lookup[fk.column] = (fk.dest_table, dest_column)
+            return lookup
         return self._cached(('fk_lookup', table), build)
 
     def cached_has_usable_pk(self, table):
