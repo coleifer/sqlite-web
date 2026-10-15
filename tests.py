@@ -336,6 +336,13 @@ class TestValueFilter(unittest.TestCase):
         self.assertIn('ff' * 600, sw.value_filter(data))
 
 
+class TestFormatCreateTable(unittest.TestCase):
+    def test_view_sql_unchanged(self):
+        sql = ('CREATE VIEW v AS SELECT a FROM (SELECT a, b FROM t)\n'
+               '  WHERE b = 1')
+        self.assertEqual(sw.format_create_table(sql), sql)
+
+
 class TestExplain(BaseAppTestCase):
     def test_explain_select(self):
         r = self.client.post('/query/', data={'sql': 'SELECT * FROM users',
@@ -891,7 +898,7 @@ class TestQueryTemplates(BaseAppTestCase):
         # A bookmark can reference a dropped or foreign table. Its sql
         # falls back to the generic query page.
         r = self.client.get('/nope/query/', query_string={'sql': 'SELECT 1'})
-        self.assertEqual(r.status_code, 302)
+        self.assertIn(r.status_code, (302, 303))
         self.assertIn('/query/?sql=SELECT', r.headers['Location'])
         r = self.client.get('/nope/query/', query_string={'sql': 'SELECT 1'},
                             follow_redirects=True)

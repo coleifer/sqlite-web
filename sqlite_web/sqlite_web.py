@@ -1593,6 +1593,10 @@ column_re = re.compile(r'(.+?)\((.+)\)(.*)', re.S)
 column_split_re = re.compile(r'(?:[^,(]|\([^)]*\))+')
 
 def _format_create_table(sql):
+    # Sqlite stores the prefix normalized. A view's parens hold subqueries
+    # and calls, not a column list.
+    if sql.startswith('CREATE VIEW'):
+        return sql
     create_table, column_list, extra = column_re.search(sql).groups()
     columns = ['  %s' % column.strip()
                for column in column_split_re.findall(column_list)
